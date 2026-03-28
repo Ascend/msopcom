@@ -143,7 +143,7 @@ inline bool InitGlobalHead(RecordGlobalHead &head, uint64_t blockDim, KernelType
     // 检查是否需要双页表地址还原，如是则配置偏移地址
     DeviceType deviceType = GetDeviceTypeBySocVersion(DeviceContext::Local().GetSocVersion());
     if(IsC220Arch(deviceType)) {
-        rtError_t err = rtGetL2CacheOffsetOrigin(DeviceContext::GetRunningDeviceId(), &head.kernelInfo.l2CacheOffset);
+        rtError_t err = rtGetL2CacheOffsetOrigin(DeviceContext::Local().GetDeviceId(), &head.kernelInfo.l2CacheOffset);
         if (err != RT_ERROR_NONE) {
             ERROR_LOG("Get L2Cache Offset failed, ret is %d.", err);
             return false;
