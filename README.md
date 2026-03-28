@@ -1,142 +1,59 @@
-# MindStudio Ops Common
+<h1 align="center">MindStudio Ops Common</h1>
 
-## 最新消息
+<div align="center">
+<h2>昇腾 AI 算子工具基础组件</h2>
+
+ [![Ascend](https://img.shields.io/badge/Community-MindStudio-blue.svg)](https://www.hiascend.com/developer/software/mindstudio) 
+ [![License](https://badgen.net/badge/License/MulanPSL-2.0/blue)](./docs/LICENSE)
+
+</div>
+
+## ✨ 最新消息
 
 * [2025.12.30]：MindStudio Ops Common项目首次上线 
 
-## 简介
+<br>
+
+## ️ ℹ️ 简介
 
 MindStudio Ops Common（算子工具基础组件，msOpCom）是算子工具基础组件，对于昇腾产品工具而言，在开发维测环境下，需要将运行时进行改变，以支持"隐式"行为的隐藏。
 
-## 目录结构
+## ⚙️ 功能介绍
 
-针对该软件仓，整体目录设计思路如下：
+msOpCom主要为算子工具提供统一的劫持能力，使得算子工具可以完成桩函数注入、接口劫持等功能。此处仅针对动态插桩能力，静态插桩能力由各组件自身承载。
 
-```text
-MindStudio-Ops-Common
-|-- .gitsubmodule          # 管理依赖的submodule文件
-|-- build.py                # 一键式构建脚本入口
-|-- csrc                    # 提供针对CPU侧接口的劫持能力
-  |-- include               # 劫持对象的原始头文件
-  |-- core                  # 核心功能：通信(控制，数据-数据流/文件，支持父子孙进程);接口注册;接口绑定;
-  |-- runtime               # 提供runtime下的接口的劫持函数 和 原始接口的别名
-    |-- RuntimeOrigin.h     # 提供原始接口的别名
-    |-- injectionOfxxx      # 提供runtime下的xx接口的劫持函数
-  |-- ...
-  |-- bind                  # 将接口与具体的工具绑定，并支持进程间控制和数据传输能力
-    |-- BindCoverage.cpp    # 将decorated function和具体的runtime接口绑定,每个工具一个
-  |-- kernel_injection      # 提供针对kernel侧的劫持能力, 内容过少
-|-- test                    # 测试用例看护
-|-- thirdparty              # 三方依赖存放目录
-|-- docs                    # 项目文档介绍
-└── README.md               # 整体仓代码说明
-```
+  - (对于劫持目标) 提供原生接口的管理
+  - (统一共性插件) 提供注入(修饰)函数的管理
+  - (对于特定工具) 提供劫持接口的统一管理，并支持注入函数的通信控制
+  - 具体工具直接引用该仓库，完成二进制的编译，提供submodule功能支持特定工具injection的单独编译。
 
-说明：
+## 📦 安装指南
 
-- csrc中提供了如下功能：
+介绍msOpCom工具的环境依赖及安装方式，具体请参见[《msOpCom 开发环境搭建及编译和UT方法》](./docs/zh/development_guide/develop_guide.md)。
 
-  + (对于劫持目标) 提供原生接口的管理
-  + (统一共性插件) 提供注入(修饰)函数的管理
-  + (对于特定工具) 提供劫持接口的统一管理，并支持注入函数的通信控制
-  + 具体工具直接引用该仓库，完成二进制的编译，提供submodule功能支持特定工具injection的单独编译。
-- 此处kernel_injection仅针对动态插桩能力(静态插桩能力由各组件自身承载)
-  + 现支持bisheng-tune，未来需要支持msbit的能力
-  + 本身需要配套csrc中的kernel替换能力使能，并由其作为出口
-  + 除了特定插件外，后续插件能力优先集成到mstracekit中，特定插件可以集成到特定工具。比如：监控插件到msprof，检测插件到mssanitizer。
+## 📘 使用指南
 
-## 环境部署
+msOpCom作为公共组件不具备独立功能，无法独立使用，请参考相关工具如[msSanitizer](https://gitcode.com/Ascend/mssanitizer)或[msOpProf](https://gitcode.com/Ascend/msopprof)相关内容。
 
-### 环境依赖
+## 💡 典型案例
 
-- 硬件环境请参见《[昇腾产品形态说明](https://www.hiascend.com/document/detail/zh/AscendFAQ/ProduTech/productform/hardwaredesc_0001.html)》。
-- 工具的使用运行需要提前获取并安装CANN开源版本，当前CANN开源版本正在发布中，敬请期待。
+msOpCom作为公共组件不具备独立功能，不具备功能案例，请参考相关工具如[msSanitizer](https://gitcode.com/Ascend/mssanitizer)或[msOpProf](https://gitcode.com/Ascend/msopprof)相关内容。
 
-### 工具安装
+## 🛠️ 贡献指南
 
-介绍msOpCom工具的环境依赖及安装方式，具体请参见[msOpCom安装指南](./docs/zh/msOpCom_install_guide.md)。
+若您有意参与项目贡献，请参见 [《贡献指南》](./docs/zh/contributing/contributing_guide.md)。
 
-## 工具限制与注意事项
+## ⚖️ 相关说明
 
-### 框架说明
+* [《License声明》](./docs/zh/legal/license_notice.md) 
+* [《安全声明》](./docs/zh/legal/security_statement.md) 
+* [《免责声明》](./docs/zh/legal/disclaimer.md)
 
-如果要实现代码桩，以coverage工具添加runtime模块为例，主要需要在如下内容中进行添加和删减工作：
+## 🤝 建议与交流
 
-+ csrc/include 此处是劫持函数的头文件，最好一次性放全 (即使没用也可以放着)
-+ csrc/xxx/xxxOrigin 此处是劫持接口的别名，使用时如果没有则添加（只要有工具实现过，就会加一个）
-+ csrc/xxx/InjectionOfxxxx 此处是注入函数的实现，如果没有变化，则仅需修改CMakeLists.txt引入
-+ bind/Bindxxxx 每次加新接口时，必然需要添加该部分内容
-+ csrc/xxx/CMakeList.txt 如果存在新增文件，需要添加到对应目录中
-说明：
+欢迎大家为社区做贡献。如果有任何疑问或建议，请提交[Issues](https://gitcode.com/Ascend/msopcom/issues)，我们会尽快回复。感谢您的支持。
 
-1. 不能在CMakeLists.txt中全匹配，需要写精确匹配，从而支持增量编译。
-2. 如果存在同一个接口，不同的桩实现的话，差异较大，可以以工具分类进行文件夹隔离，如果差异较小，可以仅仅宏隔离。
-3. 对于同名接口在不同的工具上有不同的实现，这个InjectionOfxxx命名有差异，添加上ForXXX，通过编译隔离；不建议宏隔离，因为我们只有1个UT进程。同时，本身建议代码共主干。(待定)
+## 🙏 致谢
 
-### 定位&周边配合
-
-针对host injection部分：
-
-1. 该仓库仅提供完整的二进制库，不同工具的劫持诉求由编译选项进行区分。
-2. 针对同个接口，不同工具的注入内容存在差异，该差异在bind文件夹中进行关联。
-
-针对kernel injection部分:
-
-1. include文件夹提供对外的头文件接口, 目前msbit的生成控制信息能力只有msbit一个文件，暂不建立文件夹。而msbit解析so生成新的kernel能力目前放置于customDBI类里。后续对外的接口可以实现在core里。想增加使用示例，可以新增tools文件夹下放置不同的劫持案例。各个工具自己的劫持函数以及bind调用实现在自己工具里，工具构建提供.so，不放在基础组件内。
-2. 不同插件感知不同的指令进行操作。
-3. 集成模块需要负责host的结构体的解析处理。
-4. 本身需要与host injection协同，自身通过头文件方式引入到host injection的decorated function中。
-
-## 安全声明
-
-安全声明详见 [《安全声明》](docs/zh/legal/security_statement.md)。
-
-## 免责声明
-
-### 致msOpCom使用者
-
-- 本工具仅供调试和开发之用，使用者需自行承担使用风险，并理解以下内容：
-    - 数据处理及删除：用户在使用本工具过程中产生的数据属于用户责任范畴。建议用户在使用完毕后及时删除相关数据，以防信息泄露。
-    - 数据保密与传播：使用者了解并同意不得将通过本工具产生的数据随意外发或传播。对于由此产生的信息泄露、数据泄露或其他不良后果，本工具及其开发者概不负责。
-    - 用户输入安全性：用户需自行保证输入的命令行的安全性，并承担因输入不当而导致的任何安全风险或损失。对于由于输入命令行不当所导致的问题，本工具及其开发者概不负责。
-- 免责声明范围：本免责声明适用于所有使用本工具的个人或实体。使用本工具即表示您同意并接受本声明的内容，并愿意承担因使用该功能而产生的风险和责任，如有异议请停止使用本工具。
-
-- 在使用本工具之前，请谨慎阅读并理解以上免责声明的内容。对于使用本工具所产生的任何问题或疑问，请及时联系开发者。
-
-### 致数据所有者
-
-如果您不希望您的模型或数据集等信息在msOpCom中被提及，或希望更新msOpCom中有关的描述，请在Gitcode提交issue，我们将根据您的issue要求删除或更新您相关描述。衷心感谢您对msOpCom的理解和贡献。
-
-## License
-
-msOpCom产品的使用许可证，具体请参见[LICENSE](./LICENSE)文件。  
-msOpCom工具docs目录下的文档适用CC-BY 4.0许可证，具体请参见[LICENSE](./docs/LICENSE)。
-
-## 贡献声明
-
-1. 提交错误报告：如果您在msOpCom中发现了一个不存在安全问题的漏洞，请在msOpCom仓库中的Issues中搜索，以防该漏洞已被提交，如果找不到漏洞可以创建一个新的Issues。如果发现了一个安全问题请不要将其公开，请参阅安全问题处理方式。提交错误报告时应该包含完整信息。
-2. 安全问题处理：本项目中对安全问题处理的形式，请通过邮箱通知项目核心人员确认编辑。
-3. 解决现有问题：通过查看仓库的Issues列表可以发现需要处理的问题信息, 可以尝试解决其中的某个问题。
-4. 如何提出新功能：请使用Issues的Feature标签进行标记，我们会定期处理和确认开发。
-5. 开始贡献：
-    1. Fork本项目的仓库。
-    2. Clone到本地。
-    3. 创建开发分支。
-    4. 本地测试：提交前请通过所有单元测试，包括新增的测试用例。
-    5. 提交代码。
-    6. 新建Pull Request。
-    7. 代码检视，您需要根据评审意见修改代码，并重新提交更新。此流程可能涉及多轮迭代。
-    8. 当您的PR获得足够数量的检视者批准后，Committer会进行最终审核。
-    9. 审核和测试通过后，CI会将您的PR合并入到项目的主干分支。
-
-## 建议与交流
-
-欢迎大家为社区做贡献。如果有任何疑问或建议，请提交[Issues](https://gitcode.com/Ascend/msOpCom/issues)，我们会尽快回复。感谢您的支持。
-
-## 致谢
-
-msOpCom由华为公司的下列部门联合贡献：
-
-- 计算产品线
-
-感谢来自社区的每一个PR，欢迎贡献msOpCom。
+本工具由华为公司 **计算产品线** 贡献。    
+感谢来自社区的每一个PR，欢迎贡献。
