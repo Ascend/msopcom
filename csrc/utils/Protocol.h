@@ -186,6 +186,7 @@ enum class RegisterValueType : uint64_t {
     VAL_UINT64 = 0,
     VAL_HALF,
     VAL_FLOAT,
+    VAL_INT32
 };
 
 struct RegisterPayload {
