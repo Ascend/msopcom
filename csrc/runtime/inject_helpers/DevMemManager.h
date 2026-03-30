@@ -28,6 +28,8 @@ public:
     void Free();
     void SetMemoryInitFlag(bool flag) { isMemoryInit_ = flag; }
     bool IsMemoryInit() const { return isMemoryInit_; }
+    void SetSkipKernelFlag(bool flag) { isSkipKernel_ = flag; }
+    bool IsSkipKernel() const { return isSkipKernel_; }
 
 private:
     DevMemManager() = default;
@@ -37,5 +39,6 @@ private:
     uint64_t memSize_ = 0;
     void *memPtr_ = nullptr;
     bool isMemoryInit_ = false;
+    bool isSkipKernel_ = false;
     int32_t deviceId_ = -1;
 };

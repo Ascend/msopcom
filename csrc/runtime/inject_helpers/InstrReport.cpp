@@ -785,8 +785,10 @@ uint8_t *__sanitizer_init(uint64_t blockDim)
     uint64_t totalBlockDim = recordGlobalHead.kernelInfo.totalBlockDim;
     DEBUG_LOG("sanitizer init with blockDim: %lu, totalBlockDim: %lu", blockDim, totalBlockDim);
     auto &devMemManager = DevMemManager::Instance();
-    uint64_t memSize = recordGlobalHead.kernelInfo.totalCacheSize * MB_TO_BYTES + sizeof(RecordGlobalHead) +
-        totalBlockDim * GetRecordHeadSize(hostMemoryNum);
+    bool isSkipKernel = devMemManager.IsSkipKernel();
+    // 对于不需要检测的kernel，申请1M即可，优化整体检测耗时
+    uint64_t memSize = isSkipKernel ? MB_TO_BYTES : recordGlobalHead.kernelInfo.totalCacheSize * MB_TO_BYTES +
+        sizeof(RecordGlobalHead) + totalBlockDim * GetRecordHeadSize(hostMemoryNum);
     void *memPtr = nullptr;
     aclError error = devMemManager.MallocMemory(&memPtr, memSize);
     if (error != ACL_ERROR_NONE) {
@@ -795,6 +797,8 @@ uint8_t *__sanitizer_init(uint64_t blockDim)
     }
 
     auto *memInfo = static_cast<uint8_t*>(memPtr);
+
+    if (isSkipKernel) { return memInfo; }
 
     if (!InitRecordHeaders(recordGlobalHead, memInfo, hostMemoryNum)) {
         return nullptr;

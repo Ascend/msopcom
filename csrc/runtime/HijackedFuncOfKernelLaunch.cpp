@@ -134,7 +134,9 @@ void HijackedFuncOfKernelLaunch::ProfPre(const std::function<bool(void)> &func,
 void HijackedFuncOfKernelLaunch::SanitizerPre()
 {
     std::string kernelName = KernelContext::Instance().GetLaunchName();
-    if (!(this->skipSanitizer_ = SkipSanitizer(kernelName))) {
+    this->skipSanitizer_ = SkipSanitizer(kernelName);
+    DevMemManager::Instance().SetSkipKernelFlag(this->skipSanitizer_);
+    if (!this->skipSanitizer_) {
         if (isSink_) { return; }
         ReportKernelSummary(launchId_);
         KernelContext::Instance().ReportKernelBinary(KernelContext::StubFuncPtr{this->stubFunc_});
@@ -155,10 +157,10 @@ void HijackedFuncOfKernelLaunch::SanitizerPre()
         sections_ = GetAllocSectionHeaders(headers);
         ReportSectionsMalloc(event.pcStartAddr, sections_);
         ReportOverflowMalloc(KernelContext::Instance().GetOpMemInfo());
-        this->memInfo_ = __sanitizer_init(this->blockDim_);
-        if (this->memInfo_) {
-            ExpandArgs(this->args_, this->argsSize_, this->argsVec_, this->memInfo_);
-        }
+    }
+    this->memInfo_ = __sanitizer_init(this->blockDim_);
+    if (this->memInfo_) {
+        ExpandArgs(this->args_, this->argsSize_, this->argsVec_, this->memInfo_);
     }
 }
 
