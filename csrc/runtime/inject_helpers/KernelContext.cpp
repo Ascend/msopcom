@@ -942,7 +942,7 @@ void KernelContext::AddHdlRegisterEvent(const KernelHandle *hdl, const rtDevBina
     if (!event.kernelNames.empty()) {
         DEBUG_LOG("Register first kernelName is %s", event.kernelNames.front().c_str());
     }
-    isSimt_ = GetSimtSymbolFromBinary(static_cast<const char*>(bin->data), bin->length);
+    hasSimt_ = GetSimtSymbolFromBinary(static_cast<const char*>(bin->data), bin->length);
     hdlToRegId_[hdl] = registerEvents_.size();
     registerEvents_.push_back(std::move(event));
 }

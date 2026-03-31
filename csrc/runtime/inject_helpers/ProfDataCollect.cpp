@@ -195,6 +195,7 @@ public:
     std::string outputPath_;
     std::string kernelName_;
     LaunchContextSP launchCtx_ {nullptr};
+    bool hasSimt_ = false;
     static std::mutex outputMutex_;
     static std::map<int32_t, std::string> deviceOutputPathMap_;
     static std::map<int32_t, std::string> timeStampDevicePathMap_;
@@ -412,6 +413,8 @@ DataCollect::DataCollect(const LaunchContextSP &ctx, bool isInitOutput)
         size_t hashValue = hashFunc(hashStr);
         kernelName = kernelName.substr(0, kernelNameReserved) + "_" + std::to_string(hashValue);
     }
+    hasSimt_ = launchCtx_ != nullptr ? launchCtx_->GetFuncContext()->GetRegisterContext()->HasSimtSymbol() :
+        KernelContext::Instance().HasSimtSymbol();
     if (ProfConfig::Instance().IsSimulatorLaunchedByDevice()) {
         outputPath_ = GetEnv(MSOPPROF_OUTPUT_DUMP_PATH_ENV);
     } else {
@@ -790,9 +793,7 @@ void DataCollectInDevice::ProfCommandAction(MsprofCommandHandleType type) const
     } else if (IsChipSeriesTypeValid(chipType, ChipProductType::ASCEND910B_SERIES) || IsChipSeriesTypeValid(chipType, ChipProductType::ASCEND910_93_SERIES)) {
         command.profSwitch = PROF_L2CACHE | PROF_OP_TIMESTAMP;
     } else if (IsChipSeriesTypeValid(chipType, ChipProductType::ASCEND950_SERIES)) {
-        bool isSimt = launchCtx_ != nullptr ? launchCtx_->GetFuncContext()->GetRegisterContext()->HasSimtSymbol() :
-            KernelContext::Instance().HasSimtSymbol();
-        if (ProfConfig::Instance().IsTimelineEnabled() || (ProfConfig::Instance().IsPCSamplingEnabled() && isSimt)) {
+        if (ProfConfig::Instance().IsTimelineEnabled() || (ProfConfig::Instance().IsPCSamplingEnabled() && hasSimt_)) {
             command.profSwitch = PROF_INSTR | PROF_OP_TIMESTAMP;
         }
     }
@@ -806,9 +807,7 @@ bool DataCollectInDevice::StartProf(std::thread &th)
         SignalWrapper::RegisterCallback(SIGINT, HandleSigInt);
     });
     DEBUG_LOG("MSOPT INJECTION SUCCESS");
-    bool isSimt = launchCtx_ != nullptr ? launchCtx_->GetFuncContext()->GetRegisterContext()->HasSimtSymbol() :
-        KernelContext::Instance().HasSimtSymbol();
-    if (!taskPtr_->Start(replayCount_, isSimt)) {
+    if (!taskPtr_->Start(replayCount_, hasSimt_)) {
         return false;
     }
     {
@@ -1584,6 +1583,7 @@ void DataCollectInDevice::SaveBasicInfo()
     }
     outFile << "Is MC2=" << static_cast<int>(KernelContext::Instance().GetMC2Flag()) << "\n";
     outFile << "Is Lccl=" << static_cast<int>(KernelContext::Instance().GetLcclFlag()) << "\n";
+    outFile << "Has Simt=" << static_cast<int>(hasSimt_) << "\n";
     outFile.close();
     Chmod(basicInfoTxt, SAVE_DATA_FILE_AUTHORITY);
 }

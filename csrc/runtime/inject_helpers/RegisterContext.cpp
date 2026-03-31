@@ -292,7 +292,7 @@ bool RegisterContext::Init(const vector<char> &elfData, aclrtBinHandle binHandle
         return false;
     }
     DEBUG_LOG("Get total %lu kernelNames", kernelSymbolNames_.size());
-    isSimt_ = GetSimtSymbolFromBinary(elfData_.data(), elfData_.size());
+    hasSimt_ = GetSimtSymbolFromBinary(elfData_.data(), elfData_.size());
     rtDevBinary_t tempDevBin{};
     tempDevBin.data = elfData_.data();
     tempDevBin.length = elfData_.size();
@@ -475,5 +475,5 @@ bool RegisterContext::KernelSymbolNameIsMix(const std::string &kernelName) const
 
 bool RegisterContext::HasSimtSymbol() const
 {
-    return isSimt_;
+    return hasSimt_;
 }

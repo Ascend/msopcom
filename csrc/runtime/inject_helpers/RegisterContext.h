@@ -150,7 +150,7 @@ private:
     void *hdl_{nullptr};
     bool inited_{false};
     bool isFromFile_ {false};
-    bool isSimt_{false};
+    bool hasSimt_{false};
     aclrtBinaryLoadOptionType type_ {aclrtBinaryLoadOptionType::NONE};
 
     std::shared_ptr<RegisterContext> CloneFromBin(const std::string &newBinPath) const;

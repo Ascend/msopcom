@@ -51,7 +51,7 @@ public:
     ProfTask(const MessageOfProfConfig &profTaskConfig, uint32_t deviceId) : profTaskConfig_(profTaskConfig),
         deviceId_(deviceId) {}
     virtual ~ProfTask() = default;
-    virtual bool Start(uint32_t replayCount, bool isSimt=false) {return false;};
+    virtual bool Start(uint32_t replayCount, bool hasSimt=false) {return false;};
     virtual bool WriteInstrChannelData(const std::string &prefixName, InstrChannel channelId,
         const char *outBuf, int validLen, InstrChnReadCtrl &instrChnReadController) {return false;}
     void ChannelRead();
@@ -64,7 +64,7 @@ protected:
     MessageOfProfConfig profTaskConfig_;
     uint32_t deviceId_;
     bool isLastReplay_ = false;
-    bool isSimt_ = false;
+    bool hasSimt_ = false;
 };
 
 class ProfTaskFactory {
