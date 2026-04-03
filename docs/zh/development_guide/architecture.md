@@ -6,7 +6,7 @@
 
 ```text
 MindStudio-Ops-Common
-|-- .gitsubmodule          # 管理依赖的submodule文件
+|-- .gitsubmodules          # 管理依赖的submodule文件
 |-- build.py                # 一键式构建脚本入口
 |-- csrc                    # 提供针对CPU侧接口的劫持能力
   |-- include               # 劫持对象的原始头文件
@@ -47,12 +47,13 @@ MindStudio-Ops-Common
 + csrc/xxx/xxxOrigin 此处是劫持接口的别名，使用时如果没有则添加（只要有工具实现过，就会加一个）
 + csrc/xxx/InjectionOfxxxx 此处是注入函数的实现，如果没有变化，则仅需修改CMakeLists.txt引入
 + bind/Bindxxxx 每次加新接口时，必然需要添加该部分内容
-+ csrc/xxx/CMakeList.txt 如果存在新增文件，需要添加到对应目录中
++ csrc/xxx/CMakeLists.txt 如果存在新增文件，需要添加到对应目录中
+
 说明：
 
 1. 不能在CMakeLists.txt中全匹配，需要写精确匹配，从而支持增量编译。
 2. 如果存在同一个接口，不同的桩实现的话，差异较大，可以以工具分类进行文件夹隔离，如果差异较小，可以仅仅宏隔离。
-3. 对于同名接口在不同的工具上有不同的实现，这个InjectionOfxxx命名有差异，添加上ForXXX，通过编译隔离；不建议宏隔离，因为我们只有1个UT进程。同时，本身建议代码共主干。(待定)
+3. 对于同名接口在不同的工具上有不同的实现，这个InjectionOfxxx命名有差异，建议末尾添加上ForXXX，通过编译隔离；不建议宏隔离，因为我们只有1个UT进程。此外，建议代码实现在同一主干上。
 
 ### 定位&周边配合
 
