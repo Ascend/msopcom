@@ -411,7 +411,7 @@ std::vector<Elf64_Shdr> GetAllocSectionHeaders(std::map<std::string, Elf64_Shdr>
     for (auto const &headerPair : headers) {
         // SHF_ALLOC 标志位为 1 说明该 section 在运行时的 GM 上需要分配对应的内存
         Elf64_Shdr const &header = headerPair.second;
-        if ((header.sh_flags & SHF_ALLOC) > 0) {
+        if ((header.sh_flags & SHF_ALLOC) > 0 && header.sh_size > 0) {
             DEBUG_LOG("need alloc section %s, addr: 0x%" PRIx64 ", size: %lu",
                       headerPair.first.c_str(), header.sh_addr, header.sh_size);
             allocHeaders.emplace_back(header);

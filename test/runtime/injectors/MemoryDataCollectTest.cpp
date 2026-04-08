@@ -441,6 +441,7 @@ TEST(MemoryDataCollect, get_alloc_section_headers_expect_return_correct_headers)
     Elf64_Shdr header {};
     headers.emplace(".nonalloc", header);
     header.sh_flags = SHF_ALLOC;
+    header.sh_size = 100;
     headers.emplace(".alloc", header);
     auto allocHeaders = GetAllocSectionHeaders(headers);
     ASSERT_EQ(allocHeaders.size(), 1UL);
