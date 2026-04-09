@@ -206,7 +206,9 @@ void HijackedFuncOfKernelLaunchWithHandleV2::ProfPost()
 void HijackedFuncOfKernelLaunchWithHandleV2::SanitizerPre()
 {
     std::string kernelName = KernelContext::Instance().GetLaunchName();
-    if (!(this->skipSanitizer_ = SkipSanitizer(kernelName))) {
+    this->skipSanitizer_ = SkipSanitizer(kernelName);
+    DevMemManager::Instance().SetSkipKernelFlag(this->skipSanitizer_);
+    if (!this->skipSanitizer_) {
         if (isSink_) { return; }
         ReportKernelSummary(launchId_);
         KernelContext::Instance().ReportKernelBinary(KernelContext::KernelHandlePtr{this->hdl_});
@@ -235,10 +237,10 @@ void HijackedFuncOfKernelLaunchWithHandleV2::SanitizerPre()
             MemoryManage::Instance().CacheMemory<MemoryOpType::MALLOC>(0x0,
                 opMemInfo.inputParamsAddrInfos[0].memInfoSrc, 0x0, false);
         }
-        this->memInfo_ = __sanitizer_init(this->blockDim_);
-        if (this->memInfo_) {
-            ExpandArgs(&this->newArgsInfo_, this->argsVec_, this->memInfo_, hostInput_, DBITaskConfig::Instance().argsSize_);
-        }
+    }
+    this->memInfo_ = __sanitizer_init(this->blockDim_);
+    if (this->memInfo_) {
+        ExpandArgs(&this->newArgsInfo_, this->argsVec_, this->memInfo_, hostInput_, DBITaskConfig::Instance().argsSize_);
     }
     auto ret = aclrtSetOpExecuteTimeOutOrigin(12);
     DEBUG_LOG("after aclrtSetOpExecuteTimeOutOrigin ret %d.", ret);

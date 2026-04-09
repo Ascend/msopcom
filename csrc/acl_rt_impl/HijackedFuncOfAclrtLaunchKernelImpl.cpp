@@ -162,12 +162,12 @@ void HijackedFuncOfAclrtLaunchKernelImpl::SanitizerPre()
 {
     std::string kernelName = launchCtx_->GetFuncContext()->GetKernelName();
     skipSanitizer_ = SkipSanitizer(kernelName);
-    if (skipSanitizer_) {
-        return;
+    DevMemManager::Instance().SetSkipKernelFlag(this->skipSanitizer_);
+    if (!skipSanitizer_) {
+        if (isSink_) { return; }
+        ReportKernelSummary(launchCtx_);
+        ReportKernelBinary(launchCtx_->GetFuncContext()->GetRegisterContext());
     }
-    if (isSink_) { return; }
-    ReportKernelSummary(launchCtx_);
-    ReportKernelBinary(launchCtx_->GetFuncContext()->GetRegisterContext());
     memInfo_ = __sanitizer_init(blockDim_);
     if (memInfo_ == nullptr) {
         return;
@@ -189,6 +189,7 @@ void HijackedFuncOfAclrtLaunchKernelImpl::SanitizerPre()
         funcHandle_ = funcCtx_->GetFuncHandle();
     }
 }
+
 void HijackedFuncOfAclrtLaunchKernelImpl::Pre(aclrtFuncHandle funcHandle, uint32_t blockDim, const void *argsData,
                                               size_t argsSize, aclrtStream stream)
 {
@@ -229,6 +230,7 @@ void HijackedFuncOfAclrtLaunchKernelImpl::Pre(aclrtFuncHandle funcHandle, uint32
         this->SanitizerPre();
     }
 }
+
 aclError HijackedFuncOfAclrtLaunchKernelImpl::Call(aclrtFuncHandle funcHandle, uint32_t blockDim, const void *argsData,
                                                    size_t argsSize, aclrtStream stream)
 {

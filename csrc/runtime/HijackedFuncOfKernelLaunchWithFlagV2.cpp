@@ -105,7 +105,9 @@ void HijackedFuncOfKernelLaunchWithFlagV2::ProfPre(const std::function<bool(void
 void HijackedFuncOfKernelLaunchWithFlagV2::SanitizerPre()
 {
     std::string kernelName = KernelContext::Instance().GetLaunchName();
-    if (!(this->skipSanitizer_ = SkipSanitizer(kernelName))) {
+    this->skipSanitizer_ = SkipSanitizer(kernelName);
+    DevMemManager::Instance().SetSkipKernelFlag(this->skipSanitizer_);
+    if (!this->skipSanitizer_) {
         if (isSink_) { return; }
         ReportKernelSummary(launchId_);
         KernelContext::Instance().ReportKernelBinary(KernelContext::StubFuncPtr{this->stubFunc_});
@@ -134,9 +136,9 @@ void HijackedFuncOfKernelLaunchWithFlagV2::SanitizerPre()
             MemoryManage::Instance().CacheMemory<MemoryOpType::MALLOC>(0x0,
                 opMemInfo.inputParamsAddrInfos[0].memInfoSrc, 0x0, false);
         }
-        if ((this->memInfo_ = __sanitizer_init(this->blockDim_))) {
-            ExpandArgs(&this->newArgsInfo_, this->argsVec_, this->memInfo_, hostInput_, DBITaskConfig::Instance().argsSize_);
-        }
+    }
+    if ((this->memInfo_ = __sanitizer_init(this->blockDim_))) {
+        ExpandArgs(&this->newArgsInfo_, this->argsVec_, this->memInfo_, hostInput_, DBITaskConfig::Instance().argsSize_);
     }
 }
 
