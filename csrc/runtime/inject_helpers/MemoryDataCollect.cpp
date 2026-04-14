@@ -205,7 +205,7 @@ MemoryManage::AddrsVec MemoryManage::MergeHostMems()
     if (memorySize < mallocCount_) {
         merged.insert(merged.end(), mallocCount_ - memorySize, {});
     } else if (memorySize > mallocCount_) {
-        ERROR_LOG("memorySize :%lu exceeds mallocCount :%u", memorySize, mallocCount_);
+        ERROR_LOG("memorySize :%lu exceeds mallocCount :%u", memorySize, static_cast<uint32_t>(mallocCount_));
     }
     return merged;
 }

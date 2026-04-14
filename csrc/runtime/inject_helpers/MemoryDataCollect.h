@@ -88,7 +88,7 @@ private:
     std::mutex memoryMutex_;
     // 算子运行时获取到的malloc信息，用于限定kernel侧检测时的gm合理范围
     std::set<KernelContext::AddrInfo> memoryOpAddrInfos_;
-    uint32_t mallocCount_{}; // 缓存的内存记录数量
+    std::atomic<uint32_t> mallocCount_{}; // 缓存的内存记录数量
 };
 
 /**

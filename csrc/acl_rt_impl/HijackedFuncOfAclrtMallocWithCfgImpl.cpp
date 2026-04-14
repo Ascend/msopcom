@@ -26,6 +26,7 @@
 #include "runtime/inject_helpers/ProfConfig.h"
 #include "runtime/inject_helpers/KernelContext.h"
 #include "runtime/inject_helpers/MemoryContext.h"
+#include "runtime/inject_helpers/MemoryDataCollect.h"
 
 HijackedFuncOfAclrtMallocWithCfgImpl::HijackedFuncOfAclrtMallocWithCfgImpl()
     : HijackedFuncType(AclRuntimeLibName(), "aclrtMallocWithCfgImpl"), devPtr_{nullptr}, size_{} {}
@@ -53,6 +54,7 @@ aclError HijackedFuncOfAclrtMallocWithCfgImpl::Post(aclError ret)
         record.dstAddr = reinterpret_cast<uint64_t>(*devPtr_);
         // acl 接口内存分配上报时 size 与 rt 接口保持一致
         record.memSize = CeilByAlignSize<blockAlignSize>(size_) + blockAlignSize;
+        MemoryManage::Instance().CacheMemory<MemoryOpType::MALLOC>(record.dstAddr, record.infoSrc, record.memSize);
         LocalDevice::Local().Notify(Serialize(head, record));
     }
     if (IsOpProf() && !ProfConfig::Instance().IsSimulator() && ret == ACL_SUCCESS) {
