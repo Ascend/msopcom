@@ -52,6 +52,9 @@ class BuildManager:
                                      help='Build action: omit for full build, "local" to skip dependency download, "test" to run unit tests')
         argument_parser.add_argument('-r', '--revision',
                                      help='Specify Git revision for internal dependent repo.')
+        # 支持解析版本号参数但实际不使用，防止因参数多余导致构建失败
+        argument_parser.add_argument('--build-version', type=str, default=None, help='Build version for run/exe/dmg packages')
+        argument_parser.add_argument('--whl-version', type=str, default=None, help='WHL version for Python wheel packages')
         self.parsed_arguments = argument_parser.parse_args()
 
     def _execute_command(self, command_sequence, timeout_seconds=36000, cwd=None, env=None):
