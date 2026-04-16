@@ -6,7 +6,7 @@
 
 ```text
 MindStudio-Ops-Common
-|-- .gitsubmodules          # 管理依赖的submodule文件
+|-- .gitmodules          # 管理依赖的submodule文件
 |-- build.py                # 一键式构建脚本入口
 |-- csrc                    # 提供针对CPU侧接口的劫持能力
   |-- include               # 劫持对象的原始头文件
@@ -28,11 +28,11 @@ MindStudio-Ops-Common
 
 - csrc中提供了如下功能：
 
-  + (对于劫持目标) 提供原生接口的管理
-  + (统一共性插件) 提供注入(修饰)函数的管理
-  + (对于特定工具) 提供劫持接口的统一管理，并支持注入函数的通信控制
+  + （对于劫持目标）提供原生接口的管理
+  + （统一共性插件）提供注入（修饰）函数的管理
+  + （对于特定工具）提供劫持接口的统一管理，并支持注入函数的通信控制
   + 具体工具直接引用该仓库，完成二进制的编译，提供submodule功能支持特定工具injection的单独编译。
-- 此处kernel_injection仅针对动态插桩能力(静态插桩能力由各组件自身承载)
+- 此处kernel_injection仅针对动态插桩能力（静态插桩能力由各组件自身承载）
   + 现支持bisheng-tune，未来需要支持msbit的能力
   + 本身需要配套csrc中的kernel替换能力使能，并由其作为出口
   + 除了特定插件外，后续插件能力优先集成到mstracekit中，特定插件可以集成到特定工具。比如：监控插件到msprof，检测插件到mssanitizer。

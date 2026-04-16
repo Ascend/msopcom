@@ -33,7 +33,7 @@ msOpCom主要为算子工具提供统一的劫持能力，使得算子工具可�
 
 ## 📦 安装指南
 
-介绍msOpCom工具的环境依赖及安装方式，具体请参见 [《msOpCom 开发环境搭建及编译和UT方法》](./docs/zh/development_guide/develop_guide.md)。
+介绍msOpCom工具的环境依赖及安装方式，具体请参见《[msOpCom 开发环境搭建及编译和UT方法](./docs/zh/development_guide/develop_guide.md)》。
 
 ## 📘 使用指南
 
@@ -45,13 +45,13 @@ msOpCom作为公共组件不具备独立功能，不具备功能案例，请参�
 
 ## 🛠️ 贡献指南
 
-欢迎参与项目贡献，请参见 [《贡献指南》](./docs/zh/contributing/contributing_guide.md)。
+欢迎参与项目贡献，请参见《[贡献指南](./docs/zh/contributing/contributing_guide.md)》。
 
 ## ⚖️ 相关说明
 
-🔹 [《许可证声明》](./docs/zh/legal/license_notice.md)  
-🔹 [《安全声明》](./docs/zh/legal/security_statement.md)  
-🔹 [《免责声明》](./docs/zh/legal/disclaimer.md)  
+🔹《[许可证声明](./docs/zh/legal/license_notice.md)》  
+🔹《[安全声明](./docs/zh/legal/security_statement.md)》  
+🔹《[免责声明](./docs/zh/legal/disclaimer.md)》   
 
 ## 🤝 建议与交流
 
@@ -59,7 +59,7 @@ msOpCom作为公共组件不具备独立功能，不具备功能案例，请参�
 
 |                                      📱 关注 MindStudio 公众号                                       | 💬 更多交流与支持                                                                                                                                                                                                                                                                                                                                                                                                                     |
 |:-----------------------------------------------------------------------------------------------:|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| <img src="https://gitcode.com/Ascend/msot/blob/master/docs/zh/figures/readme/officialAccount.png" width="120"><br><sub>*扫码关注获取最新动态*</sub> | 💡 **加入微信交流群**：<br>关注公众号，回复“交流群”即可获取入群二维码。<br><br>🛠️ **其他渠道**：<br>👉 昇腾助手：[![WeChat](https://img.shields.io/badge/WeChat-07C160?style=flat-square&logo=wechat&logoColor=white)](https://gitcode.com/Ascend/msot/blob/master/docs/zh/figures/readme/xiaozhushou.png)<br>👉 昇腾论坛：[![Website](https://img.shields.io/badge/Website-%231e37ff?style=flat-square&logo=RSS&logoColor=white)](https://www.hiascend.com/forum/) |
+| <img src="https://gitcode.com/Ascend/msot/blob/26.0.0/docs/zh/figures/readme/officialAccount.png" width="120"><br><sub>*扫码关注获取最新动态*</sub> | 💡 **加入微信交流群**：<br>关注公众号，回复“交流群”即可获取入群二维码。<br><br>🛠️ **其他渠道**：<br>👉 昇腾助手：[![WeChat](https://img.shields.io/badge/WeChat-07C160?style=flat-square&logo=wechat&logoColor=white)](https://gitcode.com/Ascend/msot/blob/26.0.0/docs/zh/figures/readme/xiaozhushou.png)<br>👉 昇腾论坛：[![Website](https://img.shields.io/badge/Website-%231e37ff?style=flat-square&logo=RSS&logoColor=white)](https://www.hiascend.com/forum/) |
 
 ## 🙏 致谢
 
