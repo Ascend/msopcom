@@ -103,7 +103,7 @@ inline bool SupportSimt(DeviceType deviceType)
 
 inline uint64_t GetAllThreadSize(RecordGlobalHead const &globalHead)
 {
-    return (globalHead.offsetInfo.threadByteSize + sizeof(SimtRecordBlockHead)) * SIMT_THREAD_MAX_SIZE;
+    return (globalHead.offsetInfo.simtErrorInfo.size + sizeof(SimtRecordBlockHead)) * SIMT_THREAD_MAX_SIZE;
 }
 
 inline uint64_t GetRecordHeadSize(uint32_t hostMemoryNum)
@@ -312,10 +312,10 @@ void ReportParaBase(RecordBlockHead const &head, ParaBaseRegister &paraBase, boo
 }
 
 /// 落盘在线检测对应的malloc内存，便于后续定位问题
-void DumpMemoryInfo(uint8_t *memInfoHost, const uint8_t *memInfo, uint64_t blockSize, uint64_t blockIdx,
+void DumpMemoryInfo(uint8_t *memInfoHost, const uint8_t *memInfo, uint64_t blockRemainSize, uint64_t blockIdx,
     const RecordGlobalHead &globalHead)
 {
-    aclError error = aclrtMemcpyImplOrigin(memInfoHost, blockSize - sizeof(RecordGlobalHead), memInfo,
+    aclError error = aclrtMemcpyImplOrigin(memInfoHost, blockRemainSize, memInfo,
         sizeof(RecordBlockHead), ACL_MEMCPY_DEVICE_TO_HOST);
     auto *blockHead = reinterpret_cast<RecordBlockHead *>(memInfoHost);
     if (error != ACL_ERROR_NONE) {
@@ -324,13 +324,12 @@ void DumpMemoryInfo(uint8_t *memInfoHost, const uint8_t *memInfo, uint64_t block
     }
     if (blockHead->hostMemoryNum == 0U) { return; }
     uint64_t recordHeadSize = globalHead.offsetInfo.blockHeadSize;
-    if (sizeof(RecordGlobalHead) + recordHeadSize > blockSize) {
+    if (recordHeadSize > blockRemainSize) {
         DEBUG_LOG("too much host memory");
         return;
     };
     blockHead->hostMemoryInfoPtr = reinterpret_cast<HostMemoryInfo *>(blockHead + 1);
-    uint64_t allHeadSize = sizeof(RecordGlobalHead) + sizeof(RecordBlockHead);
-    error = aclrtMemcpyImplOrigin(memInfoHost + sizeof(RecordBlockHead), blockSize - allHeadSize,
+    error = aclrtMemcpyImplOrigin(memInfoHost + sizeof(RecordBlockHead), blockRemainSize - sizeof(RecordBlockHead),
         memInfo + sizeof(RecordBlockHead), recordHeadSize - sizeof(RecordBlockHead), ACL_MEMCPY_DEVICE_TO_HOST);
     if (error != ACL_ERROR_NONE) {
         ERROR_LOG("finalize memcpy hostMemInfo error: %d", error);
@@ -377,9 +376,8 @@ std::vector<HostMemoryInfo> CopyExtraMallocToHostMemory()
 
 bool InitSimtShadowMemoryHead(const RecordGlobalHead &recordGlobalHead, uint8_t *memInfo)
 {
-    uint64_t shadowMemorySize = recordGlobalHead.offsetInfo.shadowMemoryByteSize;
-    uint64_t shadowMemoryOffset = recordGlobalHead.offsetInfo.shadowMemoryOffset;
-    uint8_t *shadowMemoryHeadAddr = memInfo + shadowMemoryOffset;
+    uint64_t shadowMemorySize = recordGlobalHead.offsetInfo.shadowMemoryInfo.size;
+    uint8_t *shadowMemoryHeadAddr = memInfo + recordGlobalHead.offsetInfo.shadowMemoryInfo.offset;
 
     aclError error = aclrtMemsetImplOrigin(shadowMemoryHeadAddr, shadowMemorySize, 0x00, shadowMemorySize);
     if (error != ACL_ERROR_NONE) {
@@ -487,48 +485,66 @@ bool SanitizerLaunchInit::AssignGlobalHead()
     globalHead_.kernelInfo.kernelParamNum = KernelContext::Instance().GetKernelParamNum();
     globalHead_.supportSimt = SupportSimt(deviceType);
     globalHead_.offsetInfo.blockHeadSize = GetRecordHeadSize(hostMemoryNum_);
-    if (globalHead_.supportSimt) {
-        uint64_t threadByteSize =
-            static_cast<uint64_t>(cliConfig.cacheSize * MB_TO_BYTES * SIMT_CACHE_SIZE_RATIO / SIMT_THREAD_MAX_SIZE);
-        if (threadByteSize >= sizeof(SimtRecordBlockHead)) {
-            globalHead_.offsetInfo.threadByteSize = AlignDownSize<CACHE_LINE_SIZE>(threadByteSize - sizeof(SimtRecordBlockHead));
-            DEBUG_LOG("offsetInfo.threadByteSize=%u", globalHead_.offsetInfo.threadByteSize);
-        } else {
-            uint32_t needCacheSize = sizeof(SimtRecordBlockHead) *
-                static_cast<uint32_t>(SIMT_THREAD_MAX_SIZE / SIMT_CACHE_SIZE_RATIO / MB_TO_BYTES) + 1;
-            ERROR_LOG("cache-size:%u is too small, need cache-size=%u", globalHead_.checkParms.cacheSize, needCacheSize);
-            return false;
-        }
-
-        uint32_t ubDynamicSize = InAclNewLaunchCallStack() ? LaunchManager::Local().GetSimtUbDynamicSize() :
-            KernelContext::Instance().GetSimtUbDynamicSize();
-        DEBUG_LOG("simtInfo.ubDynamicSize:%u", ubDynamicSize);
-        constexpr uint32_t ubDynamicAlignSize = 128;
-        globalHead_.simtInfo.ubDynamicSize = CeilByAlignSize<ubDynamicAlignSize>(ubDynamicSize);
-
-        uint64_t simtHeadOffset = static_cast<uint64_t>(cliConfig.cacheSize * MB_TO_BYTES *
-            (1 - SIMT_CACHE_SIZE_RATIO - SHADOW_MEM_CACHE_SIZE_RATIO));
-        globalHead_.offsetInfo.simtHeadOffset = AlignDownSize<CACHE_LINE_SIZE>(simtHeadOffset) +
-            globalHead_.offsetInfo.blockHeadSize;
-        DEBUG_LOG("simt head offset=%u", globalHead_.offsetInfo.simtHeadOffset);
-        uint64_t shadowMemoryByteSize =
-            static_cast<uint64_t>(cliConfig.cacheSize * MB_TO_BYTES * SHADOW_MEM_CACHE_SIZE_RATIO);
-        if (shadowMemoryByteSize < SHADOW_MEM_MIN_BYTE_SIZE) {
-            WARN_LOG("overlapping detection between threads is disabled. "
-                "cache-size:%u is too small, need cache-size >= %lu",
-                globalHead_.checkParms.cacheSize,
-                static_cast<uint64_t>(SHADOW_MEM_MIN_BYTE_SIZE / MB_TO_BYTES / SHADOW_MEM_CACHE_SIZE_RATIO));
-            globalHead_.offsetInfo.shadowMemoryOffset = 0U;
-            globalHead_.offsetInfo.shadowMemoryByteSize = 0U;
-        } else {
-            globalHead_.offsetInfo.shadowMemoryOffset = AlignDownSize<CACHE_LINE_SIZE>(globalHead_.offsetInfo.simtHeadOffset +
-                GetAllThreadSize(globalHead_) + CACHE_LINE_SIZE - 1);
-            globalHead_.offsetInfo.shadowMemoryByteSize = shadowMemoryByteSize;
-            DEBUG_LOG("offsetInfo shadowMemoryOffset=%u shadowMemoryByteSize=%u",
-                globalHead_.offsetInfo.shadowMemoryOffset, globalHead_.offsetInfo.shadowMemoryByteSize);
-        }
-    }
+    DEBUG_LOG("offsetInfo.blockHeadSize:%u cacheByteSize:%lu", globalHead_.offsetInfo.blockHeadSize,
+        globalHead_.checkParms.cacheSize * MB_TO_BYTES);
+    if (globalHead_.supportSimt) { AssignSimtVfInfo(); }
     return AssignMemSize(globalHead_, blockDim_, deviceType);
+}
+
+void SanitizerLaunchInit::AssignSimtVfInfo()
+{
+    auto &offsetInfo = globalHead_.offsetInfo;
+    uint64_t cacheByteSize = globalHead_.checkParms.cacheSize * MB_TO_BYTES;
+    uint64_t simtInstrSize = static_cast<uint64_t>(cacheByteSize * SIMT_CACHE_SIZE_RATIO / SIMT_THREAD_MAX_SIZE);
+    if (simtInstrSize >= sizeof(SimtRecordBlockHead)) {
+        offsetInfo.simtErrorInfo.size = AlignDownSize<CACHE_LINE_SIZE>(simtInstrSize - sizeof(SimtRecordBlockHead));
+    } else {
+        uint32_t needCacheSize = sizeof(SimtRecordBlockHead) *
+            static_cast<uint32_t>(SIMT_THREAD_MAX_SIZE / SIMT_CACHE_SIZE_RATIO / MB_TO_BYTES) + 1;
+        ERROR_LOG("cache-size:%u is too small, need cache-size=%u", globalHead_.checkParms.cacheSize, needCacheSize);
+        return;
+    }
+    // 1. 先赋值ubDynamicSize
+    uint32_t ubDynamicSize = InAclNewLaunchCallStack() ? LaunchManager::Local().GetSimtUbDynamicSize() :
+        KernelContext::Instance().GetSimtUbDynamicSize();
+    DEBUG_LOG("simtInfo.ubDynamicSize:%u", ubDynamicSize);
+    constexpr uint32_t ubDynamicAlignSize = 128;
+    globalHead_.simtInfo.ubDynamicSize = CeilByAlignSize<ubDynamicAlignSize>(ubDynamicSize);
+
+    // 2. 设置simtErrorInfo相关的偏移信息，主要用于simt在线检测错误记录协议
+    uint64_t simtErrorInfoOffset = static_cast<uint64_t>(cacheByteSize *
+        (1 - SIMT_CACHE_SIZE_RATIO - SHADOW_MEM_CACHE_SIZE_RATIO - SIMT_ENTRY_CACHE_SIZE_RATIO));
+    offsetInfo.simtErrorInfo.offset = AlignDownSize<CACHE_LINE_SIZE>(simtErrorInfoOffset) + offsetInfo.blockHeadSize;
+    DEBUG_LOG("offsetInfo simtErrorInfo.offset=%u simtErrorInfo.size=%u",
+        offsetInfo.simtErrorInfo.offset, offsetInfo.simtErrorInfo.size);
+
+    // 3. 设置shadowMemoryInfo相关的偏移信息，主要用于simt在线检测对应的shadowMemory记录协议
+    uint64_t shadowMemorySize = static_cast<uint64_t>(cacheByteSize * SHADOW_MEM_CACHE_SIZE_RATIO);
+    if (shadowMemorySize < SHADOW_MEM_MIN_BYTE_SIZE) {
+        WARN_LOG("overlapping detection between threads is disabled. cache-size:%u is too small, need cache-size >= %lu",
+            globalHead_.checkParms.cacheSize,
+            static_cast<uint64_t>(SHADOW_MEM_MIN_BYTE_SIZE / MB_TO_BYTES / SHADOW_MEM_CACHE_SIZE_RATIO));
+        offsetInfo.shadowMemoryInfo.offset = 0U;
+        offsetInfo.shadowMemoryInfo.size = 0U;
+    } else {
+        offsetInfo.shadowMemoryInfo.offset = AlignDownSize<CACHE_LINE_SIZE>(offsetInfo.simtErrorInfo.offset +
+            GetAllThreadSize(globalHead_)) + CACHE_LINE_SIZE;
+        offsetInfo.shadowMemoryInfo.size = shadowMemorySize;
+        DEBUG_LOG("offsetInfo shadowMemoryInfo.offset=%u shadowMemoryInfo.size=%u",
+            offsetInfo.shadowMemoryInfo.offset, offsetInfo.shadowMemoryInfo.size);
+    }
+
+    // 4. 设置simtEntryInfo相关的偏移信息，主要用于将simt在线检测对应的shadowMemory信息拷贝到simtEntryInfo偏移位置
+    uint64_t simtEntrySize = static_cast<uint64_t>(cacheByteSize * SIMT_ENTRY_CACHE_SIZE_RATIO) - CACHE_LINE_SIZE;
+    offsetInfo.simtEntryInfo.offset = AlignDownSize<CACHE_LINE_SIZE>(offsetInfo.shadowMemoryInfo.offset +
+        offsetInfo.shadowMemoryInfo.size) + CACHE_LINE_SIZE;
+    // 判断尾部是否越界，如果越界则尾部预留一个CACHE_LINE_SIZE，防止和下一个核开头cache_line冲突
+    if (simtEntrySize + offsetInfo.simtEntryInfo.offset >= cacheByteSize + offsetInfo.blockHeadSize) {
+        simtEntrySize = cacheByteSize + offsetInfo.blockHeadSize - offsetInfo.simtEntryInfo.offset - CACHE_LINE_SIZE;
+    }
+    offsetInfo.simtEntryInfo.size = simtEntrySize;
+    DEBUG_LOG("offsetInfo simtEntryInfo.offset=%u simtEntryInfo.size=%u",
+        offsetInfo.simtEntryInfo.offset, offsetInfo.simtEntryInfo.size);
 }
 
 bool SanitizerLaunchInit::BlockHeadsH2D(uint8_t *memInfo) const
@@ -605,7 +621,7 @@ bool SanitizerLaunchInit::SimtBlockHeadsH2D(uint8_t *memInfo, size_t blockIdx) c
     int16_t checkBlockId = globalHead_.checkParms.checkBlockId;
     if (checkBlockId == CHECK_ALL_BLOCK || IsTargetBlockIdx(checkBlockId, blockIdx)) {
         uint64_t allThreadSize = GetAllThreadSize(globalHead_);
-        aclError error = aclrtMemsetImplOrigin(memInfo + globalHead_.offsetInfo.simtHeadOffset,
+        aclError error = aclrtMemsetImplOrigin(memInfo + globalHead_.offsetInfo.simtErrorInfo.offset,
             allThreadSize, 0x00, allThreadSize);
         if (error != ACL_ERROR_NONE) {
             ERROR_LOG("init memset simt record block head error: %d", error);
@@ -613,7 +629,7 @@ bool SanitizerLaunchInit::SimtBlockHeadsH2D(uint8_t *memInfo, size_t blockIdx) c
         }
 
         // 初始化 shadow memory
-        if (globalHead_.offsetInfo.shadowMemoryByteSize == 0U) {
+        if (globalHead_.offsetInfo.shadowMemoryInfo.size == 0U) {
             DEBUG_LOG("shadow memory disabled for block %lu", blockIdx);
         } else {
             if (!InitSimtShadowMemoryHead(globalHead_, memInfo)) {
@@ -678,20 +694,38 @@ void SanitizerLaunchFinalize::Init(const uint8_t *memInfo, uint64_t blockDim)
     blockDim_ = blockDim;
     blockSize_ = SanitizerConfigManager::Instance().GetConfig().cacheSize * MB_TO_BYTES + sizeof(RecordGlobalHead) +
         sizeof(RecordBlockHead);
+    blockRemainSize_ = blockSize_;
+    sendMemorySize_ = 0;
+}
+
+void SanitizerLaunchFinalize::UpdateOffsetStatus(uint64_t offset, uint64_t d2HOffsetDiff)
+{
+    memInfo_ += offset + d2HOffsetDiff;
+    memInfoHost_ += offset;
+    sendMemorySize_ += offset;
+    blockRemainSize_ -= offset;
+}
+
+void SanitizerLaunchFinalize::ResetOffsetStatus(size_t blockIdx)
+{
+    memInfoBackUp_ += GetBlockSize(*globalHead_, blockIdx);
+    memInfo_ = memInfoBackUp_;
+    memInfoHost_ = memInfoHostBackUp_ + sizeof(RecordGlobalHead);
+    blockRemainSize_ = blockSize_;
+    sendMemorySize_ = sizeof(RecordGlobalHead);
 }
 
 bool SanitizerLaunchFinalize::GlobalHeadD2H()
 {
-    aclError error = aclrtMemcpyImplOrigin(memInfoHost_, blockSize_, memInfo_,
+    aclError error = aclrtMemcpyImplOrigin(memInfoHost_, blockRemainSize_, memInfo_,
                                            sizeof(RecordGlobalHead), ACL_MEMCPY_DEVICE_TO_HOST);
     if (error != ACL_ERROR_NONE) {
         ERROR_LOG("finalize memcpy RecordGlobalHead error: %d", error);
         return false;
     }
     globalHead_ = reinterpret_cast<RecordGlobalHead *>(memInfoHost_);
-    memInfo_ += sizeof(RecordGlobalHead);
     memInfoBackUp_ += sizeof(RecordGlobalHead);
-    memInfoHost_ += sizeof(RecordGlobalHead);
+    UpdateOffsetStatus(sizeof(RecordGlobalHead));
     return true;
 }
 
@@ -709,75 +743,87 @@ bool SanitizerLaunchFinalize::RegistersD2H() const
 
 bool SanitizerLaunchFinalize::BlockHeadD2H(size_t blockIdx)
 {
-    aclError error = aclrtMemcpyImplOrigin(memInfoHost_, blockSize_ - sizeof(RecordGlobalHead),
+    aclError error = aclrtMemcpyImplOrigin(memInfoHost_, blockRemainSize_,
         memInfo_, sizeof(RecordBlockHead), ACL_MEMCPY_DEVICE_TO_HOST);
     if (error != ACL_ERROR_NONE) {
         ERROR_LOG("finalize memcpy RecordBlockHead error: %d", error);
         return false;
     }
     blockHead_= reinterpret_cast<RecordBlockHead *>(memInfoHost_);
-    memInfoHost_ += sizeof(RecordBlockHead);
-    memInfo_ += globalHead_->offsetInfo.blockHeadSize;
     DEBUG_LOG("get recordHead from subBlock %lu, offset:%lu, writeOffset:%lu recordCount:%lu, recordWriteCount:%lu",
         blockIdx, blockHead_->offset, blockHead_->writeOffset, blockHead_->recordCount, blockHead_->recordWriteCount);
+    UpdateOffsetStatus(sizeof(RecordBlockHead), globalHead_->offsetInfo.blockHeadSize - sizeof(RecordBlockHead));
     return true;
 }
 
 bool SanitizerLaunchFinalize::SimdRecordD2H()
 {
-    aclError error = aclrtMemcpyImplOrigin(memInfoHost_, blockSize_ - sizeof(RecordGlobalHead) - sizeof(RecordBlockHead),
-        memInfo_, blockHead_->writeOffset, ACL_MEMCPY_DEVICE_TO_HOST);
+    aclError error = aclrtMemcpyImplOrigin(memInfoHost_, blockRemainSize_, memInfo_, blockHead_->writeOffset,
+        ACL_MEMCPY_DEVICE_TO_HOST);
     if (error != ACL_ERROR_NONE) {
         ERROR_LOG("finalize memcpy record error: %d", error);
         return false;
     }
-    memInfoHost_ += blockHead_->writeOffset;
-    memInfo_ += blockHead_->writeOffset;
+    UpdateOffsetStatus(blockHead_->writeOffset);
     return true;
 }
 
-bool SanitizerLaunchFinalize::SimtRecordD2H()
+bool SanitizerLaunchFinalize::SimtErrorD2H()
 {
     uint64_t allThreadSize = GetAllThreadSize(*globalHead_);
-    aclError error = aclrtMemcpyImplOrigin(memInfoHost_,
-        blockSize_ - sizeof(RecordGlobalHead) - sizeof(RecordBlockHead) - blockHead_->writeOffset,
-        memInfoBackUp_ + globalHead_->offsetInfo.simtHeadOffset, allThreadSize, ACL_MEMCPY_DEVICE_TO_HOST);
+    aclError error = aclrtMemcpyImplOrigin(memInfoHost_, blockRemainSize_,
+        memInfoBackUp_ + globalHead_->offsetInfo.simtErrorInfo.offset, allThreadSize, ACL_MEMCPY_DEVICE_TO_HOST);
     if (error != ACL_ERROR_NONE) {
         ERROR_LOG("finalize memcpy thread error:%d all thread size:%lu", error, allThreadSize);
         return false;
     }
-    memInfoHost_ += allThreadSize;
-    memInfo_ += allThreadSize;
+    UpdateOffsetStatus(allThreadSize);
     return true;
 }
 
-uint64_t SanitizerLaunchFinalize::ShadowMemoryD2H()
+bool SanitizerLaunchFinalize::ShadowMemoryD2H()
 {
-    uint32_t blockRemainSize = blockSize_ - sizeof(RecordGlobalHead) - sizeof(RecordBlockHead) -
-        blockHead_->writeOffset - GetAllThreadSize(*globalHead_);
-    if (aclrtMemcpyImplOrigin(memInfoHost_, blockRemainSize, memInfoBackUp_ + globalHead_->offsetInfo.shadowMemoryOffset,
-        globalHead_->offsetInfo.shadowMemoryByteSize, ACL_MEMCPY_DEVICE_TO_HOST) != ACL_ERROR_NONE) {
+    if (aclrtMemcpyImplOrigin(memInfoHost_, blockRemainSize_, memInfoBackUp_ + globalHead_->offsetInfo.shadowMemoryInfo.offset,
+        globalHead_->offsetInfo.shadowMemoryInfo.size, ACL_MEMCPY_DEVICE_TO_HOST) != ACL_ERROR_NONE) {
         ERROR_LOG("finalize memcpy shadow memory error");
-        return 0UL;
+        return false;
     }
-    uint64_t smBaseAddr = reinterpret_cast<uint64_t>(memInfoBackUp_) + globalHead_->offsetInfo.shadowMemoryOffset;
+    uint64_t smBaseAddr = reinterpret_cast<uint64_t>(memInfoBackUp_) + globalHead_->offsetInfo.shadowMemoryInfo.offset;
     std::vector<ShadowMemoryRecord> records;
     ParseSmTable(memInfoHost_, smBaseAddr, *blockHead_, records);
 
     ShadowMemoryRecordHead shadowMemoryHead{};
     shadowMemoryHead.recordCount = records.size();
-    if (aclrtMemcpyImplOrigin(memInfoHost_, blockRemainSize, &shadowMemoryHead, sizeof(shadowMemoryHead),
+    if (aclrtMemcpyImplOrigin(memInfoHost_, blockRemainSize_, &shadowMemoryHead, sizeof(shadowMemoryHead),
         ACL_MEMCPY_HOST_TO_HOST) != ACL_ERROR_NONE) {
         ERROR_LOG("finalize memcpy shadow memory record head error");
-        return 0UL;
+        return false;
     }
-    if (records.size() == 0U) { return sizeof(shadowMemoryHead); }
-    if (aclrtMemcpyImplOrigin(memInfoHost_ + sizeof(shadowMemoryHead), blockRemainSize - sizeof(shadowMemoryHead),
+    if (records.size() == 0U) {
+        UpdateOffsetStatus(sizeof(shadowMemoryHead));
+        return true;
+    }
+    if (aclrtMemcpyImplOrigin(memInfoHost_ + sizeof(shadowMemoryHead), blockRemainSize_ - sizeof(shadowMemoryHead),
         records.data(), records.size() * sizeof(ShadowMemoryRecord), ACL_MEMCPY_HOST_TO_HOST) != ACL_ERROR_NONE) {
         ERROR_LOG("finalize memcpy shadow memory record error");
-        return sizeof(shadowMemoryHead);
+        return false;
     }
-    return sizeof(shadowMemoryHead) + records.size() * sizeof(ShadowMemoryRecord);
+    uint64_t smTotalSize = sizeof(shadowMemoryHead) + records.size() * sizeof(ShadowMemoryRecord);
+    UpdateOffsetStatus(smTotalSize);
+    return true;
+}
+
+bool SanitizerLaunchFinalize::SimtEntryD2H()
+{
+    if (blockHead_->blockInfo.simtEntryUseSize == 0U) { return true; }
+    aclError error = aclrtMemcpyImplOrigin(memInfoHost_, blockRemainSize_, memInfoBackUp_ +
+        globalHead_->offsetInfo.simtEntryInfo.offset, blockHead_->blockInfo.simtEntryUseSize, ACL_MEMCPY_DEVICE_TO_HOST);
+    if (error != ACL_ERROR_NONE) {
+        ERROR_LOG("finalize memcpy simt entry error:%d size:%lu", error, blockHead_->blockInfo.simtEntryUseSize);
+        return false;
+    }
+    UpdateOffsetStatus(blockHead_->blockInfo.simtEntryUseSize);
+    return true;
 }
 
 void SanitizerLaunchFinalize::ReportBlockInfo()
@@ -789,7 +835,7 @@ void SanitizerLaunchFinalize::ReportBlockInfo()
     ParaBaseRegister paraBase{};
     for (std::size_t blockIdx = 0; blockIdx < totalBlockDim; ++blockIdx) {
         if (globalHead_->supportSimt && blockIdx == 0U) {
-            DumpMemoryInfo(memInfoHost_, memInfo_, blockSize_, blockIdx, *globalHead_);
+            DumpMemoryInfo(memInfoHost_, memInfo_, blockRemainSize_, blockIdx, *globalHead_);
         }
         // 2. copy RecordBlockHead to host
         if (!BlockHeadD2H(blockIdx)) { break; }
@@ -805,24 +851,20 @@ void SanitizerLaunchFinalize::ReportBlockInfo()
         }
 
         // 4. copy simt records, 当device支持simt并且是目标核的情况下才发送simt内存信息，否则会内存越界
-        uint64_t simtMemSize{};
         if (globalHead_->supportSimt && (checkBlockId == CHECK_ALL_BLOCK || IsTargetBlockIdx(checkBlockId, blockIdx))) {
-            if (!SimtRecordD2H()) { break; }
-            simtMemSize += GetAllThreadSize(*globalHead_);
+            if (!SimtErrorD2H()) { break; }
 
             // 5. copy shadowMemory
-            uint64_t smSize = ShadowMemoryD2H();
-            if (smSize == 0U) { break; }
-            simtMemSize += smSize;
+            if (!ShadowMemoryD2H()) { break; }
+
+            // 6. copy simt entry to host
+            if (!SimtEntryD2H()) { break; }
         }
-        // 6. 偏移memInfo到下一个核的开头，并还原指针位置
-        memInfoBackUp_ += GetBlockSize(*globalHead_, blockIdx);
-        memInfo_ = memInfoBackUp_;
-        memInfoHost_ = memInfoHostBackUp_ + sizeof(RecordGlobalHead);
-        uint64_t memSize = sizeof(RecordGlobalHead) + sizeof(RecordBlockHead) + blockHead_->writeOffset + simtMemSize;
-        auto body = Serialize(memSize);
-        body.append(static_cast<char*>(static_cast<void*>(memInfoHostBackUp_)), memSize);
+        // 7. 偏移memInfo到下一个核的开头，并还原指针和变量位置
+        auto body = Serialize(sendMemorySize_);
+        body.append(static_cast<char*>(static_cast<void*>(memInfoHostBackUp_)), sendMemorySize_);
         SendKernelBlock(body, blockIdx, totalBlockDim);
+        ResetOffsetStatus(blockIdx);
     }
     // 算子信息上报结束后，free掉para base地址
     if (isReportParaBase) { ReportFree(paraBase.addr, MemInfoSrc::BYPASS, MemInfoDesc::PARA_BASE); }

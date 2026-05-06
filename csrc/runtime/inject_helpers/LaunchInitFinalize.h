@@ -41,6 +41,7 @@ public:
 private:
     void InitKernelType();
     bool AssignGlobalHead();
+    void AssignSimtVfInfo();
     bool BlockHeadsH2D(uint8_t *memInfo) const;
     bool HostMallocH2D(uint8_t *memInfo, size_t blockIdx) const;
     bool SimtBlockHeadsH2D(uint8_t *memInfo, size_t blockIdx) const;
@@ -66,16 +67,21 @@ public:
     void Process();
 
 private:
+    void UpdateOffsetStatus(uint64_t offset, uint64_t d2HOffsetDiff = 0);
+    void ResetOffsetStatus(size_t blockIdx);
     bool GlobalHeadD2H();
     bool RegistersD2H() const;
     bool BlockHeadD2H(size_t blockIdx);
     bool SimdRecordD2H();
-    bool SimtRecordD2H();
-    uint64_t ShadowMemoryD2H();
+    bool SimtErrorD2H();
+    bool ShadowMemoryD2H();
+    bool SimtEntryD2H();
     void ReportBlockInfo();
 
     uint64_t blockDim_{};
-    uint64_t blockSize_{};
+    uint64_t blockSize_{};                // host侧需要的blockSize
+    uint64_t blockRemainSize_{};          // host侧拷贝后blockSize还剩余多少size
+    uint64_t sendMemorySize_{};
     const uint8_t *memInfo_{nullptr};
     const uint8_t *memInfoBackUp_{nullptr};
     uint8_t *memInfoHost_{nullptr};
