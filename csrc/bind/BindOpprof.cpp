@@ -107,6 +107,7 @@ void RegisterAscendCl()
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtBinaryLoadFromDataImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtCreateBinaryImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtBinaryLoadImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtRegisterCpuFuncImpl);
 }
 
 // 上板注册libruntime.so，仿真注册libruntime_camodel.so
@@ -573,6 +574,13 @@ aclError aclrtBinaryGetFunctionByEntryImpl(aclrtBinHandle binHandle, uint64_t fu
     PRINT_ENTER_INSTRUMENTOR;
     HijackedFuncOfAclrtBinaryGetFunctionByEntryImpl instance;
     return instance.Call(binHandle, funcEntry, funcHandle);
+}
+
+aclError aclrtRegisterCpuFuncImpl(const aclrtBinHandle binHandle, const char *funcName, const char *kernelName, aclrtFuncHandle *funcHandle)
+{
+    PRINT_ENTER_INSTRUMENTOR;
+    HijackedFuncOfAclrtRegisterCpuFuncImpl instance;
+    return instance.Call(binHandle, funcName, kernelName, funcHandle);
 }
 
 aclError aclrtKernelArgsAppendImpl(aclrtArgsHandle argsHandle, void *param, size_t paramSize,

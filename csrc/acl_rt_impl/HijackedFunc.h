@@ -67,24 +67,28 @@ public:
     explicit HijackedFuncOfAclrtMallocImpl();
     ~HijackedFuncOfAclrtMallocImpl() override = default;
     void Pre(void **devPtr, size_t size, aclrtMemMallocPolicy policy) override;
+    aclError Call(void **devPtr, size_t size, aclrtMemMallocPolicy policy) override;
     aclError Post(aclError ret) override;
 
 private:
     void **devPtr_{nullptr};
     size_t size_{0};
     aclrtMemMallocPolicy policy_ {aclrtMemMallocPolicy::ACL_MEM_MALLOC_HUGE_FIRST};
+    size_t actualSize_{0};
 };
 class HijackedFuncOfAclrtMallocWithCfgImpl : public decltype(AscendclImpHijackedType(&aclrtMallocWithCfgImpl)) {
 public:
     explicit HijackedFuncOfAclrtMallocWithCfgImpl();
     ~HijackedFuncOfAclrtMallocWithCfgImpl() override = default;
     void Pre(void **devPtr, size_t size, aclrtMemMallocPolicy policy, aclrtMallocConfig *cfg) override;
+    aclError Call(void **devPtr, size_t size, aclrtMemMallocPolicy policy, aclrtMallocConfig *cfg) override;
     aclError Post(aclError ret) override;
 
 private:
     void **devPtr_{nullptr};
     size_t size_{0};
     aclrtMemMallocPolicy policy_ {aclrtMemMallocPolicy::ACL_MEM_MALLOC_HUGE_FIRST};
+    size_t actualSize_{0};
 };
 
 class HijackedFuncOfAclrtMallocCachedImpl : public decltype(AscendclImpHijackedType(&aclrtMallocCachedImpl)) {
@@ -92,12 +96,14 @@ public:
     explicit HijackedFuncOfAclrtMallocCachedImpl();
     ~HijackedFuncOfAclrtMallocCachedImpl() override = default;
     void Pre(void **devPtr, size_t size, aclrtMemMallocPolicy policy) override;
+    aclError Call(void **devPtr, size_t size, aclrtMemMallocPolicy policy) override;
     aclError Post(aclError ret) override;
 
 private:
     void **devPtr_{nullptr};
     size_t size_{0};
     aclrtMemMallocPolicy policy_ {aclrtMemMallocPolicy::ACL_MEM_MALLOC_HUGE_FIRST};
+    size_t actualSize_{0};
 };
 
 class HijackedFuncOfAclrtMallocHostImpl : public decltype(AscendclImpHijackedType(&aclrtMallocHostImpl)) {
@@ -129,6 +135,11 @@ public:
     explicit HijackedFuncOfAclrtFreeImpl();
     ~HijackedFuncOfAclrtFreeImpl() override = default;
     void Pre(void *devPtr) override;
+    aclError Call(void *devPtr) override;
+
+private:
+    void *devPtr_{nullptr};
+    void *actualPtr_{nullptr};
 };
 
 class HijackedFuncOfAclrtFreeHostImpl : public decltype(AscendclImpHijackedType(&aclrtFreeHostImpl)) {
@@ -199,6 +210,7 @@ class HijackedFuncOfAclrtIpcMemGetExportKeyImpl
 public:
     explicit HijackedFuncOfAclrtIpcMemGetExportKeyImpl();
     void Pre(void *devPtr, size_t size, char *key, size_t len, uint64_t flag) override;
+    aclError Call(void *devPtr, size_t size, char *key, size_t len, uint64_t flag) override;
     aclError Post(aclError ret) override;
 
 private:
@@ -213,6 +225,7 @@ class HijackedFuncOfAclrtIpcMemImportByKeyImpl
 public:
     explicit HijackedFuncOfAclrtIpcMemImportByKeyImpl();
     void Pre(void **devPtr, const char *key, uint64_t flag) override;
+    aclError Call(void **devPtr, const char *key, uint64_t flag) override;
     aclError Post(aclError ret) override;
 
 private:
@@ -314,6 +327,21 @@ public:
     aclError Post(aclError ret) override;
 private:
     uint64_t funcEntry_{0};
+    aclrtFuncHandle *funcHandle_{nullptr};
+    aclrtBinHandle binHandle_{nullptr};
+};
+
+class HijackedFuncOfAclrtRegisterCpuFuncImpl: public decltype(
+    AscendclImpHijackedType(&aclrtRegisterCpuFuncImpl)) {
+public:
+    explicit HijackedFuncOfAclrtRegisterCpuFuncImpl();
+
+    void Pre(const aclrtBinHandle binHandle, const char *funcName, const char *kernelName, aclrtFuncHandle *funcHandle) override;
+
+    aclError Post(aclError ret) override;
+private:
+    const char *funcName_{nullptr};
+    const char *kernelName_{nullptr};
     aclrtFuncHandle *funcHandle_{nullptr};
     aclrtBinHandle binHandle_{nullptr};
 };

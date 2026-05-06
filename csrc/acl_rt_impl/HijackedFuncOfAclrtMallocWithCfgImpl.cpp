@@ -22,11 +22,13 @@
 #include "utils/Numeric.h"
 #include "utils/Protocol.h"
 #include "utils/Serialize.h"
+#include "utils/InjectLogger.h"
 #include "runtime/inject_helpers/LocalDevice.h"
 #include "runtime/inject_helpers/ProfConfig.h"
 #include "runtime/inject_helpers/KernelContext.h"
 #include "runtime/inject_helpers/MemoryContext.h"
 #include "runtime/inject_helpers/MemoryDataCollect.h"
+#include "runtime/inject_helpers/MemGuard.h"
 
 HijackedFuncOfAclrtMallocWithCfgImpl::HijackedFuncOfAclrtMallocWithCfgImpl()
     : HijackedFuncType(AclRuntimeLibName(), "aclrtMallocWithCfgImpl"), devPtr_{nullptr}, size_{} {}
@@ -38,6 +40,20 @@ void HijackedFuncOfAclrtMallocWithCfgImpl::Pre(void **devPtr, size_t size, aclrt
     this->policy_ = policy;
 }
 
+aclError HijackedFuncOfAclrtMallocWithCfgImpl::Call(void **devPtr, size_t size, aclrtMemMallocPolicy policy, aclrtMallocConfig *cfg)
+{
+    size_t actualSize = MemoryGuard::Instance().GetTotalSize(size);
+    this->actualSize_ = actualSize;
+    Pre(devPtr, size, policy, cfg);
+    if (originfunc_) {
+        aclError ret = originfunc_(devPtr, actualSize, policy, cfg);
+        return Post(ret);
+    }
+    ERROR_LOG("HijackedFuncOfAclrtMallocWithCfg originfunc is nullptr.");
+
+    return EmptyFunc();
+}
+
 aclError HijackedFuncOfAclrtMallocWithCfgImpl::Post(aclError ret)
 {
     if (IsSanitizer()) {
@@ -45,6 +61,8 @@ aclError HijackedFuncOfAclrtMallocWithCfgImpl::Post(aclError ret)
         if (ret != ACL_ERROR_NONE) {
             return ret;
         }
+
+        MemoryGuard::Instance().MallocProc(devPtr_, size_);
 
         constexpr uint64_t blockAlignSize = 32;
         PacketHead head = { PacketType::MEMORY_RECORD };

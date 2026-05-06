@@ -33,6 +33,7 @@ file(GLOB COMMON_SOURCE
     KernelMetaDataParser.cpp
     LocalDevice.cpp
     LaunchInitFinalize.cpp
+    MemGuard.cpp
 )
 list(SORT COMMON_SOURCE)
 target_sources(msopprof_injection PUBLIC ${COMMON_SOURCE})

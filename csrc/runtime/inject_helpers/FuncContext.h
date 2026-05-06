@@ -57,6 +57,8 @@ public:
     // Create FuncContext and call aclrt api with the same param except register info
     virtual FuncContextSP Clone(const RegisterContextSP &regCtx) const = 0;
 
+    bool isAiCpu = false;
+
 protected:
     KernelType GetKernelTypeFromRuntime() const;
 

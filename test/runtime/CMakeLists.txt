@@ -55,6 +55,7 @@ file(GLOB SOURCE
     injectors/ConfigManager.cpp
     injectors/CamodelTest.cpp
     injectors/DFXKernelLauncherTest.cpp
+    injectors/MemGuardTest.cpp
 
     BinaryLoadFromFileTest.cpp
     BinaryLoadFromDataTest.cpp

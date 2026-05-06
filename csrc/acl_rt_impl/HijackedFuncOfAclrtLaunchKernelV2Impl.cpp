@@ -262,11 +262,15 @@ void HijackedFuncOfAclrtLaunchKernelV2Impl::SanitizerPost()
             return;
         }
 
-        auto allocHeaders = GetAllocSectionHeaders(headers);
-        auto startPC = funcCtx_->GetStartPC();
-        ReportSectionsMalloc(startPC, allocHeaders);
-        __sanitizer_finalize(memInfo_, numBlocks_);
-        ReportSectionsFree(startPC, allocHeaders);
+        if (!funcCtx_->isAiCpu) {
+            auto allocHeaders = GetAllocSectionHeaders(headers);
+            auto startPC = funcCtx_->GetStartPC();
+            ReportSectionsMalloc(startPC, allocHeaders);
+            __sanitizer_finalize(memInfo_, numBlocks_);
+            ReportSectionsFree(startPC, allocHeaders);
+        } else {
+            __sanitizer_finalize(memInfo_, numBlocks_);
+        }
     }
 }
 

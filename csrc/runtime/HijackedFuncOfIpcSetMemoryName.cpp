@@ -19,6 +19,7 @@
 #include "runtime/inject_helpers/KernelContext.h"
 #include "runtime/inject_helpers/ProfConfig.h"
 #include "runtime/inject_helpers/InteractHelper.h"
+#include "runtime/inject_helpers/MemGuard.h"
 #include "core/FuncSelector.h"
 #include "utils/InjectLogger.h"
 #include "utils/Ustring.h"
@@ -37,7 +38,17 @@ rtError_t HijackedFuncOfIpcSetMemoryName::Call(const void *ptr, uint64_t byteCou
         return RT_ERROR_RESERVED;
     }
 
-    rtError_t ret = this->originfunc_(ptr, byteCount, name, len);
+    rtError_t ret;
+    if (MemoryGuard::Instance().memGuardEnable_) {
+        size_t frontSize = 0;
+        size_t backSize = 0;
+        MemoryGuard::Instance().GetGuardSizes(frontSize, backSize);
+        // 还原为实际地址再调用
+        ret = originfunc_(reinterpret_cast<char *>(const_cast<void *>(ptr)) - frontSize, byteCount + frontSize + backSize, name, len);
+    } else {
+        ret = originfunc_(ptr, byteCount, name, len);
+    }
+
     if (ret != RT_ERROR_NONE) {
         ERROR_LOG(
             "error happened when calling rtIpcSetMemoryName byteCount:%lu, name:%.2048s, len:%u, retVal:%u",

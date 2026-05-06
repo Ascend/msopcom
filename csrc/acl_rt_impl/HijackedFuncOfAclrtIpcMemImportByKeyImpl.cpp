@@ -21,6 +21,7 @@
 #include "core/FuncSelector.h"
 #include "runtime/inject_helpers/InteractHelper.h"
 #include "runtime/inject_helpers/IPCMemManager.h"
+#include "runtime/inject_helpers/MemGuard.h"
 #include "utils/InjectLogger.h"
 #include "utils/Protocol.h"
 #include "utils/Ustring.h"
@@ -32,6 +33,25 @@ void HijackedFuncOfAclrtIpcMemImportByKeyImpl::Pre(void **devPtr, const char *ke
 {
     devPtr_ = devPtr;
     key_ = key;
+}
+
+aclError HijackedFuncOfAclrtIpcMemImportByKeyImpl::Call(void **devPtr, const char *key, uint64_t flag)
+{
+    Pre(devPtr, key, flag);
+    if (originfunc_) {
+        aclError ret = originfunc_(devPtr, key, flag);
+        if (MemoryGuard::Instance().memGuardEnable_) {
+            size_t frontSize = 0;
+            size_t backSize = 0;
+            MemoryGuard::Instance().GetGuardSizes(frontSize, backSize);
+            *devPtr = reinterpret_cast<char *>(*devPtr) + frontSize;    // 偏移到用户地址再返回
+        }
+
+        return Post(ret);
+    }
+    ERROR_LOG("HijackedFuncOfAclrtIpcMemImportByKeyImpl originfunc is nullptr.");
+
+    return EmptyFunc();
 }
 
 aclError HijackedFuncOfAclrtIpcMemImportByKeyImpl::Post(aclError ret)

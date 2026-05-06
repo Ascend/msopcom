@@ -45,6 +45,15 @@ constexpr int16_t CHECK_ALL_BLOCK = -1;
 /// mssanitizer 默认记录对应的gm size，单位为M
 constexpr uint32_t DEFAULT_CACHE_SIZE = 100;
 
+/// GM 内存地址buffer前后安全区默认长度，单位字节
+constexpr uint32_t GM_BUFFER_GUARD_DFT_SIZE = 32;
+
+/// GM 内存地址buffer前后安全区最大长度，单位字节
+constexpr uint32_t GM_BUFFER_GUARD_MAX_SIZE = 1024;
+
+/// GM 内存地址buffer前后安全区默认填充内容
+constexpr unsigned char GM_BUFFER_GUARD_DFT_PATTERN = 0x5A;
+
 /// 动态插桩插件路径的最大长度
 constexpr uint16_t PLUGIN_PATH_MAX = 256;
 /// soc version 的最大长度
@@ -140,6 +149,8 @@ enum class PacketType : uint32_t {
     KERNEL_RECORD,         // Kernel 侧指令记录
     IPC_RECORD,            // IPC 类操作记录
     MEM_REGION_PERMISSION, // 内存权限分配
+    SANITIZER_RECORD,    // 用于上报 SanitizerRecord 记录
+    GM_ADDR_OUT_OF_BOUND_RECORD,  // GM地址越界写记录
 
     TEXT = 2000,
 
@@ -290,6 +301,7 @@ struct CheckParmsInfo {
     bool initcheck{};                                 // 是否开启未初始化检测
     bool synccheck{};                                 // 是否开启同步检测
     bool registerCheck{};                             // 是否开启寄存器检测
+    uint32_t gmBufferGuardSize = GM_BUFFER_GUARD_DFT_SIZE;  // GM 内存地址buffer前后安全区长度，单位字节
 };
 
 struct HostMemoryInfo {
@@ -492,6 +504,14 @@ struct HostMemRecord {
     uint64_t rootAddr; // 当前host侧的内存记录对应归属地址，主要用于上报mstx内存信息时，将heap和region关联使用
 };
 
+// GM地址越界写异常记录 Payload
+struct GMAddrOutOfBoundRecord {
+    uint64_t userAddr;      // 用户申请地址
+    uint64_t size;          // 用户申请内存有效长度
+    uint32_t frontOutSize;  // 向前越界长度
+    uint32_t backOutSize;   // 向后越界长度
+};
+
 enum class IPCOperationType : uint32_t { SET_INFO = 0, DESTROY_INFO, MAP_INFO, UNMAP_INFO };
 
 struct IPCMemorySetInfo {
@@ -551,6 +571,7 @@ struct SanitizerConfig {
     char pluginPath[PLUGIN_PATH_MAX];
     char kernelName[KERNEL_NAME_MAX];
     char dumpPath[DUMP_PATH_MAX];
+    uint32_t gmBufferGuardSize = GM_BUFFER_GUARD_DFT_SIZE;
 };
 
 enum class ResponseStatus : uint32_t { SUCCESS = 0, FAIL = 1000 };

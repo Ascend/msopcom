@@ -295,11 +295,17 @@ void HijackedFuncOfAclrtLaunchKernelWithHostArgsImpl::SanitizerPost()
         launchInfo.placeHolderArray = reinterpret_cast<aclrtPlaceHolderInfo *>(placeHolderArray_.data());
         launchInfo.placeHolderNum = placeHolderNum_;
         ReportOpMallocInfo(launchInfo, LaunchManager::Local().GetCurrentMemInfo());
-        auto allocHeaders = GetAllocSectionHeaders(headers);
-        auto startPC = funcCtx_->GetStartPC();
-        ReportSectionsMalloc(startPC, allocHeaders);
-        __sanitizer_finalize(memInfo_, blockDim_);
-        ReportSectionsFree(startPC, allocHeaders);
+
+        if (!funcCtx_->isAiCpu) {
+            auto allocHeaders = GetAllocSectionHeaders(headers);
+            auto startPC = funcCtx_->GetStartPC();
+            ReportSectionsMalloc(startPC, allocHeaders);
+            __sanitizer_finalize(memInfo_, blockDim_);
+            ReportSectionsFree(startPC, allocHeaders);
+        } else {
+            __sanitizer_finalize(memInfo_, blockDim_);
+        }
+
         ReportOpFreeInfo(LaunchManager::Local().GetCurrentMemInfo());
     }
 }

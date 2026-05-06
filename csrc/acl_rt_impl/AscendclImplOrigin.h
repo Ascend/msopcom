@@ -43,6 +43,7 @@ aclError aclrtDestroyBinaryImplOrigin(aclrtBinary binary);
 
 aclError aclrtBinaryGetFunctionImplOrigin(const aclrtBinHandle binHandle, const char *kernelName, aclrtFuncHandle *funcHandle);
 aclError aclrtBinaryGetFunctionByEntryImplOrigin(aclrtBinHandle binHandle, uint64_t funcEntry, aclrtFuncHandle *funcHandle);
+aclError aclrtRegisterCpuFuncImplOrigin(const aclrtBinHandle binHandle, const char *funcName, const char *kernelName, aclrtFuncHandle *funcHandle);
 
 aclError aclrtKernelArgsInitImplOrigin(aclrtFuncHandle funcHandle, aclrtArgsHandle *argsHandle);
 aclError aclrtKernelArgsInitByUserMemImplOrigin(aclrtFuncHandle funcHandle, aclrtArgsHandle argsHandle, void *userHostMem, size_t actualArgsSize);

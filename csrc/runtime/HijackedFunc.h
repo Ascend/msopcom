@@ -176,6 +176,7 @@ public:
     explicit HijackedFuncOfAiCpuKernelLaunchExWithArgs();
     void Pre(const uint32_t kernelType, const char *const opName, const uint32_t blockDim,
         const rtAicpuArgsEx_t *argsInfo, rtSmDesc_t *const smDesc, const rtStream_t stm, const uint32_t flags) override;
+    rtError_t Post(rtError_t ret) override;
 }; // class HijackedFuncOfAiCpuKernelLaunchExWithArgs
 
 // For rtKernelLaunchWithFlagV2

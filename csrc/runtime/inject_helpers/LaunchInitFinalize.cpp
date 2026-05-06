@@ -26,6 +26,7 @@
 #include "InteractHelper.h"
 #include "utils/Numeric.h"
 #include "utils/Ustring.h"
+#include "MemGuard.h"
 #include "LaunchInitFinalize.h"
 
 KernelType GetCurrentKernelType()
@@ -481,6 +482,7 @@ bool SanitizerLaunchInit::AssignGlobalHead()
     globalHead_.checkParms.initcheck = cliConfig.initCheck;
     globalHead_.checkParms.synccheck = cliConfig.syncCheck;
     globalHead_.checkParms.registerCheck = cliConfig.registerCheck;
+    globalHead_.checkParms.gmBufferGuardSize = cliConfig.gmBufferGuardSize;
     globalHead_.kernelInfo.kernelType = kernelType_;
     globalHead_.kernelInfo.kernelParamNum = KernelContext::Instance().GetKernelParamNum();
     globalHead_.supportSimt = SupportSimt(deviceType);

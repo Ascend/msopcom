@@ -45,6 +45,7 @@ void AscendclImplOriginCtor()
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtDestroyBinaryImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtBinaryGetFunctionImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtBinaryGetFunctionByEntryImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtRegisterCpuFuncImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtKernelArgsInitImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtKernelArgsInitByUserMemImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtKernelArgsGetMemSizeImpl);
@@ -155,6 +156,11 @@ aclError aclrtBinaryGetFunctionImplOrigin(const aclrtBinHandle binHandle, const 
 aclError aclrtBinaryGetFunctionByEntryImplOrigin(aclrtBinHandle binHandle, uint64_t funcEntry, aclrtFuncHandle *funcHandle)
 {
     LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtBinaryGetFunctionByEntryImpl, binHandle, funcEntry, funcHandle);
+}
+
+aclError aclrtRegisterCpuFuncImplOrigin(const aclrtBinHandle binHandle, const char *funcName, const char *kernelName, aclrtFuncHandle *funcHandle)
+{
+    LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtRegisterCpuFuncImpl, binHandle, funcName, kernelName, funcHandle);
 }
 
 aclError aclrtKernelArgsInitImplOrigin(aclrtFuncHandle funcHandle, aclrtArgsHandle *argsHandle)

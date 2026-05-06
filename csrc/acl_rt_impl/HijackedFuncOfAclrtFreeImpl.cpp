@@ -21,16 +21,19 @@
 #include "core/FuncSelector.h"
 #include "utils/Protocol.h"
 #include "utils/Serialize.h"
+#include "utils/InjectLogger.h"
 #include "runtime/inject_helpers/LocalDevice.h"
 #include "runtime/inject_helpers/ProfConfig.h"
 #include "runtime/inject_helpers/MemoryContext.h"
 #include "runtime/inject_helpers/MemoryDataCollect.h"
+#include "runtime/inject_helpers/MemGuard.h"
 
 HijackedFuncOfAclrtFreeImpl::HijackedFuncOfAclrtFreeImpl()
     : HijackedFuncType(AclRuntimeLibName(), "aclrtFreeImpl") {}
 
 void HijackedFuncOfAclrtFreeImpl::Pre(void *devPtr)
 {
+    this->devPtr_ = devPtr;
     if (IsSanitizer()) {
         PacketHead head = { PacketType::MEMORY_RECORD };
         HostMemRecord record{};
@@ -39,8 +42,25 @@ void HijackedFuncOfAclrtFreeImpl::Pre(void *devPtr)
         record.dstAddr = reinterpret_cast<uint64_t>(devPtr);
         MemoryManage::Instance().CacheMemory<MemoryOpType::FREE>(record.dstAddr, record.infoSrc);
         LocalDevice::Local().Notify(Serialize(head, record));
+
+        MemoryGuard::Instance().FreeProc(devPtr_);
     }
     if (IsOpProf() && !ProfConfig::Instance().IsSimulator()) {
         MemoryContext::Instance().Discard(devPtr);
     }
+}
+
+aclError HijackedFuncOfAclrtFreeImpl::Call(void *devPtr)
+{
+    void *actualPtr = MemoryGuard::Instance().GetRealPtr(devPtr);
+    this->actualPtr_ = actualPtr;
+
+    Pre(devPtr);
+    if (originfunc_) {
+        aclError ret = originfunc_(actualPtr);
+        return Post(ret);
+    }
+    ERROR_LOG("HijackedFuncOfAclrtFree originfunc is nullptr.");
+
+    return EmptyFunc();
 }

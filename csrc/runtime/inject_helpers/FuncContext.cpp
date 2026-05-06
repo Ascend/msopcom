@@ -44,6 +44,10 @@ KernelType AclrtKernelTypeTrans(aclrtKernelType kernelType)
 
 uint64_t FuncContext::GetKernelPC() const
 {
+    if (isAiCpu) {
+        return 0;
+    }
+
     void *aicAddr{nullptr};
     void *aivAddr{nullptr};
     uint64_t pcKernelAddr;

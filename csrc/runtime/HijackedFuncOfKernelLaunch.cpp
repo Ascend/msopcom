@@ -39,6 +39,7 @@
 #include "runtime/inject_helpers/ProfConfig.h"
 #include "runtime/inject_helpers/LaunchArgs.h"
 #include "runtime/inject_helpers/RegisterContext.h"
+#include "runtime/inject_helpers/MemGuard.h"
 #include "utils/FileSystem.h"
 
 using namespace std;
@@ -162,6 +163,8 @@ void HijackedFuncOfKernelLaunch::SanitizerPre()
     if (this->memInfo_) {
         ExpandArgs(this->args_, this->argsSize_, this->argsVec_, this->memInfo_);
     }
+
+    MemoryGuard::Instance().FillAllMemGuard();
 }
 
 void HijackedFuncOfKernelLaunch::ProfPost()
@@ -207,6 +210,8 @@ void HijackedFuncOfKernelLaunch::ProfPost()
 
 void HijackedFuncOfKernelLaunch::SanitizerPost() const
 {
+    MemoryGuard::Instance().CheckAllMemGuard();
+
     if (this->skipSanitizer_) {
         // 对于 <<<>>> 场景，编译器也会在算子调用符处插入 __sanitizer_finalize，因此为了防止
         // 编译器插入的 __sanitizer_finalize 生效，需要在此处将记录内存状态设置为失效

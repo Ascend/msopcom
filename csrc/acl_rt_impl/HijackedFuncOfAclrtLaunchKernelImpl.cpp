@@ -37,6 +37,7 @@
 #include "runtime/inject_helpers/BBCountDumper.h"
 #include "runtime/inject_helpers/DBITask.h"
 #include "runtime/inject_helpers/LaunchArgs.h"
+#include "runtime/inject_helpers/MemGuard.h"
 
 namespace {
 
@@ -188,6 +189,8 @@ void HijackedFuncOfAclrtLaunchKernelImpl::SanitizerPre()
         launchCtx_->SetDBIFuncCtx(funcCtx_);
         funcHandle_ = funcCtx_->GetFuncHandle();
     }
+
+    MemoryGuard::Instance().FillAllMemGuard();
 }
 
 void HijackedFuncOfAclrtLaunchKernelImpl::Pre(aclrtFuncHandle funcHandle, uint32_t blockDim, const void *argsData,
@@ -250,6 +253,8 @@ aclError HijackedFuncOfAclrtLaunchKernelImpl::Call(aclrtFuncHandle funcHandle, u
 
 void HijackedFuncOfAclrtLaunchKernelImpl::SanitizerPost()
 {
+    MemoryGuard::Instance().CheckAllMemGuard();
+
     if (skipSanitizer_) {
         // 对于 <<<>>> 场景，编译器也会在算子调用符处插入 __sanitizer_finalize，因此为了防止
         // 编译器插入的 __sanitizer_finalize 生效，需要在此处将记录内存状态设置为失效
@@ -271,11 +276,15 @@ void HijackedFuncOfAclrtLaunchKernelImpl::SanitizerPost()
             return;
         }
 
-        auto allocHeaders = GetAllocSectionHeaders(headers);
-        auto startPC = funcCtx_->GetStartPC();
-        ReportSectionsMalloc(startPC, allocHeaders);
-        __sanitizer_finalize(memInfo_, blockDim_);
-        ReportSectionsFree(startPC, allocHeaders);
+        if (!funcCtx_->isAiCpu) {
+            auto allocHeaders = GetAllocSectionHeaders(headers);
+            auto startPC = funcCtx_->GetStartPC();
+            ReportSectionsMalloc(startPC, allocHeaders);
+            __sanitizer_finalize(memInfo_, blockDim_);
+            ReportSectionsFree(startPC, allocHeaders);
+        } else {
+            __sanitizer_finalize(memInfo_, blockDim_);
+        }
     }
 }
 
