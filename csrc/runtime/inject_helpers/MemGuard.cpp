@@ -71,8 +71,8 @@ void MemoryGuard::Init()
     }
     memGuardEnable_ = true;
 
-    // 配置安全区大小
-    SetGuardSizes(cliConfig.gmBufferGuardSize, cliConfig.gmBufferGuardSize);
+    // 配置安全区大小，前安全区大小始终为0
+    SetGuardSizes(0, cliConfig.gmBufferGuardSize);
     DEBUG_LOG("MemoryGuard get frontSize %zu and backSize %zu from config.", frontSize_, backSize_);
 
     memGuardInit_ = true;
@@ -80,12 +80,6 @@ void MemoryGuard::Init()
 
 void MemoryGuard::SetGuardSizes(size_t front, size_t back)
 {
-
-    if (front == 0 || back == 0) {
-        ERROR_LOG("MemoryGuard set guard size invalid, front %zu, back %zu.", front, back);
-        return;
-    }
-
     // 前后保护区大小分别对齐到 ALIGNMENT 倍数
     frontSize_ = CeilByAlignSize<ALIGNMENT>(front);
     backSize_ = CeilByAlignSize<ALIGNMENT>(back);
@@ -138,27 +132,31 @@ void MemoryGuard::FillAllMemGuard()
     }
 }
 
-size_t MemoryGuard::CheckGuard(const void* start, size_t len) const
+// 返回 越界写字节数 errBytes 和 首次越界位置 errBytesStart
+void MemoryGuard::CheckGuard(const void* start, size_t len, uint64_t &errBytesStart, size_t &errBytes) const
 {
+    errBytesStart = -1;
+    errBytes = 0;
+
     if (len == 0) {
-        return 0;
+        return;
     }
 
     unsigned char buf[len];
     aclError error = aclrtMemcpyImplOrigin(static_cast<void *>(buf), len, start, len, ACL_MEMCPY_DEVICE_TO_HOST);
     if (error != ACL_ERROR_NONE) {
         ERROR_LOG("CheckGuard copy out error: %d", error);
-        return 0;
+        return;
     }
 
-    size_t corrupted_bytes = 0;
     for (size_t i = 0; i < len; ++i) {
         if (buf[i] != pattern_) {
-            ++corrupted_bytes;
+            ++errBytes;
+            if (errBytesStart == static_cast<size_t>(-1)) {
+                errBytesStart = i;
+            }
         }
     }
-
-    return corrupted_bytes;
 }
 
 void MemoryGuard::CheckAllMemGuard()
@@ -172,8 +170,8 @@ void MemoryGuard::CheckAllMemGuard()
             GuardBlockInfo &blockInfo = blockInfoIt.second;
 
             // 检查前后保护区
-            blockInfo.frontErrBytes = CheckGuard(blockInfo.GetFrontStart(), frontSize_);
-            blockInfo.backErrBytes = CheckGuard(blockInfo.GetBackStart(), backSize_);
+            CheckGuard(blockInfo.GetFrontStart(), frontSize_, blockInfo.frontErrStart, blockInfo.frontErrBytes);
+            CheckGuard(blockInfo.GetBackStart(), backSize_, blockInfo.backErrStart, blockInfo.backErrBytes);
 
             // 存在越界写时，生成告警信息并传给工具侧
             if (blockInfo.frontErrBytes + blockInfo.backErrBytes != 0) {
@@ -187,10 +185,11 @@ void MemoryGuard::GenGMAddrErr(const GuardBlockInfo &blockInfo) const
 {
     PacketHead gmHead = { PacketType::GM_ADDR_OUT_OF_BOUND_RECORD };
     GMAddrOutOfBoundRecord gmRecord;
+    // 当前仅存在后安全区越界场景，告警消息仅填充相关内容
     gmRecord.userAddr = reinterpret_cast<uint64_t>(blockInfo.GetUserAddr());
-    gmRecord.size = blockInfo.userSize;
-    gmRecord.frontOutSize = blockInfo.frontErrBytes;
-    gmRecord.backOutSize = blockInfo.backErrBytes;
+    gmRecord.userSize = blockInfo.userSize;
+    gmRecord.outAddr = gmRecord.userAddr + gmRecord.userSize + blockInfo.backErrStart;
+    gmRecord.outSize = blockInfo.backErrBytes;
 
     LocalDevice::Local().Notify(Serialize(gmHead, gmRecord));
 }

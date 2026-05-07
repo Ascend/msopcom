@@ -506,10 +506,10 @@ struct HostMemRecord {
 
 // GM地址越界写异常记录 Payload
 struct GMAddrOutOfBoundRecord {
-    uint64_t userAddr;      // 用户申请地址
-    uint64_t size;          // 用户申请内存有效长度
-    uint32_t frontOutSize;  // 向前越界长度
-    uint32_t backOutSize;   // 向后越界长度
+    uint64_t userAddr;      // 用户申请内存起始地址
+    uint32_t userSize;      // 用户申请内存有效长度
+    uint64_t outAddr;       // 安全区越界起始地址
+    uint32_t outSize;       // 安全区越界长度
 };
 
 enum class IPCOperationType : uint32_t { SET_INFO = 0, DESTROY_INFO, MAP_INFO, UNMAP_INFO };

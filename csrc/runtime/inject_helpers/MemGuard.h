@@ -32,6 +32,10 @@ struct GuardBlockInfo {
     size_t frontGuardSize;
     size_t backGuardSize;
 
+    // 前后保护区异常越界起始位置
+    size_t frontErrStart = -1;
+    size_t backErrStart = -1;
+
     // 前后保护区异常越界写字节数
     size_t frontErrBytes;
     size_t backErrBytes;
@@ -94,7 +98,7 @@ private:
     void FillGuard(void* start, size_t len);
 
     // 检查保护区是否完整
-    size_t CheckGuard(const void* start, size_t len) const;
+    void CheckGuard(const void* start, size_t len, uint64_t &errBytesStart, size_t &errBytes) const;
 
     // 生成GM内存越界记录并发送给工具侧
     void GenGMAddrErr(const GuardBlockInfo &blockInfo) const;
@@ -104,7 +108,7 @@ public:
     bool memGuardEnable_ = false; // 内存安全区全局功能使能开关
 
 private:
-    size_t frontSize_ = GM_BUFFER_GUARD_DFT_SIZE;
+    size_t frontSize_ = 0;  // 默认不使用前安全区
     size_t backSize_ = GM_BUFFER_GUARD_DFT_SIZE;
     unsigned char pattern_ = GM_BUFFER_GUARD_DFT_PATTERN;
 
