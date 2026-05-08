@@ -519,6 +519,7 @@ struct SanitizerConfig {
     bool checkCannHeap;
     bool leakCheck;
     bool checkUnusedMemory;
+    bool checkCrossNpuRaces;
     bool isPrintFullStack{false};
     int16_t checkBlockId = CHECK_ALL_BLOCK;
     uint32_t cacheSize = DEFAULT_CACHE_SIZE;
