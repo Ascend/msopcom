@@ -210,8 +210,6 @@ void HijackedFuncOfKernelLaunch::ProfPost()
 
 void HijackedFuncOfKernelLaunch::SanitizerPost() const
 {
-    MemoryGuard::Instance().CheckAllMemGuard();
-
     if (this->skipSanitizer_) {
         // 对于 <<<>>> 场景，编译器也会在算子调用符处插入 __sanitizer_finalize，因此为了防止
         // 编译器插入的 __sanitizer_finalize 生效，需要在此处将记录内存状态设置为失效
@@ -222,6 +220,8 @@ void HijackedFuncOfKernelLaunch::SanitizerPost() const
     } else if (this->memInfo_) {
         // wait for kernel execution done, and catch potential exception
         rtStreamSynchronizeOrigin(this->stm_);
+
+        MemoryGuard::Instance().CheckAllMemGuard();
 
         KernelContext::LaunchEvent event;
         if (!KernelContext::Instance().GetLastLaunchEvent(event)) {

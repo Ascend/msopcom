@@ -290,11 +290,12 @@ rtError_t HijackedFuncOfKernelLaunchWithFlagV2::Call(const void *stubFunc, uint3
 
 void HijackedFuncOfKernelLaunchWithFlagV2::SanitizerPost()
 {
-    MemoryGuard::Instance().CheckAllMemGuard();
-    
     if ((this->memInfo_ || isSink_) && !this->skipSanitizer_) {
         // wait for kernel execution done, and catch potential exception
         rtStreamSynchronizeOrigin(this->stm_);
+
+        MemoryGuard::Instance().CheckAllMemGuard();
+
         if (isSink_) {
             KernelDumper::Instance().LaunchDumpTask(stm_);
             return;

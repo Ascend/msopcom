@@ -253,8 +253,6 @@ aclError HijackedFuncOfAclrtLaunchKernelImpl::Call(aclrtFuncHandle funcHandle, u
 
 void HijackedFuncOfAclrtLaunchKernelImpl::SanitizerPost()
 {
-    MemoryGuard::Instance().CheckAllMemGuard();
-
     if (skipSanitizer_) {
         // 对于 <<<>>> 场景，编译器也会在算子调用符处插入 __sanitizer_finalize，因此为了防止
         // 编译器插入的 __sanitizer_finalize 生效，需要在此处将记录内存状态设置为失效
@@ -269,6 +267,8 @@ void HijackedFuncOfAclrtLaunchKernelImpl::SanitizerPost()
 
         // wait for kernel execution done, and catch potential exception
         rtStreamSynchronizeOrigin(stream_);
+
+        MemoryGuard::Instance().CheckAllMemGuard();
 
         auto const &elfData = funcCtx_->GetRegisterContext()->GetElfData();
         std::map<std::string, Elf64_Shdr> headers;

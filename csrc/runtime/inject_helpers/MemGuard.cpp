@@ -64,9 +64,15 @@ void MemoryGuard::ClearGuardBlockMap()
 
 void MemoryGuard::Init()
 {
+    memGuardInit_ = true;
+    // 非检测场景直接返回，后续不再尝试初始化
+    if (!IsSanitizer()) {
+        return;
+    }
+
     // 仅当开启内存检测时启用安全区
     SanitizerConfig cliConfig = SanitizerConfigManager::Instance().GetConfig();
-    if (!(IsSanitizer() && cliConfig.memCheck)) {
+    if (!cliConfig.memCheck) {
         return;
     }
     memGuardEnable_ = true;
@@ -74,8 +80,6 @@ void MemoryGuard::Init()
     // 配置安全区大小，前安全区大小始终为0
     SetGuardSizes(0, cliConfig.gmBufferGuardSize);
     DEBUG_LOG("MemoryGuard get frontSize %zu and backSize %zu from config.", frontSize_, backSize_);
-
-    memGuardInit_ = true;
 }
 
 void MemoryGuard::SetGuardSizes(size_t front, size_t back)
