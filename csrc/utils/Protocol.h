@@ -136,6 +136,7 @@ enum class PacketType : uint32_t {
     MEMORY_RECORD = 1000,  // Host 侧内存操作记录
     KERNEL_RECORD,         // Kernel 侧指令记录
     IPC_RECORD,            // IPC 类操作记录
+    MEM_REGION_PERMISSION, // 内存权限分配
 
     TEXT = 2000,
 
@@ -539,4 +540,11 @@ struct IPCResponse {
 struct KernelRecordResponse {
     uint32_t blockIdx;
     ResponseStatus status;
+};
+
+struct MemRegionPermissionDesc {
+    uint64_t addr;
+    uint64_t size;
+    uint32_t deviceId;
+    uint32_t flags;
 };

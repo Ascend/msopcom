@@ -336,3 +336,36 @@ bool MsTx::MstxMemRegionsUnregister(MstxDomainRegistration *domain, MstxMemRegio
     }
     return true;
 }
+
+bool MsTx::MstxMemPermissionsAssign(MstxAPI::MstxDomainRegistration *domain,
+                                    MstxAPI::MstxMemPermissionsAssignBatch const *desc,
+                                    std::vector<MstxAPI::MstxMemVirtualRangeDesc> &rangeDescVec)
+{
+    std::lock_guard<std::mutex> lock(mstxAttrMutex_);
+    if (!IsDomainExist(domain)) {
+        ERROR_LOG("domain does not exist, please see the api for creating a domain in the description document");
+        return false;
+    }
+    if (desc == nullptr || desc->regionDescArray == nullptr) {
+        ERROR_LOG("desc is illegal, please create a desc or replace it with an existing desc");
+        return false;
+    }
+    if (mstxDomainRegionsMap_.find(domain) == mstxDomainRegionsMap_.end()) {
+        ERROR_LOG("domain cannot be found, please run mstxMemRegionsRegister to register the domain");
+        return false;
+    }
+
+    for (size_t i = 0; i < desc->regionCount; ++i) {
+        if (desc->regionDescArray[i].region.refType == MstxMemRegionRefType::MSTX_MEM_REGION_REF_TYPE_HANDLE) {
+            auto regionIt = mstxRegionRangeDescMap_.find(desc->regionDescArray[i].region.handle);
+            if (regionIt == mstxRegionRangeDescMap_.end()) {
+                return false;
+            }
+            rangeDescVec.push_back(regionIt->second);
+        } else {
+            ERROR_LOG("MSTX_MEM_REGION_REF_TYPE_POINTER is not supported yet. Use MSTX_MEM_REGION_REF_TYPE_HANDLE instead.");
+            return false;
+        }
+    }
+    return true;
+}

@@ -36,6 +36,7 @@ using MstxFuncTable = MstxFuncPointer** ;
 struct MstxDomainRegistration {};
 struct MstxMemHeap {};
 struct MstxMemRegion {};
+using MstxRegionHandle = MstxMemRegion*;
 
 /** @brief Structure to describe a memory virtual range
  * @member deviceId - device id which the memory belongs to
@@ -136,6 +137,16 @@ struct MstxMemRegionsUnregisterBatch {
     MstxMemRegionRef const *refArray;
 };
 
+struct MstxMemPermissionsAssignRegionsDesc {
+    uint32_t flags;
+    MstxMemRegionRef region;
+};
+
+struct MstxMemPermissionsAssignBatch {
+    size_t regionCount;
+    MstxMemPermissionsAssignRegionsDesc const *regionDescArray;
+};
+
 constexpr int MSTX_SUCCESS = 0;
 constexpr int MSTX_FAIL = 1;
 constexpr int MAX_MESSAGE_LENGTH = 1023;
@@ -160,6 +171,7 @@ enum class MstxImplCoreMemFuncId : uint32_t {
     MSTX_API_CORE_MEMHEAP_UNREGISTER        = 2,
     MSTX_API_CORE_MEM_REGIONS_REGISTER      = 3,
     MSTX_API_CORE_MEM_REGIONS_UNREGISTER    = 4,
+    MSTX_API_CORE_MEM_PERMISSIONS_ASSIGN    = 5,
     MSTX_API_CORE_MEM_SIZE,                   // end of the enum, new enum items must be added before this
     MSTX_API_CORE_MEM_FORCE_INT             = 0x7fffffff
 };
@@ -220,6 +232,9 @@ public:
         MstxAPI::MstxMemRegionsRegisterBatch const *desc);
     bool MstxMemRegionsUnregister(MstxAPI::MstxDomainRegistration *domain,
                                   MstxAPI::MstxMemRegionsUnregisterBatch const *desc,
+                                  std::vector<MstxAPI::MstxMemVirtualRangeDesc> &rangeDescVec);
+    bool MstxMemPermissionsAssign(MstxAPI::MstxDomainRegistration *domain,
+                                  MstxAPI::MstxMemPermissionsAssignBatch const *desc,
                                   std::vector<MstxAPI::MstxMemVirtualRangeDesc> &rangeDescVec);
 
     MsTx(const MsTx&) = delete;

@@ -543,3 +543,64 @@ TEST(MsTx, sanitizer_mstx_mem_heap_unregions_register_with_global_domain_and_fre
         idx++;
     }
 }
+
+TEST(MsTx, sanitizer_mstx_mem_permissions_assign_with_unregistered_domain_name_expect_return_false)
+{
+    MsTx::Instance().MstxAttrReset(true);
+
+    MstxAPI::MstxDomainRegistration unregisteredDomain{};
+    std::vector<MstxAPI::MstxMemVirtualRangeDesc> rangeDescVec;
+    ASSERT_FALSE(MsTx::Instance().MstxMemPermissionsAssign(&unregisteredDomain, nullptr, rangeDescVec));
+}
+
+TEST(MsTx, sanitizer_mstx_mem_permissions_assign_with_null_desc_expect_return_false)
+{
+    MsTx::Instance().MstxAttrReset(true);
+
+    std::vector<MstxAPI::MstxMemVirtualRangeDesc> rangeDescVec;
+    ASSERT_FALSE(MsTx::Instance().MstxMemPermissionsAssign(nullptr, nullptr, rangeDescVec));
+    MstxAPI::MstxMemPermissionsAssignBatch assignBatch{};
+    ASSERT_FALSE(MsTx::Instance().MstxMemPermissionsAssign(nullptr, &assignBatch, rangeDescVec));
+}
+
+TEST(MsTx, sanitizer_mstx_mem_permissions_assign_with_valid_desc_expect_get_correct_ranges)
+{
+    MsTx::Instance().MstxAttrReset(true);
+
+    // register memory regions
+    MstxAPI::MstxMemVirtualRangeDesc regions[2];
+    regions[0].deviceId = 0;
+    regions[0].ptr = reinterpret_cast<void const *>(0x100);
+    regions[0].size = 100;
+    regions[1].deviceId = 1;
+    regions[1].ptr = reinterpret_cast<void const *>(0x200);
+    regions[1].size = 200;
+    MstxAPI::MstxRegionHandle handles[2];
+    MstxAPI::MstxMemRegionsRegisterBatch regionBatch{};
+    regionBatch.regionType = MstxMemType::MSTX_MEM_TYPE_VIRTUAL_ADDRESS;
+    regionBatch.regionCount = 2;
+    regionBatch.regionDescArray = regions;
+    regionBatch.regionHandleArrayOut = handles;
+    MsTx::Instance().MstxMemRegionsRegister(nullptr, &regionBatch);
+
+    MstxAPI::MstxMemPermissionsAssignRegionsDesc assigns[2];
+    assigns[0].flags = 0x01;
+    assigns[0].region.refType = MstxAPI::MstxMemRegionRefType::MSTX_MEM_REGION_REF_TYPE_HANDLE;
+    assigns[0].region.handle = handles[0];
+    assigns[1].flags = 0x02;
+    assigns[1].region.refType = MstxAPI::MstxMemRegionRefType::MSTX_MEM_REGION_REF_TYPE_HANDLE;
+    assigns[1].region.handle = handles[1];
+    MstxAPI::MstxMemPermissionsAssignBatch assignBatch{};
+    assignBatch.regionCount = 2;
+    assignBatch.regionDescArray = assigns;
+    std::vector<MstxAPI::MstxMemVirtualRangeDesc> rangeDescVec;
+    ASSERT_TRUE(MsTx::Instance().MstxMemPermissionsAssign(nullptr, &assignBatch, rangeDescVec));
+
+    ASSERT_EQ(rangeDescVec.size(), 2);
+    ASSERT_EQ(rangeDescVec[0].deviceId, 0);
+    ASSERT_EQ(rangeDescVec[0].ptr, reinterpret_cast<void const *>(0x100));
+    ASSERT_EQ(rangeDescVec[0].size, 100);
+    ASSERT_EQ(rangeDescVec[1].deviceId, 1);
+    ASSERT_EQ(rangeDescVec[1].ptr, reinterpret_cast<void const *>(0x200));
+    ASSERT_EQ(rangeDescVec[1].size, 200);
+}

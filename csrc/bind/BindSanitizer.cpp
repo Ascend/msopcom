@@ -419,6 +419,29 @@ void MstxMemRegionsUnregister(MstxDomainRegistration* domain, MstxMemRegionsUnre
     }
 }
 
+void MstxMemPermissionsAssign(MstxDomainRegistration *domain, MstxMemPermissionsAssignBatch const *desc)
+{
+    std::vector<MstxMemVirtualRangeDesc> rangeDescVec;
+    if (!MsTx::Instance().MstxMemPermissionsAssign(domain, desc, rangeDescVec)) {
+        ERROR_LOG("Query mem region description by mem region reference failed");
+        return;
+    }
+
+    PacketHead head = { PacketType::MEM_REGION_PERMISSION };
+    for (std::size_t i = 0; i < desc->regionCount; ++i) {
+        // rangeDescVec must have same size to desc->regionDescArray
+        MstxMemVirtualRangeDesc const &range = rangeDescVec[i];
+        MstxMemPermissionsAssignRegionsDesc const&permission = desc->regionDescArray[i];
+        DEBUG_LOG("Report mem region assigned permissions. addr:%p, size:%lu", range.ptr, range.size);
+        MemRegionPermissionDesc desc{};
+        desc.addr = reinterpret_cast<uint64_t>(range.ptr);
+        desc.size = range.size;
+        desc.deviceId = range.deviceId;
+        desc.flags = permission.flags;
+        LocalDevice::GetInstance(static_cast<int32_t>(range.deviceId)).Notify(Serialize(head, desc));
+    }
+}
+
 void MstxGetToolId(uint64_t *id)
 {
     if (id == nullptr) {
@@ -448,7 +471,9 @@ static const InjectionMap<MstxImplCoreMemFuncId> MemInjections = {
     {MstxImplCoreMemFuncId::MSTX_API_CORE_MEM_REGIONS_REGISTER,
         reinterpret_cast<MstxFuncPointer>(MstxMemRegionsRegister)},
     {MstxImplCoreMemFuncId::MSTX_API_CORE_MEM_REGIONS_UNREGISTER,
-        reinterpret_cast<MstxFuncPointer>(MstxMemRegionsUnregister)}
+        reinterpret_cast<MstxFuncPointer>(MstxMemRegionsUnregister)},
+    {MstxImplCoreMemFuncId::MSTX_API_CORE_MEM_PERMISSIONS_ASSIGN,
+        reinterpret_cast<MstxFuncPointer>(MstxMemPermissionsAssign)},
 };
  
 template<typename FuncIdEnum>
