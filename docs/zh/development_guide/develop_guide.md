@@ -23,17 +23,35 @@
 
 ### 3.1 方法一：一键式脚本
 
-```shell
-python build.py
-```
+- 克隆本仓库
+
+    ```sh
+    git clone https://gitcode.com/Ascend/msopcom.git
+    ```
+
+- 通过一键式脚本构建软件包
+
+    ```shell
+    cd msopcom
+    python build.py
+    ```
 
 ### 3.2 方法二：分步骤脚本
 
 #### 3.2.1 下载依赖
 
-```shell
-python download_dependencies.py
-```
+- 克隆本仓库
+
+    ```sh
+    git clone https://gitcode.com/Ascend/msopcom.git
+    ```
+
+- 依赖下载
+
+    ```shell
+    cd msopcom
+    python download_dependencies.py
+    ```
 
 #### 3.2.2 编译
 
@@ -61,9 +79,9 @@ make -j$(nproc) && make install  # -j 是并行编译的 job 数量，可自行�
 
 ```text
 output/
-|-- bin                                                  # 可执行bin文件
-|-- lib                                                  # 静态库文件
-|-- lib64                                                # 各种动态库和.o文件
+|-- bin                                    # 可执行bin文件
+|-- lib                                    # 静态库文件
+|-- lib64                                  # 各种动态库和.o文件
 ```
 
 #### 3.2.3 清理/重新编译
