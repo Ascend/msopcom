@@ -158,7 +158,7 @@ inline bool IsTargetBlockIdx(int16_t checkBlockId, uint64_t blockIdx)
     }
 }
 
-inline uint32_t GetBlockSize(const RecordGlobalHead &globalHead, uint64_t blockIdx)
+inline uint64_t GetBlockSize(const RecordGlobalHead &globalHead, uint64_t blockIdx)
 {
     auto checkBlockId = globalHead.checkParms.checkBlockId;
     auto cacheSize = globalHead.checkParms.cacheSize;
@@ -517,7 +517,7 @@ void SanitizerLaunchInit::AssignSimtVfInfo()
     uint64_t simtErrorInfoOffset = static_cast<uint64_t>(cacheByteSize *
         (1 - SIMT_CACHE_SIZE_RATIO - SHADOW_MEM_CACHE_SIZE_RATIO - SIMT_ENTRY_CACHE_SIZE_RATIO));
     offsetInfo.simtErrorInfo.offset = AlignDownSize<CACHE_LINE_SIZE>(simtErrorInfoOffset) + offsetInfo.blockHeadSize;
-    DEBUG_LOG("offsetInfo simtErrorInfo.offset=%u simtErrorInfo.size=%u",
+    DEBUG_LOG("offsetInfo simtErrorInfo.offset=%lu simtErrorInfo.size=%lu",
         offsetInfo.simtErrorInfo.offset, offsetInfo.simtErrorInfo.size);
 
     // 3. 设置shadowMemoryInfo相关的偏移信息，主要用于simt在线检测对应的shadowMemory记录协议
@@ -532,7 +532,7 @@ void SanitizerLaunchInit::AssignSimtVfInfo()
         offsetInfo.shadowMemoryInfo.offset = AlignDownSize<CACHE_LINE_SIZE>(offsetInfo.simtErrorInfo.offset +
             GetAllThreadSize(globalHead_)) + CACHE_LINE_SIZE;
         offsetInfo.shadowMemoryInfo.size = shadowMemorySize;
-        DEBUG_LOG("offsetInfo shadowMemoryInfo.offset=%u shadowMemoryInfo.size=%u",
+        DEBUG_LOG("offsetInfo shadowMemoryInfo.offset=%lu shadowMemoryInfo.size=%lu",
             offsetInfo.shadowMemoryInfo.offset, offsetInfo.shadowMemoryInfo.size);
     }
 
@@ -545,7 +545,7 @@ void SanitizerLaunchInit::AssignSimtVfInfo()
         simtEntrySize = cacheByteSize + offsetInfo.blockHeadSize - offsetInfo.simtEntryInfo.offset - CACHE_LINE_SIZE;
     }
     offsetInfo.simtEntryInfo.size = simtEntrySize;
-    DEBUG_LOG("offsetInfo simtEntryInfo.offset=%u simtEntryInfo.size=%u",
+    DEBUG_LOG("offsetInfo simtEntryInfo.offset=%lu simtEntryInfo.size=%lu",
         offsetInfo.simtEntryInfo.offset, offsetInfo.simtEntryInfo.size);
 }
 
