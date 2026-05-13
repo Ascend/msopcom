@@ -107,7 +107,7 @@ TEST_F(HijackedFuncOfAclrtLaunchKernelV2Test, test_operand_record_expand_args_fa
     inst.profObj_ = std::make_shared<ProfDataCollect>(nullptr);
     inst.Pre(funcHandle_, 3, &aaa, 4, &cfg, stream);
     testing::internal::CaptureStdout();
-    inst.DoOperandRecord();
+    inst.ProfPost();
     string capture = testing::internal::GetCapturedStdout();
     ASSERT_TRUE(capture.find("ExpandArgs failed"));
     GlobalMockObject::verify();

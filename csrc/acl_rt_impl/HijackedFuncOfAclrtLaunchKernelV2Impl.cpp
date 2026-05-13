@@ -88,8 +88,10 @@ bool HijackedFuncOfAclrtLaunchKernelV2Impl::InitParam(aclrtFuncHandle funcHandle
     return true;
 }
 
+// 调优自定义插桩统一调用此函数 
 bool HijackedFuncOfAclrtLaunchKernelV2Impl::PrepareDbiTaskForInstrProf(ProfDBIType mode, uint64_t memSize)
 {
+    // 每次调用插桩前需要清理插桩用到的成员变量，保证不被上次插桩污染
     refreshParamFunc_();
     KernelMatcher::Config matchConfig;
     std::string path = GetEnv(DEVICE_PROF_DUMP_PATH_ENV);
@@ -152,6 +154,7 @@ void HijackedFuncOfAclrtLaunchKernelV2Impl::ProfPre(const std::function<bool(voi
     profObj_->ProfInit(nullptr, nullptr, false);
     profObj_->ProfData(stm, func);
     if (profObj_->IsBBCountNeedGen() && bbCountTask != nullptr) {
+        refreshParamFunc_();
         bbCountTask(ProfDataCollect::GetAicoreOutputPath(devId_));
     }
 }
@@ -274,43 +277,6 @@ void HijackedFuncOfAclrtLaunchKernelV2Impl::SanitizerPost()
     }
 }
 
-void HijackedFuncOfAclrtLaunchKernelV2Impl::DoOperandRecord()
-{
-    std::string socVersion = DeviceContext::Local().GetSocVersion();
-    if (!profObj_->IsOperandRecordNeedGen(socVersion)) {
-        return;
-    }
-    KernelMatcher::Config matchConfig;
-    std::string path = GetEnv(DEVICE_PROF_DUMP_PATH_ENV);
-    DBITaskConfig::Instance().Init(BIType::CUSTOMIZE,
-                                   ProfConfig::Instance().GetPluginPath(ProfDBIType::OPERAND_RECORD), matchConfig, path);
-    aclrtSynchronizeStreamImplOrigin(stream_);                               
-    refreshParamFunc_();
-    uint64_t sizePerAllType = static_cast<uint32_t>(OperandType::END) * sizeof(OperandRecord) + SIMT_THREAD_GAP;
-    memSize_ = sizeof(OperandHeader) + (sizePerAllType * 2049 + BLOCK_GAP) *  GetCoreNumForDbi(numBlocks_);
-    auto argsCtx = launchCtx_->GetArgsContext()->Clone();
-    memInfo_ = InitMemory(memSize_);
-    if (memInfo_ == nullptr || argsCtx == nullptr || !argsCtx->ExpandArgs(&memInfo_, sizeof(uintptr_t), DBITaskConfig::Instance().argsSize_)) {
-        WARN_LOG("operand record gen failed, because of ExpandArgs failed");
-        return;
-    }
-    auto argsRawCtx = std::static_pointer_cast<ArgsRawContext>(argsCtx);
-    auto newFuncCtx = RunDBITask(launchCtx_);
-    if (newFuncCtx) {
-        funcCtx_ = newFuncCtx;
-        funcHandle_ = funcCtx_->GetFuncHandle();
-        launchCtx_->SetDBIFuncCtx(funcCtx_);
-        originfunc_(funcHandle_, numBlocks_, argsRawCtx->GetArgs(), argsRawCtx->GetArgsSize(), cfg_, stream_);
-        aclError ret = aclrtSynchronizeStreamImplOrigin(stream_);
-        if (ret == ACL_SUCCESS) {
-            profObj_->GenRecordData(memSize_, memInfo_, OPERAND_RECORD);
-        } else {
-            WARN_LOG("Run operand record func failed");
-        }
-    }
-    memInfo_ = nullptr;
-}
-
 void HijackedFuncOfAclrtLaunchKernelV2Impl::ProfPost()
 {
     if (profObj_->IsBBCountNeedGen()) {
@@ -318,27 +284,10 @@ void HijackedFuncOfAclrtLaunchKernelV2Impl::ProfPost()
         profObj_->GenBBcountFile(regId_, memSize_, memInfo_);
     }
     if (profObj_->IsMemoryChartNeedGen()) {
-        KernelMatcher::Config matchConfig;
-        std::string path = GetEnv(DEVICE_PROF_DUMP_PATH_ENV);
-        DBITaskConfig::Instance().Init(BIType::CUSTOMIZE, ProfConfig::Instance().GetPluginPath(), matchConfig, path);
         aclrtSynchronizeStreamImplOrigin(stream_);
-        refreshParamFunc_();
-        auto blockDim = GetCoreNumForDbi(numBlocks_);
-        memSize_ = BLOCK_MEM_SIZE * blockDim;
-        auto argsCtx = launchCtx_->GetArgsContext()->Clone();
-        memInfo_ = InitMemory(memSize_);
-        if (memInfo_ == nullptr || argsCtx == nullptr ||
-            !argsCtx->ExpandArgs(&memInfo_, sizeof(uintptr_t), DBITaskConfig::Instance().argsSize_)) {
-            WARN_LOG("memory chart gen failed, because of ExpandArgs failed");
-            return;
-        }
-        auto argsRawCtx = std::static_pointer_cast<ArgsRawContext>(argsCtx);
-        auto newFuncCtx = RunDBITask(launchCtx_);
-        if (newFuncCtx) {
-            funcCtx_ = newFuncCtx;
-            funcHandle_ = funcCtx_->GetFuncHandle();
-            launchCtx_->SetDBIFuncCtx(funcCtx_);
-            originfunc_(funcHandle_, numBlocks_, argsRawCtx->GetArgs(), argsRawCtx->GetArgsSize(), cfg_, stream_);
+        uint64_t memSize = BLOCK_MEM_SIZE * GetCoreNumForDbi(numBlocks_);
+        if (PrepareDbiTaskForInstrProf(ProfDBIType::MEMORY_CHART, memSize) && originfunc_ != nullptr) {
+            originfunc_(funcHandle_, numBlocks_, argsData_, argsSize_, cfg_, stream_);
             aclError ret = aclrtSynchronizeStreamImplOrigin(stream_);
             if (ret == ACL_SUCCESS) {
                 profObj_->GenDBIData(memSize_, memInfo_);
@@ -346,9 +295,22 @@ void HijackedFuncOfAclrtLaunchKernelV2Impl::ProfPost()
                 WARN_LOG("Run dbi func failed");
             }
         }
-        memInfo_ = nullptr;
     }
-    DoOperandRecord();
+    std::string socVersion = DeviceContext::Local().GetSocVersion();
+    if (profObj_->IsOperandRecordNeedGen(socVersion)) {
+        aclrtSynchronizeStreamImplOrigin(stream_);
+        uint64_t sizePerAllType = static_cast<uint32_t>(OperandType::END) * sizeof(OperandRecord) + SIMT_THREAD_GAP;
+        uint64_t memSize = sizeof(OperandHeader) + (sizePerAllType * (MAX_THREAD_NUM + 1) + BLOCK_GAP) *  GetCoreNumForDbi(numBlocks_);
+        if (PrepareDbiTaskForInstrProf(ProfDBIType::OPERAND_RECORD, memSize) && originfunc_ != nullptr) {
+            originfunc_(funcHandle_, numBlocks_, argsData_, argsSize_, cfg_, stream_);
+            aclError ret = aclrtSynchronizeStreamImplOrigin(stream_);
+            if (ret == ACL_SUCCESS) {
+                profObj_->GenRecordData(memSize_, memInfo_, OPERAND_RECORD);
+            } else {
+                WARN_LOG("Run operand record func failed");
+            }
+        }
+    }
     profObj_->PostProcess();
 }
 

@@ -288,27 +288,6 @@ void HijackedFuncOfAclrtLaunchKernelWithConfigImpl::SanitizerPost()
     }
 }
 
-void HijackedFuncOfAclrtLaunchKernelWithConfigImpl::DoOperandRecord()
-{
-    std::string socVersion = DeviceContext::Local().GetSocVersion();
-    if (!profObj_->IsOperandRecordNeedGen(socVersion)) {
-        return;
-    }
-    aclrtSynchronizeStreamImplOrigin(stream_);
-    uint64_t sizePerAllType = static_cast<uint32_t>(OperandType::END) * sizeof(OperandRecord) + SIMT_THREAD_GAP;
-    uint64_t memSize = sizeof(OperandHeader) + (sizePerAllType * (MAX_THREAD_NUM + 1) + BLOCK_GAP) *  GetCoreNumForDbi(blockDim_);
-    if (PrepareDbiTaskForInstrProf(ProfDBIType::OPERAND_RECORD, memSize) && originfunc_ != nullptr) {
-        originfunc_(funcHandle_, blockDim_, stream_, cfg_, argsHandle_, reserve_);
-        aclError ret = aclrtSynchronizeStreamImplOrigin(stream_);
-        if (ret == ACL_SUCCESS) {
-            profObj_->GenRecordData(memSize_, memInfo_, OPERAND_RECORD);
-        } else {
-            WARN_LOG("Run operand record func failed");
-        }
-    }
-    memInfo_ = nullptr;
-}
-
 void HijackedFuncOfAclrtLaunchKernelWithConfigImpl::ProfPost()
 {
     if (profObj_->IsBBCountNeedGen()) {
@@ -328,9 +307,22 @@ void HijackedFuncOfAclrtLaunchKernelWithConfigImpl::ProfPost()
                 WARN_LOG("Run dbi func failed");
             }
         }
-        memInfo_ = nullptr;
     }
-    DoOperandRecord();
+    std::string socVersion = DeviceContext::Local().GetSocVersion();
+    if (profObj_->IsOperandRecordNeedGen(socVersion)) {
+        aclrtSynchronizeStreamImplOrigin(stream_);
+        uint64_t sizePerAllType = static_cast<uint32_t>(OperandType::END) * sizeof(OperandRecord) + SIMT_THREAD_GAP;
+        uint64_t memSize = sizeof(OperandHeader) + (sizePerAllType * (MAX_THREAD_NUM + 1) + BLOCK_GAP) *  GetCoreNumForDbi(blockDim_);
+        if (PrepareDbiTaskForInstrProf(ProfDBIType::OPERAND_RECORD, memSize) && originfunc_ != nullptr) {
+            originfunc_(funcHandle_, blockDim_, stream_, cfg_, argsHandle_, reserve_);
+            aclError ret = aclrtSynchronizeStreamImplOrigin(stream_);
+            if (ret == ACL_SUCCESS) {
+                profObj_->GenRecordData(memSize_, memInfo_, OPERAND_RECORD);
+            } else {
+                WARN_LOG("Run operand record func failed");
+            }
+        }
+    }
     profObj_->PostProcess();
 }
 

@@ -484,7 +484,6 @@ private:
                    const void *argsData, size_t argsSize, aclrtStream stream);
     void ProfPre(const std::function<bool(void)> &func, const std::function<void(const std::string &)> &bbCountTask,
                  aclrtStream stm);
-    void DoOperandRecord();
     void ProfPost();
     void ProfPreForInstrProf(const std::function<bool(void)> &func,const std::function<void(const std::string &)> &bbCountTask, rtStream_t stream);
  	bool PrepareDbiTaskForInstrProf(ProfDBIType mode, uint64_t memSize);
@@ -523,7 +522,6 @@ private:
                    const void *argsData, size_t argsSize, aclrtLaunchKernelCfg *cfg, aclrtStream stream);
     void ProfPre(const std::function<bool(void)> &func, const std::function<void(const std::string &)> &bbCountTask,
                  aclrtStream stm);
-    void DoOperandRecord();
     void ProfPost();
     void ProfPreForInstrProf(const std::function<bool(void)> &func,const std::function<void(const std::string &)> &bbCountTask, rtStream_t stream);
  	bool PrepareDbiTaskForInstrProf(ProfDBIType mode, uint64_t memSize);
@@ -565,7 +563,6 @@ private:
                  aclrtStream stm);
     void ProfPreForInstrProf(const std::function<bool(void)> &func,const std::function<void(const std::string &)> &bbCountTask, rtStream_t stream);
  	bool PrepareDbiTaskForInstrProf(ProfDBIType mode, uint64_t memSize);
-    void DoOperandRecord();
     void ProfPost();
     void SanitizerPre();
     void SanitizerPost();
@@ -617,7 +614,6 @@ private:
     void ProfPost();
     void ProfPre(const std::function<bool(void)> &func,
                  const std::function<void(const std::string &)> &bbCountTask, aclrtStream stm);
-    void DoOperandRecord();
     void ProfPreForInstrProf(const std::function<bool(void)> &func,const std::function<void(const std::string &)> &bbCountTask, rtStream_t stream);
  	bool PrepareDbiTaskForInstrProf(ProfDBIType mode, uint64_t memSize);
 

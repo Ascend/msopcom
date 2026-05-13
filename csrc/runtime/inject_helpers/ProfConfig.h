@@ -71,7 +71,7 @@ public:
 
     bool IsDbi() const
     {
-        return isAppReplay_ && (profConfig_.dbiFlag & ~DBI_FLAG_INSTR_PROF_END) != 0;
+        return isAppReplay_ && (profConfig_.dbiFlag != 0);
     }
 
     void RequestLogTranslate(const std::string &outputPath, const std::string &kernelName);
