@@ -27,7 +27,7 @@ repos:
       - id: codespell
         args: [
             "-L",
-            "CANN,cann,NNAL,nnal,ASCEND,ascend,EnQue,CopyIn,ArchType,AND,ND,tbe,copyin,alog",
+            "CANN,cann,NNAL,nnal,ASCEND,ascend,EnQue,CopyIn,ArchType,AND,ND,tbe,copyin,alog,thirdparty",
             "--skip",
             "*.py,*.cpp,*.hpp,*.c,*.h",
           ]
@@ -45,8 +45,6 @@ repos:
     hooks:
       - id: clang-format
         files: \.(c|h|cpp|hpp|cc|hh|cxx|hxx)$
-        args:
-          - "--style=file"
-          - "--verbose"
-          - "-i"
-        exclude: ^(build|test|thirdparty)/
+        entry: git-clang-format
+        args: [--binary, clang-format, -f]
+        exclude: \.(build|test|third-party)

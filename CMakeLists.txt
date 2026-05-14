@@ -1,7 +1,8 @@
 cmake_minimum_required(VERSION 3.0)
- 
+
 project(msopscommon VERSION 0.1.0)
 set(CMAKE_SKIP_RPATH TRUE)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 get_filename_component(ROOT_DIR "${CMAKE_CURRENT_LIST_DIR}" ABSOLUTE)
 get_filename_component(HOST_INJECTION_CSRC ${ROOT_DIR}/csrc ABSOLUTE)
@@ -21,7 +22,7 @@ add_definitions(-D__FUNC_INJECTION_COMMIT_REVISION__="${FUNC_INJECTION_COMMIT_RE
 if (${CMAKE_INSTALL_PREFIX} STREQUAL "/usr/local" OR ${CMAKE_INSTALL_PREFIX} STREQUAL "/usr" OR NOT DEFINED CMAKE_INSTALL_PREFIX)
     set(CMAKE_INSTALL_PREFIX ${ROOT_DIR}/output CACHE STRING "install prefix" FORCE)
     message(STATUS "No install prefix selected, default to ${CMAKE_INSTALL_PREFIX}")
-endif() 
+endif()
 
 include(cmake/options.cmake)
 option(BUILD_TESTS "build unit tests" OFF)

@@ -34,16 +34,6 @@ struct EmptyFuncError<rtError_t> {
     static constexpr rtError_t VALUE = RT_ERROR_RESERVED;
 };
 
-// 自定义删除器，用于调用 rtFreeOrigin
-struct RtMemDeleter {
-    void operator()(uint8_t* ptr) const {
-        if (ptr) {
-            rtFreeOrigin(ptr);
-        }
-    }
-};
-using UniqueRtMem = std::unique_ptr<uint8_t, RtMemDeleter>;  // 定义智能指针类型
-
 // For rtDevBinaryRegister
 class HijackedFuncOfDevBinaryRegister : public decltype(HijackedFuncHelper(&rtDevBinaryRegister)) {
 public:
@@ -236,7 +226,7 @@ public:
 private:
     void *hdl_{nullptr};
 }; // class HijackedFuncOfDevBinaryUnRegister
- 
+
 class HijackedFuncOfSetExceptionExtInfo : public decltype(HijackedFuncHelper(&rtSetExceptionExtInfo)) {
 public:
     explicit HijackedFuncOfSetExceptionExtInfo();
@@ -462,9 +452,9 @@ public:
 class HijackedFuncOfModelBindStream: public decltype(HijackedFuncHelper(&rtModelBindStream)) {
 public:
     explicit HijackedFuncOfModelBindStream();
- 
+
     void Pre(rtModel_t mdl, rtStream_t stm, uint32_t flag) override;
- 
+
     ~HijackedFuncOfModelBindStream() override = default;
 };
 

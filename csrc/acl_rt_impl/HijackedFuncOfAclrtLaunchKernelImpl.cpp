@@ -88,7 +88,7 @@ bool HijackedFuncOfAclrtLaunchKernelImpl::InitParam(aclrtFuncHandle funcHandle, 
     return true;
 }
 
-// 调优自定义插桩统一调用此函数 
+// 调优自定义插桩统一调用此函数
 bool HijackedFuncOfAclrtLaunchKernelImpl::PrepareDbiTaskForInstrProf(ProfDBIType mode, uint64_t memSize)
 {
     // 每次调用插桩前需要清理插桩用到的成员变量，保证不被上次插桩污染
@@ -258,7 +258,7 @@ void HijackedFuncOfAclrtLaunchKernelImpl::SanitizerPost()
         // 编译器插入的 __sanitizer_finalize 生效，需要在此处将记录内存状态设置为失效
         DevMemManager::Instance().SetMemoryInitFlag(false);
     } else if (isSink_) {
-        rtStreamSynchronizeOrigin(stream_);
+        aclrtSynchronizeStreamImplOrigin(stream_);
         KernelDumper::Instance().LaunchDumpTask(stream_, true);
     } else if (memInfo_) {
         if (launchCtx_ == nullptr) {
@@ -266,7 +266,7 @@ void HijackedFuncOfAclrtLaunchKernelImpl::SanitizerPost()
         }
 
         // wait for kernel execution done, and catch potential exception
-        rtStreamSynchronizeOrigin(stream_);
+        aclrtSynchronizeStreamImplOrigin(stream_);
 
         MemoryGuard::Instance().CheckAllMemGuard();
 

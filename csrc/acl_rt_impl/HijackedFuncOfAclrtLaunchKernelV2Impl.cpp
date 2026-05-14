@@ -88,7 +88,7 @@ bool HijackedFuncOfAclrtLaunchKernelV2Impl::InitParam(aclrtFuncHandle funcHandle
     return true;
 }
 
-// 调优自定义插桩统一调用此函数 
+// 调优自定义插桩统一调用此函数
 bool HijackedFuncOfAclrtLaunchKernelV2Impl::PrepareDbiTaskForInstrProf(ProfDBIType mode, uint64_t memSize)
 {
     // 每次调用插桩前需要清理插桩用到的成员变量，保证不被上次插桩污染
@@ -143,7 +143,7 @@ void HijackedFuncOfAclrtLaunchKernelV2Impl::ProfPreForInstrProf(const std::funct
     if (ProfConfig::Instance().IsTimelineEnabled()) {
         PrepareDbiTaskForInstrProf(ProfDBIType::INSTR_PROF_END, INSTR_PROF_MEMSIZE);
         profObj_->InstrProfData(stream, funcStub);
-    } 
+    }
     ProfPre(func, bbCountTask, stream);
 }
 
@@ -250,14 +250,14 @@ void HijackedFuncOfAclrtLaunchKernelV2Impl::SanitizerPost()
     if (skipSanitizer_) {
         DevMemManager::Instance().SetMemoryInitFlag(false);
     } else if (isSink_) {
-        rtStreamSynchronizeOrigin(stream_);
+        aclrtSynchronizeStreamImplOrigin(stream_);
         KernelDumper::Instance().LaunchDumpTask(stream_, true);
     } else if (memInfo_) {
         if (launchCtx_ == nullptr) {
             return;
         }
 
-        rtStreamSynchronizeOrigin(stream_);
+        aclrtSynchronizeStreamImplOrigin(stream_);
 
         auto const &elfData = funcCtx_->GetRegisterContext()->GetElfData();
         std::map<std::string, Elf64_Shdr> headers;
