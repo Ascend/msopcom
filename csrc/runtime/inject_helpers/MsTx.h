@@ -137,6 +137,13 @@ struct MstxMemRegionsUnregisterBatch {
     MstxMemRegionRef const *refArray;
 };
 
+static constexpr uint32_t MSTX_MEM_PERMISSIONS_REGION_FLAGS_NONE = 0x00;
+static constexpr uint32_t MSTX_MEM_PERMISSIONS_REGION_FLAGS_READ = 0x01;
+static constexpr uint32_t MSTX_MEM_PERMISSIONS_REGION_FLAGS_WRITE = 0x02;
+static constexpr uint32_t MSTX_MEM_PERMISSIONS_REGION_FLAGS_SHARED = 0x04;
+static constexpr uint32_t MSTX_MEM_PERMISSIONS_REGION_FLAGS_DEFAULT =
+    MSTX_MEM_PERMISSIONS_REGION_FLAGS_READ | MSTX_MEM_PERMISSIONS_REGION_FLAGS_WRITE;
+
 struct MstxMemPermissionsAssignRegionsDesc {
     uint32_t flags;
     MstxMemRegionRef region;

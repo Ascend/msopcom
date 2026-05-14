@@ -24,6 +24,7 @@
 
 #include "KernelContext.h"
 #include "ascend_hal/AscendHalOrigin.h"
+#include "runtime/inject_helpers/MsTx.h"
 #include "utils/InjectLogger.h"
 #include "runtime.h"
 #include "runtime/inject_helpers/KernelContext.h"
@@ -91,7 +92,12 @@ void MemoryManage::CacheMemory<MemoryOpType::MALLOC>(uint64_t addr, MemInfoSrc i
     if (isUpdateCount) {
         mallocCount_++;
     }
-    this->memoryOpAddrInfos_.insert({addr, size, infoSrc});
+    AddrInfo addrInfo{};
+    addrInfo.addr = addr;
+    addrInfo.length = size;
+    addrInfo.memInfoSrc = infoSrc;
+    addrInfo.permission = MstxAPI::MSTX_MEM_PERMISSIONS_REGION_FLAGS_DEFAULT;
+    this->memoryOpAddrInfos_.insert(addrInfo);
 }
 
 template <>
@@ -112,17 +118,29 @@ void MemoryManage::CacheMemory<MemoryOpType::FREE>(uint64_t addr, MemInfoSrc inf
     ERROR_LOG("illegal free addr:%lx infoSrc:%u", addr, static_cast<uint32_t>(infoSrc));
 }
 
+void MemoryManage::SetPermission(uint64_t addr, uint64_t size, uint32_t permission)
+{
+    for (auto it = memoryOpAddrInfos_.begin(); it != memoryOpAddrInfos_.end(); ++it) {
+        if (it->addr == addr && it->length == size) {
+            AddrInfo addrInfo{*it};
+            addrInfo.permission = permission;
+            it = memoryOpAddrInfos_.erase(it);
+            it = memoryOpAddrInfos_.insert(addrInfo).first;
+        }
+    }
+}
+
 void MemoryManage::ProcessMstxHeapMem(AddrsSet &cacheRtAclMem, const KernelContext::AddrInfo &addrInfo) const
 {
     for (auto it = cacheRtAclMem.begin(); it != cacheRtAclMem.end();) {
         /// 如果在范围内，则rtMalloc的范围和mstx的差集即为当前rtMalloc的合法范围
         if (IsAddrInRange(addrInfo.addr, addrInfo.length, it->addr, it->size)) {
             if (addrInfo.addr > it->addr) {
-                cacheRtAclMem.insert({it->addr, addrInfo.addr - it->addr});
+                cacheRtAclMem.insert({it->addr, addrInfo.addr - it->addr, addrInfo.permission});
             }
             uint64_t rightSize = it->addr - addrInfo.addr + it->size - addrInfo.length;
             if (rightSize > 0) {
-                cacheRtAclMem.insert({addrInfo.addr + addrInfo.length, rightSize});
+                cacheRtAclMem.insert({addrInfo.addr + addrInfo.length, rightSize, addrInfo.permission});
             }
             cacheRtAclMem.erase(it);
             return;
@@ -144,17 +162,17 @@ MemoryManage::AddrsVec MemoryManage::ExtractValidMems(std::set<KernelContext::Ad
         MemInfoSrc infoSrc = addrs.memInfoSrc;
         if (isExtra && (infoSrc == MemInfoSrc::EXTRA || infoSrc == MemInfoSrc::MANUAL ||
             infoSrc == MemInfoSrc::BYPASS)) {
-            ranges.push_back({addrs.addr, addrs.length});
+            ranges.push_back({addrs.addr, addrs.length, addrs.permission});
             continue;
         }
         if (isExtra) { continue; }
 
         if (infoSrc == MemInfoSrc::ACL || infoSrc == MemInfoSrc::RT) {
-            cacheRtAclMems.insert({addrs.addr, addrs.length});
+            cacheRtAclMems.insert({addrs.addr, addrs.length, addrs.permission});
         } else if (infoSrc == MemInfoSrc::MSTX_HEAP) {
             ProcessMstxHeapMem(cacheRtAclMems, addrs);
         } else {
-            ranges.push_back({addrs.addr, addrs.length});
+            ranges.push_back({addrs.addr, addrs.length, addrs.permission});
         }
     }
     for (const auto &it : cacheRtAclMems) {

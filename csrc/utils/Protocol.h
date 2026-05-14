@@ -307,6 +307,8 @@ struct CheckParmsInfo {
 struct HostMemoryInfo {
     uint64_t addr;
     uint64_t size;
+    uint32_t permission;
+
     bool operator<(const HostMemoryInfo& other) const
     {
         if (addr != other.addr) {

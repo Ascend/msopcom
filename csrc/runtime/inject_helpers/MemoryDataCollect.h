@@ -61,6 +61,11 @@ public:
     void CacheMemory(uint64_t addr, MemInfoSrc infoSrc, uint64_t size = 0, bool isUpdateCount = true);
 
     /**
+     * @brief 设置内存区间读写权限
+     */
+    void SetPermission(uint64_t addr, uint64_t size, uint32_t permission);
+
+    /**
     * @brief 缓存memory count
     * @param count 需要缓存的memory数量
     */

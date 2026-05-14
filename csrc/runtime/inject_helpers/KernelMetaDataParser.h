@@ -34,6 +34,8 @@ struct AddrInfo {
     MemInfoSrc memInfoSrc;
     MemInfoDesc memInfoDesc;
     uint64_t paramsNo;
+    uint32_t permission;
+
     bool operator < (const AddrInfo &other) const
         {
             if (addr != other.addr) {

@@ -440,6 +440,7 @@ void MstxMemPermissionsAssign(MstxDomainRegistration *domain, MstxMemPermissions
         desc.size = range.size;
         desc.deviceId = range.deviceId;
         desc.flags = permission.flags;
+        MemoryManage::Instance().SetPermission(desc.addr, desc.size, desc.flags);
         LocalDevice::GetInstance(static_cast<int32_t>(range.deviceId)).Notify(Serialize(head, desc));
     }
 }
