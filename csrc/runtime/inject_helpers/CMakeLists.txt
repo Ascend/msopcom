@@ -34,6 +34,7 @@ file(GLOB COMMON_SOURCE
     LocalDevice.cpp
     LaunchInitFinalize.cpp
     MemGuard.cpp
+    SyncStreamWithInterrupt.cpp
 )
 list(SORT COMMON_SOURCE)
 target_sources(msopprof_injection PUBLIC ${COMMON_SOURCE})

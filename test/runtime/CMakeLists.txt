@@ -28,7 +28,7 @@ file(GLOB SOURCE
     HijackedFuncOfIpcSetMemoryName.cpp
     HijackedFuncOfGetL2CacheOffsetTest.cpp
     HijackedFuncOfCtxGetOverflowAddrTest.cpp
-    
+
     SetDeviceExTest.cpp
     SetDeviceV2Test.cpp
     GetDeviceTest.cpp
@@ -56,6 +56,7 @@ file(GLOB SOURCE
     injectors/CamodelTest.cpp
     injectors/DFXKernelLauncherTest.cpp
     injectors/MemGuardTest.cpp
+    injectors/SyncStreamWithInterruptTest.cpp
 
     BinaryLoadFromFileTest.cpp
     BinaryLoadFromDataTest.cpp

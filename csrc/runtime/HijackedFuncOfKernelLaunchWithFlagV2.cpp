@@ -39,6 +39,7 @@
 #include "runtime/inject_helpers/RegisterContext.h"
 #include "runtime/inject_helpers/DevMemManager.h"
 #include "runtime/inject_helpers/MemGuard.h"
+#include "runtime/inject_helpers/SyncStreamWithInterrupt.h"
 
 using namespace std;
 
@@ -105,6 +106,9 @@ void HijackedFuncOfKernelLaunchWithFlagV2::ProfPre(const std::function<bool(void
 
 void HijackedFuncOfKernelLaunchWithFlagV2::SanitizerPre()
 {
+    // mssanitizer SIGINT 信号处理接管
+    BindSigIntHandler();
+
     std::string kernelName = KernelContext::Instance().GetLaunchName();
     this->skipSanitizer_ = SkipSanitizer(kernelName);
     DevMemManager::Instance().SetSkipKernelFlag(this->skipSanitizer_);
@@ -253,7 +257,7 @@ void HijackedFuncOfKernelLaunchWithFlagV2::Pre(const void *stubFunc, uint32_t bl
     }
 }
 
-// 调优自定义插桩统一调用此函数 
+// 调优自定义插桩统一调用此函数
 bool HijackedFuncOfKernelLaunchWithFlagV2::PrepareDbiTaskForInstrProf(ProfDBIType mode, uint64_t memSize)
 {
     // 每次调用插桩前需要清理插桩用到的成员变量，保证不被上次插桩污染
@@ -292,7 +296,7 @@ void HijackedFuncOfKernelLaunchWithFlagV2::SanitizerPost()
 {
     if ((this->memInfo_ || isSink_) && !this->skipSanitizer_) {
         // wait for kernel execution done, and catch potential exception
-        rtStreamSynchronizeOrigin(this->stm_);
+        SyncStreamWithInterrupt(this->stm_);
 
         MemoryGuard::Instance().CheckAllMemGuard();
 
@@ -309,6 +313,7 @@ void HijackedFuncOfKernelLaunchWithFlagV2::SanitizerPost()
         ReportSectionsFree(event.pcStartAddr, sections_);
         ReportOverflowFree(KernelContext::Instance().GetOpMemInfo());
         ReportOpFreeInfo(KernelContext::Instance().GetOpMemInfo());
+        ExitAfterProcess();
     }
 }
 

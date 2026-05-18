@@ -40,6 +40,7 @@
 #include "runtime/inject_helpers/LaunchArgs.h"
 #include "runtime/inject_helpers/RegisterContext.h"
 #include "runtime/inject_helpers/MemGuard.h"
+#include "runtime/inject_helpers/SyncStreamWithInterrupt.h"
 #include "utils/FileSystem.h"
 
 using namespace std;
@@ -134,6 +135,9 @@ void HijackedFuncOfKernelLaunch::ProfPre(const std::function<bool(void)> &func,
 
 void HijackedFuncOfKernelLaunch::SanitizerPre()
 {
+    // mssanitizer SIGINT 信号处理接管
+    BindSigIntHandler();
+
     std::string kernelName = KernelContext::Instance().GetLaunchName();
     this->skipSanitizer_ = SkipSanitizer(kernelName);
     DevMemManager::Instance().SetSkipKernelFlag(this->skipSanitizer_);
@@ -219,7 +223,7 @@ void HijackedFuncOfKernelLaunch::SanitizerPost() const
         KernelDumper::Instance().LaunchDumpTask(stm_);
     } else if (this->memInfo_) {
         // wait for kernel execution done, and catch potential exception
-        rtStreamSynchronizeOrigin(this->stm_);
+        SyncStreamWithInterrupt(this->stm_);
 
         MemoryGuard::Instance().CheckAllMemGuard();
 
@@ -231,6 +235,7 @@ void HijackedFuncOfKernelLaunch::SanitizerPost() const
         __sanitizer_finalize(this->memInfo_, this->blockDim_);
         ReportSectionsFree(event.pcStartAddr, sections_);
         ReportOverflowFree(KernelContext::Instance().GetOpMemInfo());
+        ExitAfterProcess();
     }
 }
 
@@ -265,7 +270,7 @@ void HijackedFuncOfKernelLaunch::Pre(const void *stubFunc, uint32_t blockDim, vo
     }
 }
 
-// 调优自定义插桩统一调用此函数 
+// 调优自定义插桩统一调用此函数
 bool HijackedFuncOfKernelLaunch::PrepareDbiTaskForInstrProf(ProfDBIType mode, uint64_t memSize)
 {
     // 每次调用插桩前需要清理插桩用到的成员变量，保证不被上次插桩污染

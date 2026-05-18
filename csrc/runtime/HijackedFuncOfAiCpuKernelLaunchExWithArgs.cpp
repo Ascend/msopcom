@@ -35,6 +35,7 @@
 #include "runtime/inject_helpers/ConfigManager.h"
 #include "runtime/inject_helpers/LaunchArgs.h"
 #include "runtime/inject_helpers/MemGuard.h"
+#include "runtime/inject_helpers/SyncStreamWithInterrupt.h"
 #include "RuntimeConfig.h"
 #include "utils/Ustring.h"
 #include "runtime/RuntimeOrigin.h"
@@ -52,6 +53,9 @@ void HijackedFuncOfAiCpuKernelLaunchExWithArgs::Pre(const uint32_t kernelType, c
     if (!IsOpProf()) {
         return;
     }
+
+    // mssanitizer SIGINT 信号处理接管
+    BindSigIntHandler();
 
     uint64_t validLen = GetValidLength(opName, KERNEL_NAME_MAX);
     std::string validOpName(opName, validLen);
@@ -76,6 +80,8 @@ rtError_t HijackedFuncOfAiCpuKernelLaunchExWithArgs::Post(rtError_t ret)
 {
     if (IsSanitizer()) {
         MemoryGuard::Instance().CheckAllMemGuard();
+
+        ExitAfterProcess();
     }
 
     return ret;

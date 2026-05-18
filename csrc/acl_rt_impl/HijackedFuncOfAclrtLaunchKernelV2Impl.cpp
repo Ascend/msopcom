@@ -37,6 +37,8 @@
 #include "runtime/inject_helpers/BBCountDumper.h"
 #include "runtime/inject_helpers/DBITask.h"
 #include "runtime/inject_helpers/LaunchArgs.h"
+#include "runtime/inject_helpers/MemGuard.h"
+#include "runtime/inject_helpers/SyncStreamWithInterrupt.h"
 
 namespace {
 
@@ -161,6 +163,9 @@ void HijackedFuncOfAclrtLaunchKernelV2Impl::ProfPre(const std::function<bool(voi
 
 void HijackedFuncOfAclrtLaunchKernelV2Impl::SanitizerPre()
 {
+    // mssanitizer SIGINT 信号处理接管
+    BindSigIntHandler();
+
     std::string kernelName = launchCtx_->GetFuncContext()->GetKernelName();
     skipSanitizer_ = SkipSanitizer(kernelName);
     if (skipSanitizer_) {
@@ -187,6 +192,8 @@ void HijackedFuncOfAclrtLaunchKernelV2Impl::SanitizerPre()
         launchCtx_->SetDBIFuncCtx(funcCtx_);
         funcHandle_ = funcCtx_->GetFuncHandle();
     }
+
+    MemoryGuard::Instance().FillAllMemGuard();
 }
 void HijackedFuncOfAclrtLaunchKernelV2Impl::Pre(aclrtFuncHandle funcHandle, uint32_t numBlocks, const void *argsData,
                                               size_t argsSize, aclrtLaunchKernelCfg *cfg, aclrtStream stream)
@@ -257,7 +264,9 @@ void HijackedFuncOfAclrtLaunchKernelV2Impl::SanitizerPost()
             return;
         }
 
-        aclrtSynchronizeStreamImplOrigin(stream_);
+        SyncStreamWithInterrupt(stream_);
+
+        MemoryGuard::Instance().CheckAllMemGuard();
 
         auto const &elfData = funcCtx_->GetRegisterContext()->GetElfData();
         std::map<std::string, Elf64_Shdr> headers;
@@ -274,6 +283,7 @@ void HijackedFuncOfAclrtLaunchKernelV2Impl::SanitizerPost()
         } else {
             __sanitizer_finalize(memInfo_, numBlocks_);
         }
+        ExitAfterProcess();
     }
 }
 

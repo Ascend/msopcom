@@ -149,6 +149,11 @@ TEST_F(AscendclImplOriginTest, call_aclrt_free_host_impl_origin_expect_return_su
     ASSERT_EQ(aclrtFreeHostImplOrigin(nullptr), ACL_SUCCESS);
 }
 
+TEST_F(AscendclImplOriginTest, call_aclrt_stream_abort_impl_origin_expect_return_success) {
+    aclrtStream stream{};
+    ASSERT_EQ(aclrtStreamAbortImplOrigin(stream), ACL_SUCCESS);
+}
+
 TEST_F(AscendclImplOriginTest, call_aclrt_launch_kernel_with_host_args_impl_origin_expect_return_success)
 {
     ASSERT_EQ(aclrtLaunchKernelWithHostArgsImplOrigin(

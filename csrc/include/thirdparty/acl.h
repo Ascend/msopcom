@@ -148,7 +148,7 @@ typedef enum aclrtCmoType {
 typedef enum {
     ACL_FUNC_ATTR_KERNEL_TYPE  = 1,
 } aclrtFuncAttribute;
- 
+
 typedef enum {
     ACL_KERNEL_TYPE_AICORE  = 0,
     ACL_KERNEL_TYPE_CUBE  = 1,
@@ -161,6 +161,8 @@ static const int ACL_ERROR_NONE = 0;
 static const int ACL_SUCCESS = 0;
 static const int ACL_ERROR_BAD_ALLOC = 200000;
 static const int ACL_ERROR_INTERNAL_ERROR = 500000;
+static const int ACL_ERROR_RT_STREAM_SYNC_TIMEOUT = 507046;
+
 aclError aclrtSetDevice(int32_t deviceId);
 aclError aclrtCreateStream(aclrtStream *stream);
 aclError aclrtDestroyStream(aclrtStream stream);
@@ -191,6 +193,7 @@ aclError aclrtResetEvent(aclrtEvent event, aclrtStream stream);
 aclError aclrtDestroyEvent(aclrtEvent event);
 aclError aclrtSynchronizeStreamWithTimeoutImpl(aclrtStream stream, int32_t timeout);
 aclError aclrtSynchronizeStreamImpl(aclrtStream stream);
+aclError aclrtStreamAbortImpl(aclrtStream stream);
 aclError aclrtMemcpyAsyncImpl(void *dst, size_t destMax, const void *src, size_t count,
                               aclrtMemcpyKind kind, aclrtStream stream);
 aclError aclrtMallocHostImpl(void **hostPtr, size_t size);

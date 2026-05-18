@@ -37,6 +37,7 @@
 #include "runtime/inject_helpers/DBITask.h"
 #include "runtime/inject_helpers/LaunchArgs.h"
 #include "runtime/inject_helpers/LocalDevice.h"
+#include "runtime/inject_helpers/SyncStreamWithInterrupt.h"
 
 HijackedFuncOfAclrtLaunchKernelWithHostArgsImpl::HijackedFuncOfAclrtLaunchKernelWithHostArgsImpl()
     : HijackedFuncType(AclRuntimeLibName(), "aclrtLaunchKernelWithHostArgsImpl") {}
@@ -113,6 +114,9 @@ void HijackedFuncOfAclrtLaunchKernelWithHostArgsImpl::ProfPre(const std::functio
 
 void HijackedFuncOfAclrtLaunchKernelWithHostArgsImpl::SanitizerPre()
 {
+    // mssanitizer SIGINT 信号处理接管
+    BindSigIntHandler();
+
     std::string kernelName = launchCtx_->GetFuncContext()->GetKernelName();
     skipSanitizer_ = SkipSanitizer(kernelName);
     if (skipSanitizer_) {
@@ -282,7 +286,7 @@ void HijackedFuncOfAclrtLaunchKernelWithHostArgsImpl::SanitizerPost()
         }
 
         // wait for kernel execution done, and catch potential exception
-        aclrtSynchronizeStreamImplOrigin(stream_);
+        SyncStreamWithInterrupt(stream_);
 
         auto const &elfData = funcCtx_->GetRegisterContext()->GetElfData();
         std::map<std::string, Elf64_Shdr> headers;
@@ -308,6 +312,7 @@ void HijackedFuncOfAclrtLaunchKernelWithHostArgsImpl::SanitizerPost()
         }
 
         ReportOpFreeInfo(LaunchManager::Local().GetCurrentMemInfo());
+        ExitAfterProcess();
     }
 }
 

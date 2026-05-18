@@ -34,6 +34,7 @@
 #include "utils/FileSystem.h"
 #include "utils/Environment.h"
 #include "utils/PipeCall.h"
+#include "utils/signal.h"
 #include "MemoryContext.h"
 #include "ascend_hal/AscendHalOrigin.h"
 #include "MsTx.h"
@@ -140,32 +141,6 @@ struct L2cacheParam {
     uint64_t bufferSize;
 };
 }
-
-/*
- * SignalHandler类用于包装信号相关的系统调用signal()
- */
-class SignalWrapper {
-    using FuncPtr = void(*)(int);
-public:
-    static bool RegisterCallback(int32_t signo, FuncPtr func)
-    {
-        if (func == nullptr) {
-            return false;
-        }
-
-        auto ret = std::signal(signo, func);
-        if (ret == SIG_ERR) {
-            return false;
-        }
-
-        return true;
-    }
-
-    static void UnregisterCallback(int32_t signo)
-    {
-        (void)std::signal(signo, SIG_DFL);
-    }
-};
 
 class SimulatorLauncher {
 public:
@@ -1072,7 +1047,7 @@ bool DataCollectInDevice::KernelLaunchForInstrProf(rtStream_t stream, const std:
     }
     return ret;
 }
- 	 
+
 
 bool DataCollectInDevice::KernelReplay(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc)
 {
@@ -1348,7 +1323,7 @@ void DataCollectInDevice::WarmUp(rtStream_t stream, const std::function<bool(voi
     uint16_t warmUpTimes = ProfConfig::Instance().GetWarmUpTimes();
     WarmUp(stream, kernelLaunchFunc, warmUpTimes);
 }
- 	 
+
 void DataCollectInDevice::WarmUp(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc, uint16_t warmUpTimes) const
 {
     if (warmUpTimes == 0 || KernelContext::Instance().GetMC2Flag() || KernelContext::Instance().GetLcclFlag()) {
@@ -1472,7 +1447,7 @@ bool DataCollectInDevice::WaitClearL2Cache(L2cacheParam &param) const
     ret = CheckAclResult(aclrtSynchronizeStreamImplOrigin(param.stream), "aclrtSynchronizeStreamImpl");
     if (ret != ACL_SUCCESS) { return false; }
     auto chipType = GetProductTypeBySocVersion(runSocVersion);
-    if (IsChipSeriesTypeValid(chipType, ChipProductType::ASCEND910B_SERIES) || 
+    if (IsChipSeriesTypeValid(chipType, ChipProductType::ASCEND910B_SERIES) ||
         IsChipSeriesTypeValid(chipType, ChipProductType::ASCEND910_93_SERIES)) {
         ret = CheckAclResult(aclrtCmoAsyncImplOrigin(param.cmoBuffer, param.bufferSize,
             ACL_RT_CMO_TYPE_PREFETCH, param.stream), "aclrtCmoAsyncImpl");

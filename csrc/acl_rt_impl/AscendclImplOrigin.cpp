@@ -61,6 +61,7 @@ void AscendclImplOriginCtor()
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtGetFunctionAddrImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtSynchronizeStreamWithTimeoutImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtSynchronizeStreamImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtStreamAbortImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMemcpyAsyncImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMallocHostImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtFreeHostImpl);
@@ -258,6 +259,11 @@ aclError aclmdlRIExecuteAsyncImplOrigin(aclmdlRI modelRI, aclrtStream stream)
 aclError aclrtSynchronizeStreamWithTimeoutImplOrigin(aclrtStream stream, int32_t timeout)
 {
     LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtSynchronizeStreamWithTimeoutImpl, stream, timeout);
+}
+
+aclError aclrtStreamAbortImplOrigin(aclrtStream stream)
+{
+    LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtStreamAbortImpl, stream);
 }
 
 aclError aclrtSynchronizeStreamImplOrigin(aclrtStream stream)

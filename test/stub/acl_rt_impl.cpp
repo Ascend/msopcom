@@ -207,3 +207,8 @@ aclError aclrtGetFunctionAttributeImpl(aclrtFuncHandle funcHandle, aclrtFuncAttr
     *value = static_cast<int64_t>(aclrtKernelType::ACL_KERNEL_TYPE_VECTOR);
     return ACL_SUCCESS;
 }
+
+aclError aclrtStreamAbortImpl(aclrtStream stream)
+{
+    return ACL_SUCCESS;
+}

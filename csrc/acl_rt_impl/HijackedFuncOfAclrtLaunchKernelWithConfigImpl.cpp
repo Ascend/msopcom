@@ -32,6 +32,7 @@
 #include "runtime/inject_helpers/DBITask.h"
 #include "runtime/inject_helpers/LaunchArgs.h"
 #include "runtime/inject_helpers/MemGuard.h"
+#include "runtime/inject_helpers/SyncStreamWithInterrupt.h"
 #include "utils/InjectLogger.h"
 #include "utils/Protocol.h"
 
@@ -220,6 +221,9 @@ aclError HijackedFuncOfAclrtLaunchKernelWithConfigImpl::Call(
 
 void HijackedFuncOfAclrtLaunchKernelWithConfigImpl::SanitizerPre()
 {
+    // mssanitizer SIGINT 信号处理接管
+    BindSigIntHandler();
+
     std::string kernelName = launchCtx_->GetFuncContext()->GetKernelName();
     skipSanitizer_ = SkipSanitizer(kernelName);
     if (skipSanitizer_) {
@@ -267,7 +271,7 @@ void HijackedFuncOfAclrtLaunchKernelWithConfigImpl::SanitizerPost()
         }
 
         // wait for kernel execution done, and catch potential exception
-        aclrtSynchronizeStreamImplOrigin(stream_);
+        SyncStreamWithInterrupt(stream_);
 
         MemoryGuard::Instance().CheckAllMemGuard();
 
@@ -286,6 +290,7 @@ void HijackedFuncOfAclrtLaunchKernelWithConfigImpl::SanitizerPost()
         } else {
             __sanitizer_finalize(memInfo_, blockDim_);
         }
+        ExitAfterProcess();
     }
 }
 

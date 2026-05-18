@@ -14,7 +14,7 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
- 
+
 #pragma once
 #include <string>
 
@@ -65,6 +65,7 @@ aclError aclmdlRIDestroyImplOrigin(aclmdlRI modelRI);
 aclError aclmdlRIExecuteAsyncImplOrigin(aclmdlRI modelRI, aclrtStream stream);
 aclError aclrtGetFunctionAddrImplOrigin(aclrtFuncHandle funcHandle, void **aicAddr, void **aivAddr);
 aclError aclrtSynchronizeStreamWithTimeoutImplOrigin(aclrtStream stream, int32_t timeout);
+aclError aclrtStreamAbortImplOrigin(aclrtStream stream);
 aclError aclrtSynchronizeStreamImplOrigin(aclrtStream stream);
 aclError aclrtMemcpyAsyncImplOrigin(void *dst, size_t destMax, const void *src, size_t count,
                                     aclrtMemcpyKind kind, aclrtStream stream);
