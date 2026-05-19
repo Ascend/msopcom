@@ -69,6 +69,9 @@ constexpr uint64_t CACHE_LINE_SIZE = 64ULL;
 // simt最大线程数
 constexpr uint16_t SIMT_THREAD_MAX_SIZE = 2048;
 
+// 单个simt vf中最多可以检测的sync_threads指令数(pc数)
+constexpr uint16_t SIMT_THREAD_MAX_PC_NUM = 64;
+
 // simt记录占总cache-size比例
 constexpr float SIMT_CACHE_SIZE_RATIO  = 0.1;
 
@@ -281,6 +284,7 @@ struct KernelInfo {
 struct BlockInfo {
     uint64_t simtSyncThreadCount{};                   // 当前核上simt单元多少个线程已经运行了sync_thread指令
     uint64_t simtEndThreadCount{};                    // 当前核上simt单元多少个线程已经运行了simt_end指令
+    uint64_t simtEndLastThread{}; // 通过累加判断当前核上的simt是否运行到最后一个线程
     uint64_t simtEntryUseSize{};                      // 当前核上存放simtEntry记录已经用了多少内存
     uint32_t simtEndCount{};                          // 当前核上运行了多少次simt_end桩
     uint32_t simtCallCount{};                         // 当前核上运行了多少次simt_call桩
@@ -336,10 +340,12 @@ struct ProtocolOffsetInfo {
 };
 
 struct SimtRecordBlockHeadImpl {
-    uint64_t recordCount{};                 // 记录数量
-    uint64_t recordWriteCount{};            // 已经写入的记录数量
-    uint64_t offset{};                      // 所有记录对应的offset
-    uint64_t writeOffset{};                 // 已经写入的记录对应的offset
+    uint64_t recordCount{}; // 记录数量
+    uint64_t recordWriteCount{}; // 已经写入的记录数量
+    uint64_t offset{}; // 所有记录对应的offset
+    uint64_t writeOffset{}; // 已经写入的记录对应的offset
+    uint64_t syncThreadPC[SIMT_THREAD_MAX_PC_NUM]; // sync_thread指令的pc集合
+    uint32_t syncThreadNum[SIMT_THREAD_MAX_PC_NUM]; // sync_thread指令上每个pc出现的次数
 };
 
 using SimtRecordBlockHead = StructAlignBy<SimtRecordBlockHeadImpl, 64UL>;
