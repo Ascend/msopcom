@@ -19,7 +19,6 @@
 #include "HijackedFunc.h"
 #include "RuntimeConfig.h"
 #include "core/FuncSelector.h"
-#include "runtime/RuntimeOrigin.h"
 #include "runtime/inject_helpers/LocalDevice.h"
 #include "utils/Protocol.h"
 #include "utils/Serialize.h"

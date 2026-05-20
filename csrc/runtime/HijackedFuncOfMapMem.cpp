@@ -21,7 +21,6 @@
 #include "core/FuncSelector.h"
 #include "utils/Protocol.h"
 #include "utils/Serialize.h"
-#include "runtime/RuntimeOrigin.h"
 #include "inject_helpers/MemoryContext.h"
 #include "inject_helpers/ProfConfig.h"
 #include "inject_helpers/KernelContext.h"

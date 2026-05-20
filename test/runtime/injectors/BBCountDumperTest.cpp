@@ -22,10 +22,10 @@
 #include "runtime/inject_helpers/BBCountDumper.h"
 #undef private
 
+#include "acl_rt_impl/AscendclImplOrigin.h"
 #include "core/DomainSocket.h"
 #include "runtime/inject_helpers/DBITask.h"
 #include "runtime/inject_helpers/KernelContext.h"
-#include "runtime/RuntimeOrigin.h"
 
 using namespace std;
 
@@ -73,7 +73,7 @@ TEST(BBCountDumper, gen_extra_and_return_name)
     rtDevBinary_t bin;
     bin.data = reinterpret_cast<void *>(mockData.data());
     bin.length = mockData.size() * sizeof(uint8_t);
-    MOCKER(rtMemcpyOrigin).stubs().will(returnValue(RT_ERROR_NONE));
+    MOCKER(aclrtMemcpyImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
 
     MOCKER(&BBCountDumper::GetOutFileName).stubs().will(returnValue(fileName));
     MOCKER(WriteBinary).stubs().will(returnValue(1));
@@ -99,8 +99,8 @@ TEST(BBCountDumper, get_output_dir)
 TEST(BBCountDumper, dump_bbb_data_expect_return_true)
 {
     MOCKER(WriteBinary).stubs().will(returnValue(static_cast<size_t>(1)));
-    MOCKER(rtMemcpyOrigin).stubs().will(returnValue(0));
-    MOCKER(rtFreeOrigin).stubs().will(returnValue(0));
+    MOCKER(aclrtMemcpyImplOrigin).stubs().will(returnValue(0));
+    MOCKER(aclrtFreeImplOrigin).stubs().will(returnValue(0));
     BBCountDumper::Instance().Reset();
     constexpr uint64_t memSize = 128;
     EXPECT_TRUE(BBCountDumper::Instance().DumpBBData(0, memSize, nullptr));
@@ -111,8 +111,8 @@ TEST(BBCountDumper, dump_bbb_data_expect_return_false)
 {
     BBCountDumper::Instance().Reset();
     MOCKER(WriteBinary).stubs().will(returnValue(static_cast<size_t>(0)));
-    MOCKER(rtMemcpyOrigin).stubs().will(returnValue(0));
-    MOCKER(rtFreeOrigin).stubs().will(returnValue(0));
+    MOCKER(aclrtMemcpyImplOrigin).stubs().will(returnValue(0));
+    MOCKER(aclrtFreeImplOrigin).stubs().will(returnValue(0));
     BBCountDumper::Instance().Reset();
     constexpr uint64_t memSize = 128;
     EXPECT_FALSE(BBCountDumper::Instance().DumpBBData(0, memSize, nullptr));
@@ -123,7 +123,7 @@ TEST(BBCountDumper, GenExtraAndReturnName_return_empty_string)
 {
     BBCountDumper::Instance().Reset();
     EXPECT_TRUE(BBCountDumper::Instance().GenExtraAndReturnName("", 0, 0, nullptr).empty());
-    MOCKER(rtMemcpyOrigin).stubs().will(returnValue(1));
+    MOCKER(aclrtMemcpyImplOrigin).stubs().will(returnValue(1));
     EXPECT_TRUE(BBCountDumper::Instance().GenExtraAndReturnName("", 0, 128, nullptr).empty());
     GlobalMockObject::verify();
 }

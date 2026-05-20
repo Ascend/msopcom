@@ -15,9 +15,9 @@
  * ------------------------------------------------------------------------- */
 
 
+#include "acl_rt_impl/AscendclImplOrigin.h"
 #include "utils/FileSystem.h"
 #include "utils/InjectLogger.h"
-#include "runtime/RuntimeOrigin.h"
 
 #include "ArgsContext.h"
 
@@ -83,12 +83,12 @@ bool DumpInputData(const string &outputDir,
             return false;
         }
         void *hostData = nullptr;
-        if (rtMallocHostOrigin(&hostData, addrInfo.length, 0) != RT_ERROR_NONE) {
+        if (aclrtMallocHostImplOrigin(&hostData, addrInfo.length) != ACL_ERROR_NONE) {
             return false;
         }
         using Defer = std::shared_ptr<void>;
         Defer defer0(nullptr, [&hostData](std::nullptr_t&) {
-            if (rtFreeHostOrigin(hostData) != RT_ERROR_NONE) {
+            if (aclrtFreeHostImplOrigin(hostData) != ACL_ERROR_NONE) {
                 ERROR_LOG("rtFreeHost failed\n");
             }
         });
@@ -96,8 +96,8 @@ bool DumpInputData(const string &outputDir,
             DEBUG_LOG("Invalid args addr=0.");
             return false;
         }
-        if (rtMemcpyOrigin(hostData, addrInfo.length, reinterpret_cast<void*>(addrInfo.addr),
-            addrInfo.length, RT_MEMCPY_DEVICE_TO_HOST) != RT_ERROR_NONE) {
+        if (aclrtMemcpyImplOrigin(hostData, addrInfo.length, reinterpret_cast<void*>(addrInfo.addr),
+            addrInfo.length, ACL_MEMCPY_DEVICE_TO_HOST) != ACL_ERROR_NONE) {
             return false;
         }
 

@@ -15,7 +15,7 @@
  * ------------------------------------------------------------------------- */
 
 #include "KernelContext.h"
- 
+
 #include <elf.h>
 #include <fstream>
 #include <mutex>
@@ -26,7 +26,9 @@
 #include <tuple>
 #include <utility>
 #include <thread>
- 
+
+#include "acl.h"
+#include "acl_rt_impl/AscendclImplOrigin.h"
 #include "runtime/inject_helpers/ArgsHandleContext.h"
 #include "runtime/inject_helpers/KernelReplacement.h"
 #include "runtime/inject_helpers/LaunchContext.h"
@@ -132,7 +134,7 @@ std::string KernelContext::GetNameByTilingKey(const KernelHandle *handle, uint64
     }
     std::string nameSuffix = "_" + std::to_string(tilingKey);
     std::vector<std::string> suffixNames = {nameSuffix, nameSuffix + MIX_AIC_TAIL, nameSuffix + MIX_AIV_TAIL};
- 
+
     for (const std::string &name : names) {
         for (const std::string &suffix: suffixNames) {
             if (EndsWith(name, suffix)) {
@@ -246,7 +248,7 @@ void KernelContext::DeviceContext::SetArgsSize(const rtArgsSizeInfo_t * const si
     memInfo_.Clear();
     memInfo_.isForSetException = true;
     auto *buff = static_cast<uint64_t *>(sizeInfo->infoAddr);
- 
+
     memInfo_.inputNum = buff[1] & U32_MASK;
     memInfo_.skipNum = (buff[1] >> 32U) & U32_MASK;
 
@@ -358,7 +360,7 @@ static bool DumpTilingData(const rtArgsEx_t &argsInfo, const string &outputDir, 
         RT_MEMCPY_DEVICE_TO_HOST) != RT_ERROR_NONE) {
         return false;
     }
- 
+
     config.tilingDataPath = outputDir + "/input_tiling.bin";
     config.tilingDataSize = tilingDataSize;
     size_t written = WriteBinary(config.tilingDataPath, (const char *) hostData, tilingDataSize);
@@ -881,17 +883,17 @@ void KernelContext::ParseSecondPtrAddrs(
 std::vector<AddrInfo> KernelContext::ParseMc2CtxAddrs(uint64_t addr) const
 {
     void *hostData;
-    if (rtMallocHostOrigin(&hostData, sizeof(HcclCombinOpParam), 0) != RT_ERROR_NONE) {
+    if (aclrtMallocHostImplOrigin(&hostData, sizeof(HcclCombinOpParam)) != ACL_ERROR_NONE) {
         return {};
     }
     Defer defer0(nullptr, [&hostData](std::nullptr_t&) {
-        if (rtFreeHostOrigin(hostData) != RT_ERROR_NONE) {
+        if (aclrtFreeHostImplOrigin(hostData) != ACL_ERROR_NONE) {
             ERROR_LOG("rtFreeHost failed");
         }
     });
-    rtError_t error = rtMemcpyOrigin(hostData, sizeof(HcclCombinOpParam),
-        reinterpret_cast<void *>(addr), sizeof(HcclCombinOpParam), RT_MEMCPY_DEVICE_TO_HOST);
-    if (error != RT_ERROR_NONE) {
+    aclError error = aclrtMemcpyImplOrigin(hostData, sizeof(HcclCombinOpParam),
+        reinterpret_cast<void *>(addr), sizeof(HcclCombinOpParam), ACL_MEMCPY_DEVICE_TO_HOST);
+    if (error != ACL_ERROR_NONE) {
         ERROR_LOG("ParseMc2CtxAddrs rtMemcpy error: %d", error);
         return {};
     }
@@ -1045,8 +1047,8 @@ void KernelContext::DeviceContext::ListenCallbackTask(int32_t devId)
     DEBUG_LOG("set device id to %d for listen callback", devId);
     constexpr int32_t timeout = 1000; // ms
     while (!stopListen_) {
-        ret = rtProcessReportOrigin(timeout);
-        if (ret != RT_ERROR_NONE) {
+        if (aclrtProcessReportImplOrigin(timeout) != ACL_ERROR_NONE &&
+            rtProcessReportOrigin(timeout) != RT_ERROR_NONE) {
             continue;
         }
         DEBUG_LOG("Finish one callback function");
@@ -1070,8 +1072,8 @@ bool KernelContext::DeviceContext::SubscribeReport(rtStream_t stm)
         ERROR_LOG("get thread id number failed: %s", oss.str().c_str());
         return false;
     }
-    auto ret = rtSubscribeReportOrigin(tid, stm);
-    if (ret != RT_ERROR_NONE) {
+    if (aclrtSubscribeReportImplOrigin(tid, stm) != ACL_ERROR_NONE &&
+        rtSubscribeReportOrigin(tid, stm) != RT_ERROR_NONE) {
         DEBUG_LOG("subscribe report for stream failed");
         return false;
     }

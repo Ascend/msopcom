@@ -20,7 +20,6 @@
 #include "utils/Environment.h"
 #include "utils/FileSystem.h"
 #include "utils/InjectLogger.h"
-#include "runtime/RuntimeOrigin.h"
 #include "runtime/inject_helpers/KernelContext.h"
 #include "runtime/inject_helpers/DeviceContext.h"
 

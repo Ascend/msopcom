@@ -22,7 +22,6 @@
 #include "ascend_hal/AscendHalOrigin.h"
 #include "utils/FileSystem.h"
 #include "utils/InjectLogger.h"
-#include "runtime/RuntimeOrigin.h"
 #include "ProfDataCollect.h"
 #include "DeviceContext.h"
 

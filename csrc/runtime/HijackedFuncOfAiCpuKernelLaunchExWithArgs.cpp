@@ -19,7 +19,6 @@
 
 #include <elf.h>
 #include <string>
-#include "RuntimeOrigin.h"
 #include "utils/FileSystem.h"
 #include "core/LocalProcess.h"
 #include "core/FuncSelector.h"
@@ -38,7 +37,6 @@
 #include "runtime/inject_helpers/SyncStreamWithInterrupt.h"
 #include "RuntimeConfig.h"
 #include "utils/Ustring.h"
-#include "runtime/RuntimeOrigin.h"
 using namespace std;
 
 HijackedFuncOfAiCpuKernelLaunchExWithArgs::HijackedFuncOfAiCpuKernelLaunchExWithArgs()

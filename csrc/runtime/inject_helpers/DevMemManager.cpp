@@ -16,7 +16,6 @@
 
 #include "acl.h"
 #include "acl_rt_impl/AscendclImplOrigin.h"
-#include "runtime/RuntimeOrigin.h"
 #include "utils/InjectLogger.h"
 
 #include "DevMemManager.h"

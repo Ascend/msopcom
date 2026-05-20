@@ -25,7 +25,6 @@
 #include "runtime/inject_helpers/ProfConfig.h"
 #include "runtime/inject_helpers/ProfDataCollect.h"
 #include "RuntimeConfig.h"
-#include "RuntimeOrigin.h"
 
 HijackedFuncOfRegisterAllKernel::HijackedFuncOfRegisterAllKernel()
     : HijackedFuncOfRegisterAllKernel::HijackedFuncType(

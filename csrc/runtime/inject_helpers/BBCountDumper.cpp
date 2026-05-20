@@ -15,15 +15,16 @@
  * ------------------------------------------------------------------------- */
 
 #include "BBCountDumper.h"
- 
+
 #include <fstream>
+#include "acl.h"
+#include "acl_rt_impl/AscendclImplOrigin.h"
 #include "utils/FileSystem.h"
 #include "core/PlatformConfig.h"
-#include "runtime/RuntimeOrigin.h"
 #include "runtime/inject_helpers/DBITask.h"
- 
+
 using namespace std;
- 
+
 std::string BBCountDumper::GetOutputDir()
 {
     if (outputDir_.empty()) {
@@ -103,8 +104,8 @@ std::string BBCountDumper::GenExtraAndReturnName(const std::string &path, uint64
         return "";
     }
     auto *memInfoHost = new uint8_t[memSize];
-    rtError_t error = rtMemcpyOrigin(memInfoHost, memSize, memInfo, memSize, RT_MEMCPY_DEVICE_TO_HOST);
-    if (error != RT_ERROR_NONE) {
+    aclError error = aclrtMemcpyImplOrigin(memInfoHost, memSize, memInfo, memSize, ACL_MEMCPY_DEVICE_TO_HOST);
+    if (error != ACL_ERROR_NONE) {
         ERROR_LOG("dump basic block data rtMemcpy memInfo error: %d", error);
         delete[] memInfoHost;
         memInfoHost = nullptr;
@@ -129,8 +130,8 @@ bool BBCountDumper::DumpBBData(uint64_t regId, uint64_t memSize, uint8_t *memInf
     }
     DEBUG_LOG("start to dump BBData for regId=%lu memSize=%lu", regId, memSize);
     auto *memInfoHost = new uint8_t[memSize];
-    rtError_t error = rtMemcpyOrigin(memInfoHost, memSize, memInfo, memSize, RT_MEMCPY_DEVICE_TO_HOST);
-    if (error != RT_ERROR_NONE) {
+    aclError error = aclrtMemcpyImplOrigin(memInfoHost, memSize, memInfo, memSize, ACL_MEMCPY_DEVICE_TO_HOST);
+    if (error != ACL_ERROR_NONE) {
         ERROR_LOG("dump basic block data rtMemcpy memInfo error: %d", error);
         delete[] memInfoHost;
         memInfoHost = nullptr;

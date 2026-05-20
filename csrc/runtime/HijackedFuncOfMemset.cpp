@@ -21,7 +21,6 @@
 #include "utils/Protocol.h"
 #include "utils/Serialize.h"
 #include "RuntimeConfig.h"
-#include "runtime/RuntimeOrigin.h"
 #include "runtime/inject_helpers/LocalDevice.h"
 #include "runtime/inject_helpers/MemoryDataCollect.h"
 

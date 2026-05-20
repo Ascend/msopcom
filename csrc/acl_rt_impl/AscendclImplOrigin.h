@@ -14,7 +14,6 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
-
 #pragma once
 #include <string>
 
@@ -26,6 +25,7 @@ void AscendclImplOriginCtor();
 aclError aclrtSetDeviceImplOrigin(int32_t deviceId);
 aclError aclrtGetDeviceImplOrigin(int32_t *deviceId);
 aclError aclrtResetDeviceForceImplOrigin(int32_t deviceId);
+aclError aclrtGetUserDevIdByLogicDevIdImplOrigin(const int32_t logicDevId, int32_t *const userDevid);
 const char *aclrtGetSocNameImplOrigin();
 
 aclError aclrtMallocImplOrigin(void **devPtr, size_t size, aclrtMemMallocPolicy policy);
@@ -74,3 +74,7 @@ aclError aclrtFreeHostImplOrigin(void *hostPtr);
 aclError aclrtCtxGetCurrentDefaultStreamImplOrigin(aclrtStream *stream);
 aclError aclrtCmoAsyncImplOrigin(void *src, size_t size, aclrtCmoType cmoType, aclrtStream stream);
 aclError aclrtGetFunctionAttributeImplOrigin(aclrtFuncHandle funcHandle, aclrtFuncAttribute attr, int64_t *value);
+aclError aclrtLaunchCallbackImplOrigin(
+    aclrtCallback fn, void *userData, aclrtCallbackBlockType blockType, aclrtStream stream);
+aclError aclrtProcessReportImplOrigin(int32_t timeout);
+aclError aclrtSubscribeReportImplOrigin(uint64_t threadId, aclrtStream stream);

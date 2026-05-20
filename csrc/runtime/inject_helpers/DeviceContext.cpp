@@ -18,7 +18,6 @@
 
 #include <unordered_map>
 #include "acl_rt_impl/AscendclImplOrigin.h"
-#include "runtime/RuntimeOrigin.h"
 #include "utils/InjectLogger.h"
 #include "core/FuncSelector.h"
 #include "ProfConfig.h"
@@ -60,13 +59,12 @@ inline void ConvertToVisibleDeviceIdIfPossible(int32_t &deviceId)
     int32_t convertedId = 0;
     // device id captured in hijacked reSetDevice is not always correct if
     // ASCEND_RT_VISIBLE_DEVICES is set. conversion needs to be done here.
-    auto rtError = rtGetVisibleDeviceIdByLogicDeviceIdOrigin(deviceId, &convertedId);
-    if (rtError != RT_ERROR_NONE) {
-        DEBUG_LOG("Get visible device id from %d fail, ret: %d.",
-                  deviceId, static_cast<int32_t>(rtError));
+    auto ret = aclrtGetUserDevIdByLogicDevIdImplOrigin(deviceId, &convertedId);
+    if (ret != ACL_ERROR_NONE) {
+        DEBUG_LOG("Get visible device id from %d fail, ret: %d.", deviceId, ret);
         return;
     }
-    DEBUG_LOG("DeviceId convert id %d to %d, ret : %d", deviceId, convertedId, rtError);
+    DEBUG_LOG("DeviceId convert id %d to %d, ret : %d", deviceId, convertedId, ret);
     deviceId = convertedId;
 }
 

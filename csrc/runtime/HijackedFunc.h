@@ -25,7 +25,6 @@
 #include "runtime.h"
 #include "core/HijackedFuncTemplate.h"
 #include "runtime/inject_helpers/ProfDataCollect.h"
-#include "runtime/RuntimeOrigin.h"
 #include "runtime/inject_helpers/ProfConfig.h"
 
 template <>

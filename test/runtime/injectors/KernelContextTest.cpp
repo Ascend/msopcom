@@ -65,6 +65,16 @@ public:
     }
 };
 
+aclError AclrtMallocHostStub(void **hostPtr, size_t size) {
+    *hostPtr = malloc(size);
+    return ACL_ERROR_NONE;
+}
+
+aclError AclrtFreeHostStub(void *hostPtr) {
+    free(hostPtr);
+    return ACL_ERROR_NONE;
+}
+
 rtError_t RtMemcpyStub(void *dst, uint64_t destMax, const void *src, uint64_t cnt, rtMemcpyKind_t kind)
 {
     copy_n(static_cast<const uint8_t*>(src), cnt, static_cast<uint8_t*>(dst));
@@ -158,10 +168,9 @@ TEST_F(KernelContextTest, fake_sink_kernel_args_then_dump_kernel_args_expect_ret
         bool(KernelContext::DeviceContext::*)(KernelContext::KernelHandleArgs const &, uint64_t&) const)
         .stubs().will(returnValue(true));
     MOCKER(&KernelContext::GetNameByTilingKey).stubs().will(returnValue(string("kernelName")));
-    MOCKER(&rtMemcpyOrigin).stubs().will(invoke(RtMemcpyStub));
     MOCKER(&aclrtMemcpyImplOrigin).stubs().will(invoke(MemcpyStub));
-    MOCKER(&rtMallocHostOrigin).stubs().will(invoke(RtMallocHostStub));
-    MOCKER(&rtFreeHostOrigin).stubs().will(invoke(RtFreeHostStub));
+    MOCKER(&aclrtMallocHostImplOrigin).stubs().will(invoke(AclrtMallocHostStub));
+    MOCKER(&aclrtFreeHostImplOrigin).stubs().will(invoke(AclrtFreeHostStub));
 
     auto &inst = KernelContext::Instance();
     // add sink stream
@@ -202,8 +211,8 @@ TEST_F(KernelContextTest, fake_zero_length_sink_kernel_args_then_dump_kernel_arg
         .stubs().will(returnValue(true));
     MOCKER(&KernelContext::GetNameByTilingKey).stubs().will(returnValue(string("kernelName")));
     MOCKER(&aclrtMemcpyImplOrigin).stubs().will(invoke(MemcpyStub));
-    MOCKER(&rtMallocHostOrigin).stubs().will(invoke(RtMallocHostStub));
-    MOCKER(&rtFreeHostOrigin).stubs().will(invoke(RtFreeHostStub));
+    MOCKER(&aclrtMallocHostImplOrigin).stubs().will(invoke(AclrtMallocHostStub));
+    MOCKER(&aclrtFreeHostImplOrigin).stubs().will(invoke(AclrtFreeHostStub));
 
     auto &inst = KernelContext::Instance();
     // add sink stream
@@ -242,6 +251,9 @@ TEST_F(KernelContextTest, save_dump_valid_args_expect_return_and_normal_data_dum
     MOCKER(&rtMemcpyOrigin).stubs().will(invoke(RtMemcpyStub));
     MOCKER(&rtMallocHostOrigin).stubs().will(invoke(RtMallocHostStub));
     MOCKER(&rtFreeHostOrigin).stubs().will(invoke(RtFreeHostStub));
+    MOCKER(&aclrtMemcpyImplOrigin).stubs().will(invoke(MemcpyStub));
+    MOCKER(&aclrtMallocHostImplOrigin).stubs().will(invoke(AclrtMallocHostStub));
+    MOCKER(&aclrtFreeHostImplOrigin).stubs().will(invoke(AclrtFreeHostStub));
 
     int argsNum = 2;
     uint64_t skipNum = 0;
@@ -285,7 +297,7 @@ TEST_F(KernelContextTest, build_names_with_valid_kernel_binary_expect_get_kernel
     string mockContent = ("0000 g F .text 0000a8 Abs_d2db_high_performance_21474\n"
         "0010 g F .text 0000f8 Abs_cc2c_high_performance_3333\n"
         "0020 g F .text 000af8 Abs_dd3d_high_performance_4444\n");
-    
+
     MOCKER(&PipeCall).stubs().with(any(), outBound(mockContent)).will(returnValue(true));
     char *ascendHomePath = "ascend_home_path";
     MOCKER(&secure_getenv).stubs().will(returnValue(ascendHomePath));
@@ -743,7 +755,7 @@ TEST_F(KernelContextTest, mock_dynamic_ascendc_kernel_valid_meta_section_then_pa
     vector<uint64_t> adumpData(argsSpace, 1);
     AdumpInfo context{adumpData.data(), argsSpace};
     ArgsManager::Instance().AddAdumpInfo(0, context);
- 
+
     inst.ParseMetaDataFromBinary(binary, &argsInfo);
     ASSERT_EQ(inst.GetOpMemInfo().inputParamsAddrInfos.size(), 4);
     ASSERT_EQ(inst.GetOpMemInfo().inputParamsAddrInfos[0].length, 1);
@@ -850,8 +862,8 @@ TEST_F(KernelContextTest, mock_ffts_size_info_then_set_args_size_expect_success)
 TEST_F(KernelContextTest, mock_rt_report_then_repeat_subscribe_expect_ok)
 {
     MOCKER(&rtSetDeviceOrigin).stubs().will(returnValue(RT_ERROR_NONE));
-    MOCKER(&rtProcessReportOrigin).stubs().will(returnValue(RT_ERROR_NONE));
-    MOCKER(&rtSubscribeReportOrigin).stubs().will(returnValue(RT_ERROR_NONE));
+    MOCKER(&aclrtProcessReportImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(&aclrtSubscribeReportImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
     uint64_t stm{};
     auto &inst = KernelContext::Instance();
     ASSERT_TRUE(inst.GetDeviceContext().SubscribeReport(&stm));
@@ -863,8 +875,8 @@ TEST_F(KernelContextTest, mock_rt_report_then_repeat_subscribe_expect_ok)
 TEST_F(KernelContextTest, mock_rt_report_fail_then_subscribe_expect_ok)
 {
     MOCKER(&rtSetDeviceOrigin).stubs().will(returnValue(RT_ERROR_NONE));
-    MOCKER(&rtProcessReportOrigin).stubs().will(returnValue(RT_ERROR_RESERVED));
-    MOCKER(&rtSubscribeReportOrigin).stubs().will(returnValue(RT_ERROR_NONE));
+    MOCKER(&aclrtProcessReportImplOrigin).stubs().will(returnValue(ACL_ERROR_INTERNAL_ERROR));
+    MOCKER(&aclrtSubscribeReportImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
     uint64_t stm{};
     auto &inst = KernelContext::Instance();
     ASSERT_TRUE(inst.GetDeviceContext().SubscribeReport(&stm));

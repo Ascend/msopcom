@@ -65,6 +65,16 @@ static int StubNotify(LocalProcess*, std::string const &msg)
     return g_received.size();
 }
 
+aclError AclrtMallocHostStub(void **hostPtr, size_t size) {
+    *hostPtr = malloc(size);
+    return ACL_ERROR_NONE;
+}
+
+aclError AclrtFreeHostStub(void *hostPtr) {
+    free(hostPtr);
+    return ACL_ERROR_NONE;
+}
+
 rtError_t RtMemcpyStubFunc(void *dst, uint64_t destMax, const void *src, uint64_t cnt, rtMemcpyKind_t kind)
 {
     std::copy_n(static_cast<const uint8_t*>(src), cnt, static_cast<uint8_t*>(dst));
@@ -503,6 +513,8 @@ TEST(MemoryDataCollect, report_mc2_op_malloc_with_adump_info_expect_get_correct_
     MOCKER(&rtMemcpyOrigin).stubs().will(invoke(RtMemcpyStubFunc));
     MOCKER(&aclrtMemcpyImplOrigin).stubs().will(invoke(MemcpyStub));
     MOCKER(&aclrtGetDeviceImplOrigin).stubs().will(invoke(GetDeviceOriginStub));
+    MOCKER(&aclrtMallocHostImplOrigin).stubs().will(invoke(AclrtMallocHostStub));
+    MOCKER(&aclrtFreeHostImplOrigin).stubs().will(invoke(AclrtFreeHostStub));
     MOCKER(&rtMallocHostOrigin).stubs().will(invoke(RtMallocHostStubFunc));
     MOCKER(&rtFreeHostOrigin).stubs().will(invoke(RtFreeHostStubFunc));
     KernelContext::OpMemInfo opMemInfo = CreateOpMemInfo();
@@ -550,6 +562,8 @@ TEST(MemoryDataCollect, report_mc2_op_malloc_with_no_adump_info_expect_get_corre
     MOCKER(&rtMemcpyOrigin).stubs().will(invoke(RtMemcpyStubFunc));
     MOCKER(&aclrtMemcpyImplOrigin).stubs().will(invoke(MemcpyStub));
     MOCKER(&aclrtGetDeviceImplOrigin).stubs().will(invoke(GetDeviceOriginStub));
+    MOCKER(&aclrtMallocHostImplOrigin).stubs().will(invoke(AclrtMallocHostStub));
+    MOCKER(&aclrtFreeHostImplOrigin).stubs().will(invoke(AclrtFreeHostStub));
     MOCKER(&rtMallocHostOrigin).stubs().will(invoke(RtMallocHostStubFunc));
     MOCKER(&rtFreeHostOrigin).stubs().will(invoke(RtFreeHostStubFunc));
     KernelContext::OpMemInfo opMemInfo = CreateOpMemInfo();

@@ -36,7 +36,6 @@
 #include "utils/InjectLogger.h"
 #include "core/PlatformConfig.h"
 #include "runtime.h"
-#include "runtime/RuntimeOrigin.h"
 #include "utils/Protocol.h"
 #include "InteractHelper.h"
 #include "utils/Numeric.h"
@@ -58,7 +57,7 @@ inline bool CheckBlockDimValid(uint64_t blockDim)
 
 } // namespace [Dummy]
 
- 
+
 std::string GetArchName(KernelType kernelType, const std::string &socVersion)
 {
     if (socVersion.find("Ascend910B") != std::string::npos ||

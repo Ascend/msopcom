@@ -25,7 +25,6 @@
 #include "utils/Environment.h"
 #include "runtime/inject_helpers/KernelContext.h"
 #include "runtime/inject_helpers/DeviceContext.h"
-#include "runtime/RuntimeOrigin.h"
 #include "InstrReport.h"
 #include "MemoryContext.h"
 

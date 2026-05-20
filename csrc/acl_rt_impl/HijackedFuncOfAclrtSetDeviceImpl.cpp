@@ -21,6 +21,7 @@
 #include "core/HijackedFuncTemplate.h"
 #include "acl.h"
 #include "acl_rt_impl/AscendclImplOrigin.h"
+#include "runtime/RuntimeOrigin.h"
 #include "runtime/inject_helpers/LocalDevice.h"
 #include "runtime/inject_helpers/KernelContext.h"
 #include "runtime/inject_helpers/DeviceContext.h"
@@ -71,7 +72,7 @@ aclError HijackedFuncOfAclrtSetDeviceImpl::Post(aclError ret)
             ERROR_LOG("get soc version of device id %d failed", this->devId_);
             return ret;
         }
-        
+
         uint64_t validLen = GetValidLength(socVersion, SOC_VERSION_MAX);
         std::string validSocVersion(socVersion, validLen);
 

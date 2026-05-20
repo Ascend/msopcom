@@ -33,6 +33,7 @@ void AscendclImplOriginCtor()
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtSetDeviceImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtGetDeviceImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtResetDeviceForceImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtGetUserDevIdByLogicDevIdImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtGetSocNameImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMallocImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtFreeImpl);
@@ -74,6 +75,9 @@ void AscendclImplOriginCtor()
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtLaunchKernelWithHostArgsImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtBinaryLoadFromDataImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtGetFunctionAttributeImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtLaunchCallbackImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtProcessReportImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtSubscribeReportImpl);
 }
 
 aclError aclrtSetDeviceImplOrigin(int32_t deviceId)
@@ -89,6 +93,11 @@ aclError aclrtGetDeviceImplOrigin(int32_t *deviceId)
 aclError aclrtResetDeviceForceImplOrigin(int32_t deviceId)
 {
     LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtResetDeviceForceImpl, deviceId);
+}
+
+aclError aclrtGetUserDevIdByLogicDevIdImplOrigin(const int32_t logicDevId, int32_t *const userDevid)
+{
+    LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtGetUserDevIdByLogicDevIdImpl, logicDevId, userDevid);
 }
 
 const char *aclrtGetSocNameImplOrigin()
@@ -305,4 +314,18 @@ aclError aclrtCmoAsyncImplOrigin(void *src, size_t size, aclrtCmoType cmoType, a
 aclError aclrtGetFunctionAttributeImplOrigin(aclrtFuncHandle funcHandle, aclrtFuncAttribute attr, int64_t *value)
 {
     LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtGetFunctionAttributeImpl, funcHandle, attr, value);
+}
+
+aclError aclrtLaunchCallbackImplOrigin(aclrtCallback fn, void *userData, aclrtCallbackBlockType blockType, aclrtStream stream) {
+    LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtLaunchCallbackImpl, fn, userData, blockType, stream);
+}
+
+aclError aclrtProcessReportImplOrigin(int32_t timeout)
+{
+    LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtProcessReportImpl, timeout);
+}
+
+aclError aclrtSubscribeReportImplOrigin(uint64_t threadId, aclrtStream stream)
+{
+    LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtSubscribeReportImpl, threadId, stream);
 }

@@ -18,7 +18,6 @@
 
 #include <string>
 
-#include "runtime/RuntimeOrigin.h"
 #include "utils/InjectLogger.h"
 
 void MemoryContext::Append(const MemAddr addr, uint64_t size)
@@ -107,7 +106,7 @@ bool MemoryContext::CreateSnapshot(MemSection &section, aclrtStream stream) cons
             return false;
         }
     }
-    
+
     MemCopyDirection dir = MemCopyDirection::ORIGIN_TO_SNAPSHOT;
 
     // 未指定stream，进行同步拷贝

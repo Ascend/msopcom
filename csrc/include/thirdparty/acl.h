@@ -77,6 +77,7 @@ typedef void* aclrtBinary;
 typedef void* aclrtArgsHandle;
 typedef void *aclmdlRI;
 typedef void *aclrtContext;
+typedef void (*aclrtCallback)(void *userData);
 
 typedef enum aclrtBinaryLoadOptionType {
     ACL_RT_BINARY_LOAD_OPT_LAZY_LOAD = 1,       // 指定解析算子二进制、注册算子后，是否加载算子到Device侧
@@ -157,6 +158,11 @@ typedef enum {
     ACL_KERNEL_TYPE_AICPU  = 100,
 } aclrtKernelType;
 
+typedef enum aclrtCallbackBlockType {
+    ACL_CALLBACK_NO_BLOCK,  //非阻塞
+    ACL_CALLBACK_BLOCK,  //阻塞
+} aclrtCallbackBlockType;
+
 static const int ACL_ERROR_NONE = 0;
 static const int ACL_SUCCESS = 0;
 static const int ACL_ERROR_BAD_ALLOC = 200000;
@@ -164,6 +170,7 @@ static const int ACL_ERROR_INTERNAL_ERROR = 500000;
 static const int ACL_ERROR_RT_STREAM_SYNC_TIMEOUT = 507046;
 
 aclError aclrtSetDevice(int32_t deviceId);
+aclError aclrtGetUserDevIdByLogicDevId(const int32_t logicDevId, int32_t *const userDevid);
 aclError aclrtCreateStream(aclrtStream *stream);
 aclError aclrtDestroyStream(aclrtStream stream);
 aclError aclrtResetDevice(int32_t devId);
@@ -276,6 +283,9 @@ aclError aclmdlRICaptureEndImpl(aclrtStream stream, aclmdlRI *modelRI);
 aclError aclmdlRIBindStreamImpl(aclmdlRI modelRI, aclrtStream stream, uint32_t flag);
 aclError aclmdlRIUnbindStreamImpl(aclmdlRI modelRI, aclrtStream stream);
 aclError aclrtGetFunctionAttributeImpl(aclrtFuncHandle funcHandle, aclrtFuncAttribute attr, int64_t *value);
+aclError aclrtLaunchCallbackImpl(aclrtCallback fn, void *userData, aclrtCallbackBlockType blockType, aclrtStream stream);
+aclError aclrtProcessReportImpl(int32_t timeout);
+aclError aclrtSubscribeReportImpl(uint64_t threadId, aclrtStream stream);
 
 #ifdef __cplusplus
 } // extern "C"

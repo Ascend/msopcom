@@ -15,7 +15,7 @@
  * ------------------------------------------------------------------------- */
 
 #include "KernelReplacement.h"
- 
+
 #include <fstream>
 #include "core/PlatformConfig.h"
 #include "runtime/RuntimeOrigin.h"
@@ -25,12 +25,12 @@
 #include "runtime/inject_helpers/RegisterManager.h"
 #include "runtime/inject_helpers/DeviceContext.h"
 #include "utils/InjectLogger.h"
- 
+
 using namespace std;
 namespace {
 constexpr uint32_t MAX_DUMP_NUM = 50000;
 }
- 
+
 bool KernelReplacement::CreateHandle(void **handle, uint64_t launchId)
 {
     if (!handle || kernelPath_.empty() || !matcher_) {
@@ -160,11 +160,19 @@ bool KernelDumper::LaunchDumpTask(rtStream_t stm, bool aclNew)
     args->launchId = launchId;
     args->aclNew = aclNew;
     callbackArgs.emplace_back(args);
-    auto ret = rtCallbackLaunchOrigin(&KernelDumper::DumpDataCallback,
-                                      static_cast<void *>(args.get()), stm, true);
-    if (ret != RT_ERROR_NONE) {
-        ERROR_LOG("launch callback dump task failed, ret=%u", ret);
-        return false;
+    if (aclNew) {
+        auto ret = aclrtLaunchCallbackImplOrigin(
+            &KernelDumper::DumpDataCallback, static_cast<void *>(args.get()), ACL_CALLBACK_BLOCK, stm);
+        if (ret != ACL_ERROR_NONE) {
+            ERROR_LOG("launch callback dump task failed, ret=%u", ret);
+            return false;
+        }
+    } else {
+        auto ret = rtCallbackLaunchOrigin(&KernelDumper::DumpDataCallback, static_cast<void *>(args.get()), stm, true);
+        if (ret != RT_ERROR_NONE) {
+            ERROR_LOG("launch callback dump task failed, ret=%u", ret);
+            return false;
+        }
     }
     return true;
 }

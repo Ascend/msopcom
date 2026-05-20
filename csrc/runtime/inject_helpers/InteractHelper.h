@@ -19,7 +19,6 @@
 #include "utils/Protocol.h"
 #include "utils/InjectLogger.h"
 #include "utils/TypeTraits.h"
-#include "runtime/RuntimeOrigin.h"
 #include "runtime/inject_helpers/KernelContext.h"
 #include "runtime/inject_helpers/ConfigManager.h"
 #include "runtime/inject_helpers/ThreadContext.h"
