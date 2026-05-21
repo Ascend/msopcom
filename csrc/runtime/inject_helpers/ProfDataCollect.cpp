@@ -770,6 +770,8 @@ void DataCollectInDevice::ProfCommandAction(MsprofCommandHandleType type) const
     } else if (IsChipSeriesTypeValid(chipType, ChipProductType::ASCEND950_SERIES)) {
         if (ProfConfig::Instance().IsTimelineEnabled() || (ProfConfig::Instance().IsPCSamplingEnabled() && hasSimt_)) {
             command.profSwitch = PROF_INSTR | PROF_OP_TIMESTAMP;
+        } else {
+            command.profSwitch = PROF_OP_TIMESTAMP;
         }
     }
     res = profSetProfCommandOrigin(static_cast<void *>(&command), sizeof(RtProfCommandHandleT));
