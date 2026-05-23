@@ -30,6 +30,7 @@ file(GLOB INJECTION_SRC
     HijackedFuncOfAclrtCreateBinaryImpl.cpp
     HijackedFuncOfAclrtBinaryGetFunctionImpl.cpp
     HijackedFuncOfAclrtBinaryGetFunctionByEntryImpl.cpp
+    HijackedFuncOfAclrtRegisterCpuFuncImpl.cpp
     HijackedFuncOfAclrtKernelArgsInitImpl.cpp
     HijackedFuncOfAclrtKernelArgsAppendImpl.cpp
     HijackedFuncOfAclrtKernelArgsAppendPlaceHolderImpl.cpp

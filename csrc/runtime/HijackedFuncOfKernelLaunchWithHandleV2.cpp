@@ -44,6 +44,7 @@
 #include "runtime/inject_helpers/RegisterContext.h"
 #include "RuntimeConfig.h"
 #include "runtime/inject_helpers/DevMemManager.h"
+#include "runtime/inject_helpers/MemGuard.h"
 
 using namespace std;
 
@@ -244,6 +245,8 @@ void HijackedFuncOfKernelLaunchWithHandleV2::SanitizerPre()
     }
     auto ret = aclrtSetOpExecuteTimeOutOrigin(12);
     DEBUG_LOG("after aclrtSetOpExecuteTimeOutOrigin ret %d.", ret);
+
+    MemoryGuard::Instance().FillAllMemGuard();
 }
 
 HijackedFuncOfKernelLaunchWithHandleV2::HijackedFuncOfKernelLaunchWithHandleV2()
@@ -305,6 +308,9 @@ void HijackedFuncOfKernelLaunchWithHandleV2::SanitizerPost()
     if ((this->memInfo_ || isSink_) && !this->skipSanitizer_) {
         // wait for kernel execution done, and catch potential exception
         rtStreamSynchronizeOrigin(this->stm_);
+
+        MemoryGuard::Instance().CheckAllMemGuard();
+
         if (isSink_) {
             KernelDumper::Instance().LaunchDumpTask(stm_);
             return;

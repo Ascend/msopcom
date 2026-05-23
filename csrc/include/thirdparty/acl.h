@@ -178,6 +178,7 @@ aclError aclrtKernelArgsAppend(aclrtArgsHandle argsHandle, void *param, size_t p
 aclError aclrtKernelArgsFinalize(aclrtArgsHandle argsHandle);
 aclError aclrtBinaryGetFunction(const aclrtBinHandle binHandle, const char *kernelName, aclrtFuncHandle *funcHandle);
 aclError aclrtBinaryGetFunctionByEntry(aclrtBinHandle binHandle, uint64_t funcEntry, aclrtFuncHandle *funcHandle);
+aclError aclrtRegisterCpuFunc(const aclrtBinHandle binHandle, const char *funcName, const char *kernelName, aclrtFuncHandle *funcHandle);
 aclError aclrtKernelArgsInit(aclrtFuncHandle funcHandle, aclrtArgsHandle *argsHandle);
 aclError aclrtBinaryUnLoad(aclrtBinHandle binHandle);
 aclError aclrtSynchronizeStream(aclrtStream stream);
@@ -240,7 +241,7 @@ aclError aclrtDestroyBinaryImpl(aclrtBinary binary);
 
 aclError aclrtBinaryGetFunctionImpl(const aclrtBinHandle binHandle, const char *kernelName, aclrtFuncHandle *funcHandle);
 aclError aclrtBinaryGetFunctionByEntryImpl(aclrtBinHandle binHandle, uint64_t funcEntry, aclrtFuncHandle *funcHandle);
-
+aclError aclrtRegisterCpuFuncImpl(const aclrtBinHandle binHandle, const char *funcName, const char *kernelName, aclrtFuncHandle *funcHandle);
 aclError aclrtKernelArgsInitImpl(aclrtFuncHandle funcHandle, aclrtArgsHandle *argsHandle);
 aclError aclrtKernelArgsInitByUserMemImpl(aclrtFuncHandle funcHandle, aclrtArgsHandle argsHandle, void *userHostMem, size_t actualArgsSize);
 aclError aclrtKernelArgsGetMemSizeImpl(aclrtFuncHandle funcHandle, size_t userArgsSize, size_t *actualArgsSize);

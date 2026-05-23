@@ -19,6 +19,7 @@
 #include "runtime/inject_helpers/KernelContext.h"
 #include "runtime/inject_helpers/ProfConfig.h"
 #include "runtime/inject_helpers/InteractHelper.h"
+#include "runtime/inject_helpers/MemGuard.h"
 #include "core/FuncSelector.h"
 #include "utils/InjectLogger.h"
 #include "utils/Ustring.h"
@@ -38,6 +39,14 @@ rtError_t HijackedFuncOfIpcOpenMemory::Call(void **ptr, const char *name)
     if (ret != RT_ERROR_NONE) {
         ERROR_LOG("error happened when calling rtIpcOpenMemory name:%.2048s.", name);
         return ret;
+    }
+
+    if (MemoryGuard::Instance().memGuardEnable_) {
+        size_t frontSize = 0;
+        size_t backSize = 0;
+        MemoryGuard::Instance().GetGuardSizes(frontSize, backSize);
+        // 偏移到用户地址再返回
+        *ptr = reinterpret_cast<char *>(*ptr) + frontSize;
     }
 
     if (IsSanitizer()) {

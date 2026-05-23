@@ -38,6 +38,7 @@
 #include "runtime/inject_helpers/ProfConfig.h"
 #include "runtime/inject_helpers/RegisterContext.h"
 #include "runtime/inject_helpers/DevMemManager.h"
+#include "runtime/inject_helpers/MemGuard.h"
 
 using namespace std;
 
@@ -140,6 +141,8 @@ void HijackedFuncOfKernelLaunchWithFlagV2::SanitizerPre()
     if ((this->memInfo_ = __sanitizer_init(this->blockDim_))) {
         ExpandArgs(&this->newArgsInfo_, this->argsVec_, this->memInfo_, hostInput_, DBITaskConfig::Instance().argsSize_);
     }
+
+    MemoryGuard::Instance().FillAllMemGuard();
 }
 
 void HijackedFuncOfKernelLaunchWithFlagV2::ProfPost()
@@ -290,6 +293,9 @@ void HijackedFuncOfKernelLaunchWithFlagV2::SanitizerPost()
     if ((this->memInfo_ || isSink_) && !this->skipSanitizer_) {
         // wait for kernel execution done, and catch potential exception
         rtStreamSynchronizeOrigin(this->stm_);
+
+        MemoryGuard::Instance().CheckAllMemGuard();
+
         if (isSink_) {
             KernelDumper::Instance().LaunchDumpTask(stm_);
             return;

@@ -31,6 +31,7 @@
 #include "runtime/inject_helpers/BBCountDumper.h"
 #include "runtime/inject_helpers/DBITask.h"
 #include "runtime/inject_helpers/LaunchArgs.h"
+#include "runtime/inject_helpers/MemGuard.h"
 #include "utils/InjectLogger.h"
 #include "utils/Protocol.h"
 
@@ -246,6 +247,8 @@ void HijackedFuncOfAclrtLaunchKernelWithConfigImpl::SanitizerPre()
         launchCtx_->SetDBIFuncCtx(funcCtx_);
         funcHandle_ = funcCtx_->GetFuncHandle();
     }
+
+    MemoryGuard::Instance().FillAllMemGuard();
 }
 
 void HijackedFuncOfAclrtLaunchKernelWithConfigImpl::SanitizerPost()
@@ -265,17 +268,23 @@ void HijackedFuncOfAclrtLaunchKernelWithConfigImpl::SanitizerPost()
         // wait for kernel execution done, and catch potential exception
         rtStreamSynchronizeOrigin(stream_);
 
+        MemoryGuard::Instance().CheckAllMemGuard();
+
         auto const &elfData = funcCtx_->GetRegisterContext()->GetElfData();
         std::map<std::string, Elf64_Shdr> headers;
         if (!GetSectionHeaders(elfData, headers)) {
             return;
         }
 
-        auto allocHeaders = GetAllocSectionHeaders(headers);
-        auto startPC = funcCtx_->GetStartPC();
-        ReportSectionsMalloc(startPC, allocHeaders);
-        __sanitizer_finalize(memInfo_, blockDim_);
-        ReportSectionsFree(startPC, allocHeaders);
+        if (!funcCtx_->isAiCpu) {
+            auto allocHeaders = GetAllocSectionHeaders(headers);
+            auto startPC = funcCtx_->GetStartPC();
+            ReportSectionsMalloc(startPC, allocHeaders);
+            __sanitizer_finalize(memInfo_, blockDim_);
+            ReportSectionsFree(startPC, allocHeaders);
+        } else {
+            __sanitizer_finalize(memInfo_, blockDim_);
+        }
     }
 }
 

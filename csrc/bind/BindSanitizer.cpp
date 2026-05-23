@@ -76,6 +76,7 @@ void HijackedAscendclImplCtor()
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtCreateBinaryImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtBinaryLoadImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtGetFunctionAttributeImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtRegisterCpuFuncImpl);
 }
 
 void __attribute__ ((constructor)) HijackedCtor()
@@ -739,6 +740,13 @@ aclError aclrtKernelArgsInitImpl(aclrtFuncHandle funcHandle, aclrtArgsHandle *ar
 {
     HijackedFuncOfAclrtKernelArgsInitImpl instance;
     return instance.Call(funcHandle, argsHandle);
+}
+
+aclError aclrtRegisterCpuFuncImpl(const aclrtBinHandle binHandle, const char *funcName, const char *kernelName, aclrtFuncHandle *funcHandle)
+{
+    PRINT_ENTER_INSTRUMENTOR;
+    HijackedFuncOfAclrtRegisterCpuFuncImpl instance;
+    return instance.Call(binHandle, funcName, kernelName, funcHandle);
 }
 
 aclError aclrtKernelArgsFinalizeImpl(aclrtArgsHandle argsHandle)

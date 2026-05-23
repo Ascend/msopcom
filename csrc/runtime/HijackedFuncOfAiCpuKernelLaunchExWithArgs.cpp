@@ -34,6 +34,7 @@
 #include "runtime/inject_helpers/ProfConfig.h"
 #include "runtime/inject_helpers/ConfigManager.h"
 #include "runtime/inject_helpers/LaunchArgs.h"
+#include "runtime/inject_helpers/MemGuard.h"
 #include "RuntimeConfig.h"
 #include "utils/Ustring.h"
 #include "runtime/RuntimeOrigin.h"
@@ -67,4 +68,15 @@ void HijackedFuncOfAiCpuKernelLaunchExWithArgs::Pre(const uint32_t kernelType, c
     } else {
         KernelContext::GetAicpuLaunchArgs().isValid = false;
     }
+
+    MemoryGuard::Instance().FillAllMemGuard();
+}
+
+rtError_t HijackedFuncOfAiCpuKernelLaunchExWithArgs::Post(rtError_t ret)
+{
+    if (IsSanitizer()) {
+        MemoryGuard::Instance().CheckAllMemGuard();
+    }
+
+    return ret;
 }

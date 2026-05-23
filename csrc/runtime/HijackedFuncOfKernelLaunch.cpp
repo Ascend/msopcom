@@ -39,6 +39,7 @@
 #include "runtime/inject_helpers/ProfConfig.h"
 #include "runtime/inject_helpers/LaunchArgs.h"
 #include "runtime/inject_helpers/RegisterContext.h"
+#include "runtime/inject_helpers/MemGuard.h"
 #include "utils/FileSystem.h"
 
 using namespace std;
@@ -162,6 +163,8 @@ void HijackedFuncOfKernelLaunch::SanitizerPre()
     if (this->memInfo_) {
         ExpandArgs(this->args_, this->argsSize_, this->argsVec_, this->memInfo_);
     }
+
+    MemoryGuard::Instance().FillAllMemGuard();
 }
 
 void HijackedFuncOfKernelLaunch::ProfPost()
@@ -217,6 +220,8 @@ void HijackedFuncOfKernelLaunch::SanitizerPost() const
     } else if (this->memInfo_) {
         // wait for kernel execution done, and catch potential exception
         rtStreamSynchronizeOrigin(this->stm_);
+
+        MemoryGuard::Instance().CheckAllMemGuard();
 
         KernelContext::LaunchEvent event;
         if (!KernelContext::Instance().GetLastLaunchEvent(event)) {

@@ -135,6 +135,15 @@ aclError aclrtBinaryGetFunctionByEntry(aclrtBinHandle binHandle, uint64_t funcEn
     return ACL_SUCCESS;
 }
 
+aclError aclrtRegisterCpuFuncImpl(const aclrtBinHandle binHandle, const char *funcName, const char *kernelName, aclrtFuncHandle *funcHandle)
+{
+    (void)binHandle;
+    (void)funcName;
+    (void)kernelName;
+    (void)funcHandle;
+    return ACL_SUCCESS;
+}
+
 aclError aclrtKernelArgsInit(aclrtFuncHandle funcHandle, aclrtArgsHandle *argsHandle)
 {
     (void)argsHandle;
