@@ -19,8 +19,10 @@
 #include "HijackedFunc.h"
 #include "core/FuncSelector.h"
 #include "runtime/inject_helpers/LocalDevice.h"
+#include "runtime/inject_helpers/MemGuard.h"
 #include "utils/Protocol.h"
 #include "utils/Serialize.h"
+#include "utils/InjectLogger.h"
 #include "RuntimeConfig.h"
 #include "runtime/RuntimeOrigin.h"
 #include "inject_helpers/MemoryContext.h"
@@ -38,6 +40,19 @@ void HijackedFuncOfMalloc::Pre(void **devPtr, uint64_t size, rtMemType_t type, c
     this->type_ = type;
 }
 
+rtError_t HijackedFuncOfMalloc::Call(void **devPtr, uint64_t size, rtMemType_t type, const uint16_t moduleId) {
+    size_t actualSize = MemoryGuard::Instance().GetTotalSize(size);
+    this->actualSize_ = actualSize;
+    Pre(devPtr, size, type, moduleId);
+    if (originfunc_) {
+        rtError_t ret = originfunc_(devPtr, actualSize, type, moduleId);
+        return Post(ret);
+    }
+    ERROR_LOG("HijackedFuncOfMalloc originfunc is nullptr.");
+
+    return EmptyFunc();
+}
+
 rtError_t HijackedFuncOfMalloc::Post(rtError_t ret)
 {
     if (IsSanitizer()) {
@@ -45,6 +60,8 @@ rtError_t HijackedFuncOfMalloc::Post(rtError_t ret)
         if (ret != RT_ERROR_NONE) {
             return ret;
         }
+
+        MemoryGuard::Instance().MallocProc(devPtr_, size_);
 
         PacketHead head = { PacketType::MEMORY_RECORD };
         HostMemRecord record{};
