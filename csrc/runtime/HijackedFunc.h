@@ -353,11 +353,13 @@ public:
     explicit HijackedFuncOfMalloc();
     ~HijackedFuncOfMalloc() override = default;
     void Pre(void **devPtr, uint64_t size, rtMemType_t type, const uint16_t moduleId) override;
+    rtError_t Call(void **devPtr, uint64_t size, rtMemType_t type, const uint16_t moduleId) override;
     rtError_t Post(rtError_t ret) override;
 private:
     void **devPtr_{nullptr};
     uint64_t size_{0};
     rtMemType_t type_{};
+    size_t actualSize_{0};
 };
 
 class HijackedFuncOfFree : public decltype(HijackedFuncHelper(&rtFree)) {
@@ -365,6 +367,11 @@ public:
     explicit HijackedFuncOfFree();
     ~HijackedFuncOfFree() override = default;
     void Pre(void *devPtr) override;
+    rtError_t Call(void *devPtr) override;
+
+private:
+    void *devPtr_{nullptr};
+    void *actualPtr_{nullptr};
 };
 
 class HijackedFuncOfMapMem : public decltype(HijackedFuncHelper(&rtMapMem)) {
