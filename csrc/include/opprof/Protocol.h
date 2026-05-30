@@ -75,6 +75,7 @@ struct MessageOfProfConfig {
     uint16_t aivPmu[EVENT_MAX_NUM]{};
     uint16_t l2CachePmu[EVENT_MAX_NUM]{};
     uint8_t replayMode {0};
+    char instrTimelinePipe[NAME_MAX_LENGTH] {};
     bool useProfileMode {false};
     bool killAdvance {false};
     bool isDeviceToSimulator {false};

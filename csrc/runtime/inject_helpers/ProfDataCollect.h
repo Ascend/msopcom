@@ -61,7 +61,10 @@ public:
     bool IsMemoryChartNeedGen();
     bool IsNeedRunOriginLaunch();
     bool IsNeedDumpContext();
-    bool IsOperandRecordNeedGen(const std::string &socVersion);
+    bool IsOperandRecordNeedGen();
+    bool IsPCSamplingNeedGen();
+    bool IsPipeTimelineNeedGen();
+    bool IsInstrTimelineNeedGen();
     bool RangeReplay(const rtStream_t &stream, const aclmdlRI &modelRI);
     static std::string GetAicoreOutputPath(int32_t device);
     static uint32_t GetDeviceReplayCount(int32_t device);

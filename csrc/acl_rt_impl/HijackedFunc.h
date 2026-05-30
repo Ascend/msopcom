@@ -27,7 +27,7 @@
 #include "runtime/inject_helpers/ProfConfig.h"
 
 class AclErrorTag;
- 
+
 template <>
 struct EmptyFuncError<TaggedType<aclError, AclErrorTag>> {
     static constexpr aclError VALUE = ACL_ERROR_INTERNAL_ERROR;
@@ -486,7 +486,7 @@ private:
                  aclrtStream stm);
     void ProfPost();
     void ProfPreForInstrProf(const std::function<bool(void)> &func,const std::function<void(const std::string &)> &bbCountTask, rtStream_t stream);
- 	bool PrepareDbiTaskForInstrProf(ProfDBIType mode, uint64_t memSize);
+    bool PrepareDbiTask(ProfDBIType mode, uint64_t memSize);
     void SanitizerPre();
     void SanitizerPost();
 private:
@@ -524,7 +524,7 @@ private:
                  aclrtStream stm);
     void ProfPost();
     void ProfPreForInstrProf(const std::function<bool(void)> &func,const std::function<void(const std::string &)> &bbCountTask, rtStream_t stream);
- 	bool PrepareDbiTaskForInstrProf(ProfDBIType mode, uint64_t memSize);
+    bool PrepareDbiTask(ProfDBIType mode, uint64_t memSize);
     void SanitizerPre();
     void SanitizerPost();
 private:
@@ -562,7 +562,7 @@ private:
     void ProfPre(const std::function<bool(void)> &func, const std::function<void(const std::string &)> &bbCountTask,
                  aclrtStream stm);
     void ProfPreForInstrProf(const std::function<bool(void)> &func,const std::function<void(const std::string &)> &bbCountTask, rtStream_t stream);
- 	bool PrepareDbiTaskForInstrProf(ProfDBIType mode, uint64_t memSize);
+    bool PrepareDbiTask(ProfDBIType mode, uint64_t memSize);
     void ProfPost();
     void SanitizerPre();
     void SanitizerPost();
@@ -615,7 +615,7 @@ private:
     void ProfPre(const std::function<bool(void)> &func,
                  const std::function<void(const std::string &)> &bbCountTask, aclrtStream stm);
     void ProfPreForInstrProf(const std::function<bool(void)> &func,const std::function<void(const std::string &)> &bbCountTask, rtStream_t stream);
- 	bool PrepareDbiTaskForInstrProf(ProfDBIType mode, uint64_t memSize);
+    bool PrepareDbiTask(ProfDBIType mode, uint64_t memSize);
 
     void SanitizerPre();
     void SanitizerPost();

@@ -707,7 +707,7 @@ bool ProfTaskOfA5::Start(uint32_t replayCount, bool hasSimt)
     }
     // IDLE 或 TIMELINE 态下，如果 timeline 使能则启动 timeline 采集
     if ((instrProfState_ == InstrProfState::IDLE || instrProfState_ == InstrProfState::TIMELINE) &&
-        ProfConfig::Instance().IsTimelineEnabled()) {
+        (ProfConfig::Instance().IsInstrTimelineEnabled() || ProfConfig::Instance().IsPipeTimelineEnabled())) {
         instrProfState_ = InstrProfState::TIMELINE;
         return StartInstrProfTask(INSTR_PROF_MODE_BIU_PERF);
     }
@@ -740,7 +740,7 @@ void ProfTaskOfA5::Stop()
     // 状态机转移: PC_SAMPLING → TIMELINE(如果timeline使能) 或 DONE
     if (instrProfState_ == InstrProfState::PC_SAMPLING) {
         StopInstrProfChannels();
-        instrProfState_ = ProfConfig::Instance().IsTimelineEnabled()
+        instrProfState_ = (ProfConfig::Instance().IsInstrTimelineEnabled() || ProfConfig::Instance().IsPipeTimelineEnabled())
             ? InstrProfState::TIMELINE : InstrProfState::DONE;
     } else if (instrProfState_ == InstrProfState::TIMELINE) {
         // TIMELINE → DONE

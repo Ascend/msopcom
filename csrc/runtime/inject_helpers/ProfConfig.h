@@ -65,7 +65,9 @@ public:
 
     bool IsEnablePmSampling() const { return profConfig_.pmSamplingEnable; }
 
-    bool IsTimelineEnabled() const { return profConfig_.dbiFlag & DBI_FLAG_INSTR_PROF_END;}
+    bool IsInstrTimelineEnabled() const { return profConfig_.dbiFlag & DBI_FLAG_INSTR_PROF_DFX; }
+
+    bool IsPipeTimelineEnabled() const { return profConfig_.dbiFlag & DBI_FLAG_INSTR_PROF_END; }
 
     bool IsPCSamplingEnabled() const { return profConfig_.dbiFlag & DBI_FLAG_INSTR_PROF_START; }
 
@@ -87,6 +89,11 @@ public:
     const std::string &GetSocVersion() const
     {
         return socVersion_;
+    }
+
+    std::string GetInstrTimelinePipe() const
+    {
+        return std::string(profConfig_.instrTimelinePipe);
     }
 
     std::string GetOutputPathFromRemote(const std::string &kernelName, int32_t deviceId);

@@ -30,11 +30,12 @@ constexpr uint64_t BLOCK_MEM_SIZE = MAX_BLOCK_DATA_SIZE + BLOCK_GAP; // 每个bl
 constexpr uint64_t RECORD_OVERFLOW_BIT = 1ULL << 63; // BlockHeader溢出标记位
 constexpr char const *OPERAND_RECORD = "OperandRecord.bin";
 enum class ProfDBIType {
-    AS_IS = 0, // 不插桩 
+    AS_IS = 0, // 不插桩
     OPERAND_RECORD, // operand record桩
     MEMORY_CHART, // memory chart桩
     INSTR_PROF_START, // start桩
     INSTR_PROF_END, // end桩
+    INSTR_PROF_DFX, // dfx桩
     BB_COUNT // bb count桩
 };
 
@@ -42,6 +43,7 @@ constexpr uint32_t DBI_FLAG_OPERAND_RECORD = 1U << static_cast<uint32_t>(ProfDBI
 constexpr uint32_t DBI_FLAG_MEMORY_CHART = 1U << static_cast<uint32_t>(ProfDBIType::MEMORY_CHART);
 constexpr uint32_t DBI_FLAG_INSTR_PROF_START = 1U << static_cast<uint32_t>(ProfDBIType::INSTR_PROF_START);
 constexpr uint32_t DBI_FLAG_INSTR_PROF_END = 1U << static_cast<uint32_t>(ProfDBIType::INSTR_PROF_END);
+constexpr uint32_t DBI_FLAG_INSTR_PROF_DFX = 1U << static_cast<uint32_t>(ProfDBIType::INSTR_PROF_DFX);
 constexpr uint32_t DBI_FLAG_BB_COUNT = 1U << static_cast<uint32_t>(ProfDBIType::BB_COUNT);
 
 enum class OperandType : uint8_t {

@@ -255,15 +255,18 @@ std::string ProfConfig::GetPluginPath(ProfDBIType pluginType) const
     if (opprofPath.empty()) {
         return "";
     }
-    std::string pluginPath = "libprofplugin_memorychart.so";
-    if (pluginType == ProfDBIType::INSTR_PROF_END) {
-        pluginPath = "libprofplugin_instrprofend.so";
-    } else if (pluginType == ProfDBIType::INSTR_PROF_START) {
-        pluginPath = "libprofplugin_instrprofstart.so";
-    } else if (pluginType == ProfDBIType::OPERAND_RECORD) {
-        pluginPath = "libprofplugin_operandrecord.so";
+    static const std::unordered_map<ProfDBIType, std::string> pluginMap = {
+        {ProfDBIType::MEMORY_CHART, "libprofplugin_memorychart.so"},
+        {ProfDBIType::OPERAND_RECORD, "libprofplugin_operandrecord.so"},
+        {ProfDBIType::INSTR_PROF_END, "libprofplugin_instrprofend.so"},
+        {ProfDBIType::INSTR_PROF_DFX, "libprofplugin_instrprofdfx.so"},
+        {ProfDBIType::INSTR_PROF_START, "libprofplugin_instrprofstart.so"},
+    };
+    auto it = pluginMap.find(pluginType);
+    if (it != pluginMap.end()) {
+        return JoinPath({opprofPath, "lib64", it->second});
     }
-    return JoinPath({opprofPath, "lib64", pluginPath});
+    return "";
 }
 
 void ProfConfig::SendMsg(const std::string &msg)

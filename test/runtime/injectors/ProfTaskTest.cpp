@@ -338,10 +338,10 @@ TEST(ProfTask, test_prof_task_A5_start_and_expect_return_true)
 /**
 /* | 用例集 | ProfTask
 /* |测试函数| ProfTaskOfA5::StartInstrProfTask()
-/* | 用例名 | test_A5_start_instr_task_when_timeline_enable_then_return_true
-/* |用例描述| 执行测试函数，timeline使能情况下返回true
+/* | 用例名 | test_A5_start_instr_task_when_pipe_timeline_enable_then_return_true
+/* |用例描述| 执行测试函数，pipe timeline使能情况下返回true
 */
-TEST(ProfTask, test_A5_start_instr_task_when_timeline_enable_then_return_true)
+TEST(ProfTask, test_A5_start_instr_task_when_pipe_timeline_enable_then_return_true)
 {
     MessageOfProfConfig profMessage;
     profMessage.replayCount = 0;
@@ -378,6 +378,30 @@ TEST(ProfTask, test_A5_start_instr_task_when_pcSampling_enable_then_return_true)
     std::unique_ptr<ProfTask> task = ProfTaskFactory::Create();
     ASSERT_TRUE(task != nullptr);
     ProfConfig::Instance().profConfig_.dbiFlag = DBI_FLAG_INSTR_PROF_START;
+    MOCKER(prof_drv_start_origin)
+            .stubs()
+            .will(returnValue(0));
+    ASSERT_TRUE(task->Start(0));
+    GlobalMockObject::verify();
+}
+
+/**
+/* | 用例集 | ProfTask
+/* |测试函数| ProfTaskOfA5::StartInstrProfTask()
+/* | 用例名 | test_A5_start_instr_task_when_instr_timeline_enable_then_return_true
+/* |用例描述| 执行测试函数，instr timeline使能情况下返回true
+*/
+TEST(ProfTask, test_A5_start_instr_task_when_instr_timeline_enable_then_return_true)
+{
+    MessageOfProfConfig profMessage;
+    profMessage.replayCount = 0;
+    std::fill(profMessage.aicPmu, profMessage.aicPmu + 64, 5);
+    ProfConfig::Instance().Init(profMessage);
+    DeviceContext::Local().SetDeviceId(1);
+    DeviceContext::Local().SetSocVersion("Ascend950PR_9589");
+    std::unique_ptr<ProfTask> task = ProfTaskFactory::Create();
+    ASSERT_TRUE(task != nullptr);
+    ProfConfig::Instance().profConfig_.dbiFlag = DBI_FLAG_INSTR_PROF_DFX;
     MOCKER(prof_drv_start_origin)
             .stubs()
             .will(returnValue(0));

@@ -84,7 +84,7 @@ private:
     void ProfPre(const std::function<bool(void)> &func,
                  const std::function<void(const std::string &)> &bbCountTask, rtStream_t stm);
     void SanitizerPre();
-    bool PrepareDbiTaskForInstrProf(ProfDBIType mode, uint64_t memSize);
+    bool PrepareDbiTask(ProfDBIType mode, uint64_t memSize);
     void ProfPost();
     void SanitizerPost() const;
     void ProfPreForInstrProf(const std::function<bool(void)> &func, const std::function<void(const std::string &)> &bbCountTask, rtStream_t stm);
@@ -130,7 +130,7 @@ private:
                  const std::function<void(const std::string &)> &bbCountTask, rtStream_t stm);
     void ProfPreForInstrProf(const std::function<bool(void)> &func,
                              const std::function<void(const std::string &)> &bbCountTask, rtStream_t stm);
-    bool PrepareDbiTaskForInstrProf(ProfDBIType mode, uint64_t memSize);
+    bool PrepareDbiTask(ProfDBIType mode, uint64_t memSize);
     void SanitizerPre();
 
     void ProfPost();
@@ -185,7 +185,7 @@ private:
     void ProfPre(const std::function<bool(void)> &func,
                  const std::function<void(const std::string &)> &bbCountTask, rtStream_t stm);
     void ProfPreForInstrProf(const std::function<bool(void)> &func, const std::function<void(const std::string &)> &bbCountTask, rtStream_t stm);
-    bool PrepareDbiTaskForInstrProf(ProfDBIType mode, uint64_t memSize);
+    bool PrepareDbiTask(ProfDBIType mode, uint64_t memSize);
     void SanitizerPre();
 
     void ProfPost();

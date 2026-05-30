@@ -137,7 +137,7 @@ FuncContextSP DBITask::Run(const LaunchContextSP &launchCtx)
         }
     });
     BinaryInstrumentation::Config config{taskConfig.pluginPath_, GetTargetArchName(funcCtx), tmpLaunchDir,
-                                         taskConfig.argsSize_, taskConfig.extraCompilerArgs_};
+        taskConfig.tuneLogPath_, taskConfig.argsSize_, taskConfig.extraCompilerArgs_};
     string oldKernelPath = JoinPath({tmpLaunchDir, taskConfig.oldKernelName_});
     string newKernelPath = JoinPath({tmpLaunchDir, taskConfig.newKernelName_});
     if (!funcCtx->GetRegisterContext()->Save(oldKernelPath)) {
@@ -191,7 +191,7 @@ bool DBITask::Run(void **handle, uint64_t launchId, bool withStubFunc)
         }
     });
     BinaryInstrumentation::Config config{taskConfig.pluginPath_, GetCurrentArchName(), tmpLaunchDir,
-                                         taskConfig.argsSize_, taskConfig.extraCompilerArgs_};
+        taskConfig.tuneLogPath_, taskConfig.argsSize_, taskConfig.extraCompilerArgs_};
     string oldKernelPath = JoinPath({tmpLaunchDir, taskConfig.oldKernelName_});
     string newKernelPath = JoinPath({tmpLaunchDir, taskConfig.newKernelName_});
     if (!KernelContext::Instance().DumpKernelObject(regId, oldKernelPath)) {
@@ -275,12 +275,12 @@ DBITaskConfig &DBITaskConfig::Instance()
 }
 
 void DBITaskConfig::Init(BIType type, const std::string &pluginPath, const KernelMatcher::Config &config,
-    const std::string &tmpPath, const std::vector<std::string> &extraCompilerArgs)
-{
+    const std::string &tmpPath, const std::string &tuneLogPath, const std::vector<std::string> &extraCompilerArgs) {
     enabled_ = true;
     pluginPath_ = pluginPath;
     type_ = type;
     matcher_ = MakeShared<KernelMatcher>(config);
+    tuneLogPath_ = tuneLogPath;
     extraCompilerArgs_ = extraCompilerArgs;
     SetTmpRootDir(tmpPath);
 }

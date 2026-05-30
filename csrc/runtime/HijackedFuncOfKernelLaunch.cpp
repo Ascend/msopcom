@@ -98,8 +98,8 @@ void HijackedFuncOfKernelLaunch::ProfPreForInstrProf(const std::function<bool(vo
         return (rtKernelLaunchOrigin(this->stubFunc_, this->blockDim_, this->args_, this->argsSize_,
                                     this->smDesc_, this->stm_) == RT_ERROR_NONE);
     };
-    if (ProfConfig::Instance().IsPCSamplingEnabled() && KernelContext::Instance().HasSimtSymbol()) {
-        if (PrepareDbiTaskForInstrProf(ProfDBIType::INSTR_PROF_START, INSTR_PROF_MEMSIZE)) {
+    if (profObj_->IsPCSamplingNeedGen() && KernelContext::Instance().HasSimtSymbol()) {
+        if (PrepareDbiTask(ProfDBIType::INSTR_PROF_START, INSTR_PROF_MEMSIZE)) {
             KernelContext::StubFuncPtr stubFuncPtr{this->stubFunc_};
             uint64_t kernelAddr;
             if (!KernelContext::Instance().GetDeviceContext()
@@ -112,9 +112,10 @@ void HijackedFuncOfKernelLaunch::ProfPreForInstrProf(const std::function<bool(vo
             profObj_->GenRecordData(memSize_, memInfo_, PCOFFSET_RECORD);
         }
     }
-    if (ProfConfig::Instance().IsTimelineEnabled()) {
-        PrepareDbiTaskForInstrProf(ProfDBIType::INSTR_PROF_END, INSTR_PROF_MEMSIZE);
-        profObj_->InstrProfData(stm, funcStub);
+    if (profObj_->IsPipeTimelineNeedGen()) {
+        if (PrepareDbiTask(ProfDBIType::INSTR_PROF_END, INSTR_PROF_MEMSIZE)) {
+            profObj_->InstrProfData(stm, funcStub);
+        }
     }
     ProfPre(func, bbCountTask, stm);
 }
@@ -184,7 +185,7 @@ void HijackedFuncOfKernelLaunch::ProfPost()
     if (profObj_->IsMemoryChartNeedGen()) {
         rtStreamSynchronizeOrigin(stm_);
         uint64_t memSize = BLOCK_MEM_SIZE * GetCoreNumForDbi(blockDim_);
-        if (PrepareDbiTaskForInstrProf(ProfDBIType::MEMORY_CHART, memSize) && originfunc_ != nullptr) {
+        if (PrepareDbiTask(ProfDBIType::MEMORY_CHART, memSize) && originfunc_ != nullptr) {
             originfunc_(stubFunc_, blockDim_, args_, argsSize_, smDesc_, stm_);
             rtError_t memchartLaunchRet = rtStreamSynchronizeOrigin(this->stm_);
             if (memchartLaunchRet != RT_ERROR_NONE) {
@@ -194,12 +195,11 @@ void HijackedFuncOfKernelLaunch::ProfPost()
             }
         }
     }
-    std::string socVersion = DeviceContext::Local().GetSocVersion();
-    if (profObj_->IsOperandRecordNeedGen(socVersion)) {
+    if (profObj_->IsOperandRecordNeedGen()) {
         rtStreamSynchronizeOrigin(stm_);
         uint64_t sizePerAllType = static_cast<uint32_t>(OperandType::END) * sizeof(OperandRecord) + SIMT_THREAD_GAP;
         uint64_t memSize = sizeof(OperandHeader) + (sizePerAllType * (MAX_THREAD_NUM + 1) + BLOCK_GAP) *  GetCoreNumForDbi(blockDim_);
-        if (PrepareDbiTaskForInstrProf(ProfDBIType::OPERAND_RECORD, memSize) && originfunc_ != nullptr) {
+        if (PrepareDbiTask(ProfDBIType::OPERAND_RECORD, memSize) && originfunc_ != nullptr) {
             originfunc_(stubFunc_, blockDim_, args_, argsSize_, smDesc_, stm_);
             rtError_t opRecordLaunchRet = rtStreamSynchronizeOrigin(this->stm_);
             if (opRecordLaunchRet != RT_ERROR_NONE) {
@@ -271,8 +271,7 @@ void HijackedFuncOfKernelLaunch::Pre(const void *stubFunc, uint32_t blockDim, vo
 }
 
 // 调优自定义插桩统一调用此函数
-bool HijackedFuncOfKernelLaunch::PrepareDbiTaskForInstrProf(ProfDBIType mode, uint64_t memSize)
-{
+bool HijackedFuncOfKernelLaunch::PrepareDbiTask(ProfDBIType mode, uint64_t memSize) {
     // 每次调用插桩前需要清理插桩用到的成员变量，保证不被上次插桩污染
     refreshParamFunc_();
     KernelMatcher::Config matchConfig;
@@ -280,7 +279,8 @@ bool HijackedFuncOfKernelLaunch::PrepareDbiTaskForInstrProf(ProfDBIType mode, ui
     std::string pluginPath = ProfConfig::Instance().GetPluginPath(mode);
     std::vector<std::string> extraArgs = (mode == ProfDBIType::INSTR_PROF_START) ? std::vector<std::string>{START_STUB_COMPILER_ARGS} :
         std::vector<std::string>();
-    DBITaskConfig::Instance().Init(BIType::CUSTOMIZE, pluginPath, matchConfig, path, extraArgs);
+    std::string tuneLogPath = (mode == ProfDBIType::INSTR_PROF_DFX) ? JoinPath({ProfDataCollect::GetAicoreOutputPath(devId_), "dfx_tune.log"}) : "";
+    DBITaskConfig::Instance().Init(BIType::CUSTOMIZE, pluginPath, matchConfig, path, tuneLogPath, extraArgs);
     memSize_ = memSize;
     memInfo_ = InitMemory(memSize_);
     if (!ExpandArgs(this->args_, this->argsSize_, this->argsVec_, memInfo_) || !RunDBITask(&this->stubFunc_)) {

@@ -82,3 +82,28 @@ TEST_F(HijackedFuncOfAclrtLaunchKernelWithHostArgsTest, prof_gen_bbfile_and_dbif
     inst.Pre(funcHandle_, 3, stream, &cfg, &aaa, sizeof(aaa), &placeHolderArray, 1);
     EXPECT_TRUE(inst.Post(ACL_SUCCESS) == ACL_SUCCESS);
 }
+
+TEST_F(HijackedFuncOfAclrtLaunchKernelWithHostArgsTest, test_operand_record_expand_args_failed)
+{
+    FuncSelector::Instance()->Set(ToolType::PROF);
+    ProfConfig::Instance().profConfig_.isSimulator = false;
+    MOCKER(&ProfDataCollect::IsOperandRecordNeedGen).stubs().will(returnValue(true));
+    MOCKER(&RunDBITask, FuncContextSP(*)(const LaunchContextSP &)).stubs().will(returnValue(false));
+    uint8_t* testBuffer = nullptr;
+    MOCKER(&InitMemory, uint8_t*(*)(uint64_t)).stubs().will(returnValue(testBuffer));
+    MOCKER(&rtGetL2CacheOffsetOrigin).stubs().will(returnValue(ACL_SUCCESS));
+    HijackedFuncOfAclrtLaunchKernelWithHostArgsImpl inst;
+    aclrtLaunchKernelCfg cfg{};
+    uint32_t aaa = 10;
+    aclrtPlaceHolderInfo placeHolderArray{10, 10};
+    auto func = []() -> void {};
+    inst.refreshParamFunc_ = func;
+    aclrtStream stream = &placeholder_;
+    inst.profObj_ = std::make_shared<ProfDataCollect>(nullptr);
+    inst.Pre(funcHandle_, 3, stream, &cfg, &aaa, sizeof(aaa), &placeHolderArray, 1);
+    testing::internal::CaptureStdout();
+    inst.ProfPost();
+    string capture = testing::internal::GetCapturedStdout();
+    ASSERT_TRUE(capture.find("ExpandArgs failed"));
+    GlobalMockObject::verify();
+}

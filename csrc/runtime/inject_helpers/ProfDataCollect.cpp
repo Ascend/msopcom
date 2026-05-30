@@ -768,7 +768,8 @@ void DataCollectInDevice::ProfCommandAction(MsprofCommandHandleType type) const
     } else if (IsChipSeriesTypeValid(chipType, ChipProductType::ASCEND910B_SERIES) || IsChipSeriesTypeValid(chipType, ChipProductType::ASCEND910_93_SERIES)) {
         command.profSwitch = PROF_L2CACHE | PROF_OP_TIMESTAMP;
     } else if (IsChipSeriesTypeValid(chipType, ChipProductType::ASCEND950_SERIES)) {
-        if (ProfConfig::Instance().IsTimelineEnabled() || (ProfConfig::Instance().IsPCSamplingEnabled() && hasSimt_)) {
+        if (ProfConfig::Instance().IsInstrTimelineEnabled() || ProfConfig::Instance().IsPipeTimelineEnabled() ||
+            (ProfConfig::Instance().IsPCSamplingEnabled() && hasSimt_)) {
             command.profSwitch = PROF_INSTR | PROF_OP_TIMESTAMP;
         } else {
             command.profSwitch = PROF_OP_TIMESTAMP;
@@ -1049,7 +1050,6 @@ bool DataCollectInDevice::KernelLaunchForInstrProf(rtStream_t stream, const std:
     }
     return ret;
 }
-
 
 bool DataCollectInDevice::KernelReplay(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc)
 {
@@ -1684,15 +1684,22 @@ bool ProfDataCollect::IsMemoryChartNeedGen()
         !KernelContext::Instance().GetLcclFlag());
 }
 
-bool ProfDataCollect::IsOperandRecordNeedGen(const std::string &socVersion)
-{
+bool ProfDataCollect::IsOperandRecordNeedGen() {
     auto config = ProfConfig::Instance().GetConfig();
-    auto chipType = GetProductTypeBySocVersion(socVersion);
-    return ((config.dbiFlag & DBI_FLAG_OPERAND_RECORD) &&
-        IsNeedProf() && IsChipSeriesTypeValid(chipType, ChipProductType::ASCEND950_SERIES) &&
-        !KernelContext::Instance().GetMC2Flag() &&
-        !KernelContext::Instance().GetLcclFlag() &&
-        !ProfConfig::Instance().IsRangeReplay());
+    return ((config.dbiFlag & DBI_FLAG_OPERAND_RECORD) && IsNeedProf() && !KernelContext::Instance().GetMC2Flag() &&
+        !KernelContext::Instance().GetLcclFlag() && !ProfConfig::Instance().IsRangeReplay());
+}
+
+bool ProfDataCollect::IsPCSamplingNeedGen() {
+    return (ProfConfig::Instance().IsPCSamplingEnabled() && IsNeedProf());
+}
+
+bool ProfDataCollect::IsPipeTimelineNeedGen() {
+    return (ProfConfig::Instance().IsPipeTimelineEnabled() && IsNeedProf());
+}
+
+bool ProfDataCollect::IsInstrTimelineNeedGen() {
+    return (ProfConfig::Instance().IsInstrTimelineEnabled() && IsNeedProf());
 }
 
 bool ProfDataCollect::IsNeedRunOriginLaunch()

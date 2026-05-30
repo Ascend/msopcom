@@ -93,7 +93,7 @@ bool HijackedFuncOfAclrtLaunchKernelWithConfigImpl::InitParam(
 }
 
 // 调优自定义插桩统一调用此函数
-bool HijackedFuncOfAclrtLaunchKernelWithConfigImpl::PrepareDbiTaskForInstrProf(ProfDBIType mode, uint64_t memSize)
+bool HijackedFuncOfAclrtLaunchKernelWithConfigImpl::PrepareDbiTask(ProfDBIType mode, uint64_t memSize)
 {
     // 每次调用插桩前需要清理插桩用到的成员变量，保证不被上次插桩污染
     refreshParamFunc_();
@@ -103,7 +103,8 @@ bool HijackedFuncOfAclrtLaunchKernelWithConfigImpl::PrepareDbiTaskForInstrProf(P
     std::vector<std::string> extraArgs = (mode == ProfDBIType::INSTR_PROF_START)
         ? std::vector<std::string>{START_STUB_COMPILER_ARGS}
         : std::vector<std::string>();
-    DBITaskConfig::Instance().Init(BIType::CUSTOMIZE, pluginPath, matchConfig, path, extraArgs);
+    std::string tuneLogPath = (mode == ProfDBIType::INSTR_PROF_DFX) ? JoinPath({ProfDataCollect::GetAicoreOutputPath(devId_), "dfx_tune.log"}) : "";
+    DBITaskConfig::Instance().Init(BIType::CUSTOMIZE, pluginPath, matchConfig, path, tuneLogPath, extraArgs);
     newArgsCtx_ = launchCtx_->GetArgsContext()->Clone();
     memSize_ = memSize;
     memInfo_ = InitMemory(memSize_);
@@ -131,8 +132,8 @@ void HijackedFuncOfAclrtLaunchKernelWithConfigImpl::ProfPreForInstrProf(const st
     auto funcStub = [this]() {
         return (aclrtLaunchKernelWithConfigImplOrigin(funcHandle_, blockDim_, stream_, cfg_, argsHandle_, reserve_) == ACL_SUCCESS);
     };
-    if (ProfConfig::Instance().IsPCSamplingEnabled() && launchCtx_->GetFuncContext()->GetRegisterContext()->HasSimtSymbol()) {
-        if (PrepareDbiTaskForInstrProf(ProfDBIType::INSTR_PROF_START, INSTR_PROF_MEMSIZE)) {
+    if (profObj_->IsPCSamplingNeedGen() && launchCtx_->GetFuncContext()->GetRegisterContext()->HasSimtSymbol()) {
+        if (PrepareDbiTask(ProfDBIType::INSTR_PROF_START, INSTR_PROF_MEMSIZE)) {
             profObj_->InstrProfData(stream, funcStub);
             profObj_->GenRecordData(memSize_, memInfo_, PCOFFSET_RECORD);
         }
@@ -144,9 +145,10 @@ void HijackedFuncOfAclrtLaunchKernelWithConfigImpl::ProfPreForInstrProf(const st
                 NumToHexString(kernelAddr), std::fstream::out | std::fstream::binary);
         }
     }
-    if (ProfConfig::Instance().IsTimelineEnabled()) {
-        PrepareDbiTaskForInstrProf(ProfDBIType::INSTR_PROF_END, INSTR_PROF_MEMSIZE);
-        profObj_->InstrProfData(stream, funcStub);
+    if (profObj_->IsPipeTimelineNeedGen()) {
+        if (PrepareDbiTask(ProfDBIType::INSTR_PROF_END, INSTR_PROF_MEMSIZE)) {
+            profObj_->InstrProfData(stream, funcStub);
+        }
     }
     ProfPre(func, bbCountTask, stream);
 }
@@ -304,7 +306,7 @@ void HijackedFuncOfAclrtLaunchKernelWithConfigImpl::ProfPost()
         aclrtSynchronizeStreamImplOrigin(stream_);
         auto blockDim = GetCoreNumForDbi(blockDim_);
         uint64_t memSize = BLOCK_MEM_SIZE * blockDim;
-        if (PrepareDbiTaskForInstrProf(ProfDBIType::MEMORY_CHART, memSize) && originfunc_ != nullptr) {
+        if (PrepareDbiTask(ProfDBIType::MEMORY_CHART, memSize) && originfunc_ != nullptr) {
             originfunc_(funcHandle_, blockDim_, stream_, cfg_, argsHandle_, reserve_);
             aclError ret = aclrtSynchronizeStreamImplOrigin(stream_);
             if (ret == ACL_SUCCESS) {
@@ -314,12 +316,11 @@ void HijackedFuncOfAclrtLaunchKernelWithConfigImpl::ProfPost()
             }
         }
     }
-    std::string socVersion = DeviceContext::Local().GetSocVersion();
-    if (profObj_->IsOperandRecordNeedGen(socVersion)) {
+    if (profObj_->IsOperandRecordNeedGen()) {
         aclrtSynchronizeStreamImplOrigin(stream_);
         uint64_t sizePerAllType = static_cast<uint32_t>(OperandType::END) * sizeof(OperandRecord) + SIMT_THREAD_GAP;
         uint64_t memSize = sizeof(OperandHeader) + (sizePerAllType * (MAX_THREAD_NUM + 1) + BLOCK_GAP) *  GetCoreNumForDbi(blockDim_);
-        if (PrepareDbiTaskForInstrProf(ProfDBIType::OPERAND_RECORD, memSize) && originfunc_ != nullptr) {
+        if (PrepareDbiTask(ProfDBIType::OPERAND_RECORD, memSize) && originfunc_ != nullptr) {
             originfunc_(funcHandle_, blockDim_, stream_, cfg_, argsHandle_, reserve_);
             aclError ret = aclrtSynchronizeStreamImplOrigin(stream_);
             if (ret == ACL_SUCCESS) {

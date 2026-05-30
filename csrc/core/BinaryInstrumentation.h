@@ -53,6 +53,7 @@ public:
         std::string pluginPath;
         std::string archName; // e.g dav-m200
         std::string tmpDir;
+        std::string tuneLogPath; // bisheng-tune日志输出目录，为空不落盘
         uint32_t argSize;
         std::vector<std::string> extraArgs;
     };

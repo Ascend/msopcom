@@ -103,6 +103,8 @@ void BitMockFunc(const char *output, uint16_t length)
     return;
 }
 
+void StubInitFunc(const char*, uint16_t) {}
+
 TEST(CustomDBI, input_valid_lib_path_then_set_plugin_path_expect_success)
 {
     {
@@ -374,4 +376,76 @@ TEST(DBIFactory, create_not_nullptr)
 TEST(DBIFactory, create_nullptr)
 {
     EXPECT_EQ(DBIFactory::Instance().Create(BIType::MAX), nullptr);
+}
+
+/**
+/* | 用例集 | BinaryInstrumentationTest
+/* |测试函数| CustomDBI::Convert()
+/* | 用例名 | convert_with_tune_log_path_write_log_on_failure
+/* |用例描述| 执行测试函数，PipeCall失败时写入tune日志
+*/
+TEST(CustomDBI, convert_with_tune_log_path_write_log_on_failure)
+{
+    MOCKER(&CustomDBI::GenerateOrderingFile).stubs().will(returnValue(true));
+    MOCKER(&CustomDBI::GenerateTempProbe).stubs().will(returnValue(true));
+    MOCKER(&CustomDBI::GenerateKernelWithProbe).stubs().will(returnValue(true));
+    MOCKER(chmod).stubs().will(returnValue(0));
+    MOCKER(PipeCall).stubs().will(returnValue(false));
+    MOCKER(&WriteStringToFile).expects(exactly(1)).will(returnValue(true));
+    CustomDBI dbi;
+    dbi.initFunc_ = StubInitFunc;
+    BinaryInstrumentation::Config config;
+    config.archName = "arch";
+    config.tuneLogPath = "./tune.log";
+    dbi.SetConfig(config);
+    EXPECT_FALSE(dbi.Convert("newKernelFile", "oldKernelFile", "tilingKey"));
+    GlobalMockObject::verify();
+}
+
+/**
+/* | 用例集 | BinaryInstrumentationTest
+/* |测试函数| CustomDBI::Convert()
+/* | 用例名 | convert_with_tune_log_path_write_log_on_success
+/* |用例描述| 执行测试函数，转换成功时写入tune日志
+*/
+TEST(CustomDBI, convert_with_tune_log_path_write_log_on_success)
+{
+    MOCKER(PipeCall).stubs().will(returnValue(true));
+    MOCKER(chmod).stubs().will(returnValue(0));
+    MOCKER(&WriteStringToFile).expects(exactly(1)).will(returnValue(true));
+    MOCKER(&CustomDBI::GenerateOrderingFile).stubs().will(returnValue(true));
+    MOCKER(&CustomDBI::GenerateTempProbe).stubs().will(returnValue(true));
+    MOCKER(&CustomDBI::GenerateKernelWithProbe).stubs().will(returnValue(true));
+    CustomDBI dbi;
+    dbi.initFunc_ = StubInitFunc;
+    BinaryInstrumentation::Config config;
+    config.archName = "arch";
+    config.tuneLogPath = "./tune.log";
+    dbi.SetConfig(config);
+    EXPECT_TRUE(dbi.Convert("newKernelFile", "oldKernelFile", "tilingKey"));
+    GlobalMockObject::verify();
+}
+
+/**
+/* | 用例集 | BinaryInstrumentationTest
+/* |测试函数| CustomDBI::Convert()
+/* | 用例名 | convert_without_tune_log_path_no_write
+/* |用例描述| 执行测试函数，无tune日志路径时不写入日志
+*/
+TEST(CustomDBI, convert_without_tune_log_path_no_write)
+{
+    MOCKER(&CustomDBI::GenerateOrderingFile).stubs().will(returnValue(true));
+    MOCKER(&CustomDBI::GenerateTempProbe).stubs().will(returnValue(true));
+    MOCKER(&CustomDBI::GenerateKernelWithProbe).stubs().will(returnValue(true));
+    MOCKER(chmod).stubs().will(returnValue(0));
+    MOCKER(PipeCall).stubs().will(returnValue(false));
+    MOCKER(&WriteStringToFile).expects(exactly(0));
+    CustomDBI dbi;
+    dbi.initFunc_ = StubInitFunc;
+    BinaryInstrumentation::Config config;
+    config.archName = "arch";
+    config.tuneLogPath = "";
+    dbi.SetConfig(config);
+    EXPECT_FALSE(dbi.Convert("newKernelFile", "oldKernelFile", "tilingKey"));
+    GlobalMockObject::verify();
 }

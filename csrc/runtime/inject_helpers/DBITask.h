@@ -115,7 +115,7 @@ public:
     static DBITaskConfig &Instance();
 
     void Init(BIType type, const std::string &pluginPath = "", const KernelMatcher::Config &config = {},
-              const std::string &tmpPath = "", const std::vector<std::string> &extraCompilerArgs = {});
+        const std::string &tmpPath = "", const std::string &tuneLogPath = "", const std::vector<std::string> &extraCompilerArgs = {});
     void Init(BIType type, const std::shared_ptr<KernelMatcher> &matcher, const std::string &tmpPath = "");
 
     bool IsEnabled(uint64_t launchId, const std::string &kernelName) const;
@@ -143,6 +143,7 @@ public:
 
 public:
     std::vector<std::string> extraCompilerArgs_{};
+    std::string tuneLogPath_{};
     std::string oldKernelName_{"tmp_old_kernel.o"};
     std::string newKernelName_{"tmp_new_kernel.o"};
     std::string tmpRootDir_;

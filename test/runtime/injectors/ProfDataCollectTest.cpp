@@ -511,13 +511,10 @@ TEST_F(ProfDataCollectTest, test_is_OperandRecord_need_gen_false)
 {
     ProfDataCollect p;
     MOCKER(&ProfDataCollect::IsNeedProf).stubs().will(returnValue(false));
-    ASSERT_FALSE(p.IsOperandRecordNeedGen("Ascend950PR_9599"));
-    MOCKER(&KernelContext::GetMC2Flag).stubs().will(returnValue(true));
-    MOCKER(&KernelContext::GetLcclFlag).stubs().will(returnValue(true));
-    ASSERT_FALSE(p.IsOperandRecordNeedGen("Ascend910B1"));
+    ASSERT_FALSE(p.IsOperandRecordNeedGen());
     MOCKER(&KernelContext::GetMC2Flag).stubs().will(returnValue(false));
     MOCKER(&KernelContext::GetLcclFlag).stubs().will(returnValue(true));
-    ASSERT_FALSE(p.IsOperandRecordNeedGen("Ascend950PR_9599"));
+    ASSERT_FALSE(p.IsOperandRecordNeedGen());
     ProfConfig::Instance().Reset();
 }
 
@@ -529,7 +526,7 @@ TEST_F(ProfDataCollectTest, test_is_OperandRecord_need_gen_true)
     MOCKER(&KernelContext::GetLcclFlag).stubs().will(returnValue(false));
     ProfConfig::Instance().profConfig_.dbiFlag = DBI_FLAG_OPERAND_RECORD;
     ProfConfig::Instance().isAppReplay_ = false;
-    ASSERT_TRUE(p.IsOperandRecordNeedGen("Ascend950PR_9599"));
+    ASSERT_TRUE(p.IsOperandRecordNeedGen());
     ProfConfig::Instance().isAppReplay_ = true;
     ProfConfig::Instance().Reset();
 }
@@ -561,6 +558,104 @@ TEST_F(ProfDataCollectTest, test_is_memory_chart_need_gen_true)
     ProfConfig::Instance().isAppReplay_ = false;
     ASSERT_TRUE(p.IsMemoryChartNeedGen());
     ProfConfig::Instance().isAppReplay_ = true;
+    ProfConfig::Instance().Reset();
+}
+
+/**
+/* | 用例集 | ProfDataCollectTest
+/* |测试函数| ProfDataCollect::IsPCSamplingNeedGen()
+/* | 用例名 | test_is_pcsampling_need_gen_false
+/* |用例描述| pcsampling未使能或不需要prof时返回false
+*/
+TEST_F(ProfDataCollectTest, test_is_pcsampling_need_gen_false)
+{
+    ProfDataCollect p;
+    ProfConfig::Instance().profConfig_.dbiFlag = 0;
+    ASSERT_FALSE(p.IsPCSamplingNeedGen());
+    ProfConfig::Instance().profConfig_.dbiFlag = DBI_FLAG_INSTR_PROF_START;
+    MOCKER(&ProfDataCollect::IsNeedProf).stubs().will(returnValue(false));
+    ASSERT_FALSE(p.IsPCSamplingNeedGen());
+    ProfConfig::Instance().Reset();
+}
+
+/**
+/* | 用例集 | ProfDataCollectTest
+/* |测试函数| ProfDataCollect::IsPCSamplingNeedGen()
+/* | 用例名 | test_is_pcsampling_need_gen_true
+/* |用例描述| pcsampling使能且需要prof时返回true
+*/
+TEST_F(ProfDataCollectTest, test_is_pcsampling_need_gen_true)
+{
+    ProfDataCollect p;
+    ProfConfig::Instance().profConfig_.dbiFlag = DBI_FLAG_INSTR_PROF_START;
+    MOCKER(&ProfDataCollect::IsNeedProf).stubs().will(returnValue(true));
+    ASSERT_TRUE(p.IsPCSamplingNeedGen());
+    ProfConfig::Instance().Reset();
+}
+
+/**
+/* | 用例集 | ProfDataCollectTest
+/* |测试函数| ProfDataCollect::IsPipeTimelineNeedGen()
+/* | 用例名 | test_is_pipe_timeline_need_gen_false
+/* |用例描述| pipetimeline未使能或不需要prof时返回false
+*/
+TEST_F(ProfDataCollectTest, test_is_pipe_timeline_need_gen_false)
+{
+    ProfDataCollect p;
+    ProfConfig::Instance().profConfig_.dbiFlag = 0;
+    ASSERT_FALSE(p.IsPipeTimelineNeedGen());
+    ProfConfig::Instance().profConfig_.dbiFlag = DBI_FLAG_INSTR_PROF_END;
+    MOCKER(&ProfDataCollect::IsNeedProf).stubs().will(returnValue(false));
+    ASSERT_FALSE(p.IsPipeTimelineNeedGen());
+
+    ProfConfig::Instance().Reset();
+}
+
+/**
+/* | 用例集 | ProfDataCollectTest
+/* |测试函数| ProfDataCollect::IsPipeTimelineNeedGen()
+/* | 用例名 | test_is_pipe_timeline_need_gen_true
+/* |用例描述| pipetimeline使能且需要prof时返回true
+*/
+TEST_F(ProfDataCollectTest, test_is_pipe_timeline_need_gen_true)
+{
+    ProfDataCollect p;
+    ProfConfig::Instance().profConfig_.dbiFlag = DBI_FLAG_INSTR_PROF_END;
+    MOCKER(&ProfDataCollect::IsNeedProf).stubs().will(returnValue(true));
+    ASSERT_TRUE(p.IsPipeTimelineNeedGen());
+
+    ProfConfig::Instance().Reset();
+}
+
+/**
+/* | 用例集 | ProfDataCollectTest
+/* |测试函数| ProfDataCollect::IsInstrTimelineNeedGen()
+/* | 用例名 | test_is_instr_timeline_need_gen_false
+/* |用例描述| instrtimeline未使能或不需要prof时返回false
+*/
+TEST_F(ProfDataCollectTest, test_is_instr_timeline_need_gen_false)
+{
+    ProfDataCollect p;
+    ProfConfig::Instance().profConfig_.dbiFlag = 0;
+    ASSERT_FALSE(p.IsInstrTimelineNeedGen());
+    ProfConfig::Instance().profConfig_.dbiFlag = DBI_FLAG_INSTR_PROF_DFX;
+    MOCKER(&ProfDataCollect::IsNeedProf).stubs().will(returnValue(false));
+    ASSERT_FALSE(p.IsInstrTimelineNeedGen());
+    ProfConfig::Instance().Reset();
+}
+
+/**
+/* | 用例集 | ProfDataCollectTest
+/* |测试函数| ProfDataCollect::IsInstrTimelineNeedGen()
+/* | 用例名 | test_is_instr_timeline_need_gen_true
+/* |用例描述| instrtimeline使能且需要prof时返回true
+*/
+TEST_F(ProfDataCollectTest, test_is_instr_timeline_need_gen_true)
+{
+    ProfDataCollect p;
+    ProfConfig::Instance().profConfig_.dbiFlag = DBI_FLAG_INSTR_PROF_DFX;
+    MOCKER(&ProfDataCollect::IsNeedProf).stubs().will(returnValue(true));
+    ASSERT_TRUE(p.IsInstrTimelineNeedGen());
     ProfConfig::Instance().Reset();
 }
 

@@ -239,6 +239,12 @@ bool CustomDBI::Convert(const std::string& newKernelFile, const std::string& old
     if (!tilingKey.empty()) {
         args.push_back("--tiling-key=" + tilingKey);
     }
+
+    auto writeTuneLog = std::shared_ptr<void>(nullptr, [&](void*) {
+        if (!config_.tuneLogPath.empty()) {
+            WriteStringToFile(config_.tuneLogPath, output);
+        }
+    });
     if (!PipeCall(args, output)) {
         WARN_LOG("Generate kernel from tune failed.");
         DEBUG_LOG("Command execute message: %s", output.c_str());
