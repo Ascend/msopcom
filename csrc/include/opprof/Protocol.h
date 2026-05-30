@@ -30,6 +30,7 @@ enum class ProfPacketType : uint32_t {
     POPPED_LOG,
     ICACHE_LOG,
     MTE_LOG,
+    CCU_LOG,
     INVALID,
 };
 
