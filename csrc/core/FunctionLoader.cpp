@@ -21,10 +21,7 @@
 #include "core/FunctionLoader.h"
 namespace func_injection {
 
-FunctionLoader::FunctionLoader(const std::string& name) noexcept
-{
-    this->fileName = "lib" + name + ".so";
-}
+FunctionLoader::FunctionLoader(const std::string &name) noexcept { this->fileName = "lib" + name + ".so"; }
 
 FunctionLoader::~FunctionLoader()
 {
@@ -41,7 +38,7 @@ void FunctionLoader::Set(const std::string& name)
 
 void* FunctionLoader::Get(const std::string& name)
 {
-    std::lock_guard<std::mutex> lock(mu_);  // 加锁保护临界区
+    std::lock_guard<std::mutex> lock(mu_); // 加锁保护临界区
     if (this->handle == nullptr) {
         // check so valid
         auto soPath = GetSoFromEnvVar(this->fileName);

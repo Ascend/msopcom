@@ -151,6 +151,9 @@ void RegisterRuntime()
     REGISTER_FUNCTION(soName, rtKernelLaunchWithHandle);
     REGISTER_FUNCTION(soName, rtDeviceResetEx);
     REGISTER_FUNCTION(soName, rtDeviceStatusQuery);
+    if (isSimulator) {
+        GET_FUNCTION(soName, "rtSetDevice");
+    }
 }
 
 void RegisterAscendHal()
