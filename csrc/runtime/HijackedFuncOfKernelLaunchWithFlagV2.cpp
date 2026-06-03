@@ -186,6 +186,19 @@ void HijackedFuncOfKernelLaunchWithFlagV2::ProfPost()
             }
         }
     }
+    if (profObj_->IsWarpTimelineNeedGen()) {
+        rtStreamSynchronizeOrigin(stm_);
+        uint64_t memSize = GetWarpTimelineMemSize(blockDim_);
+        if (PrepareDbiTask(ProfDBIType::WARP_TIMELINE, memSize) && originfunc_ != nullptr) {
+            originfunc_(stubFunc_, blockDim_, &newArgsInfo_, smDesc_, stm_, flags_, cfgInfo_);
+            rtError_t warpTimelineLaunchRet = rtStreamSynchronizeOrigin(this->stm_);
+            if (warpTimelineLaunchRet != RT_ERROR_NONE) {
+                WARN_LOG("Warp timeline kernel launch failed, ret is %d.", warpTimelineLaunchRet);
+            } else {
+                profObj_->GenRecordData(memSize_, memInfo_, WARP_TIMELINE);
+            }
+        }
+    }
     profObj_->PostProcess();
 }
 

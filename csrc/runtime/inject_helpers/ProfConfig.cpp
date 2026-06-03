@@ -18,6 +18,7 @@
 #include "ProfConfig.h"
 
 #include <algorithm>
+#include "include/opprof/DbiDefs.h"
 #include "utils/InjectLogger.h"
 #include "utils/FileSystem.h"
 #include "utils/Serialize.h"
@@ -83,6 +84,12 @@ uint64_t GetCoreNumForDbi(uint64_t blockDim)
         return MAX_BLOCK;
     }
     return blockDim * 3;
+}
+
+uint64_t GetWarpTimelineMemSize(uint64_t blockDim)
+{
+    constexpr uint64_t blockSize = sizeof(WarpHeader) + WARP_NUM_PER_BLOCK * sizeof(WarpRecord) + BLOCK_GAP;
+    return blockSize * GetCoreNumForDbi(blockDim);
 }
 
 bool ProfConfig::IsEnableLogTrans() const
@@ -261,6 +268,7 @@ std::string ProfConfig::GetPluginPath(ProfDBIType pluginType) const
         {ProfDBIType::INSTR_PROF_END, "libprofplugin_instrprofend.so"},
         {ProfDBIType::INSTR_PROF_DFX, "libprofplugin_instrprofdfx.so"},
         {ProfDBIType::INSTR_PROF_START, "libprofplugin_instrprofstart.so"},
+        {ProfDBIType::WARP_TIMELINE, "libprofplugin_warptimeline.so"},
     };
     auto it = pluginMap.find(pluginType);
     if (it != pluginMap.end()) {

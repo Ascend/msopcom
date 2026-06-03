@@ -1702,6 +1702,12 @@ bool ProfDataCollect::IsInstrTimelineNeedGen() {
     return (ProfConfig::Instance().IsInstrTimelineEnabled() && IsNeedProf());
 }
 
+bool ProfDataCollect::IsWarpTimelineNeedGen()
+{
+    return (ProfConfig::Instance().IsWarpTimelineEnabled() && IsNeedProf() && dataCollect_->hasSimt_ &&
+        !ProfConfig::Instance().IsRangeReplay());
+}
+
 bool ProfDataCollect::IsNeedRunOriginLaunch()
 {
     // application模式下只有bbcount桩才需要调用origin，其他模式都不需要，因为bbcount桩需要依赖Call这次运行。

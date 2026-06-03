@@ -29,6 +29,9 @@ constexpr uint64_t MAX_BLOCK_DATA_SIZE = 100U * 1024 * 1024; // 每个block存�
 constexpr uint64_t BLOCK_MEM_SIZE = MAX_BLOCK_DATA_SIZE + BLOCK_GAP; // 每个block占用内存大小
 constexpr uint64_t RECORD_OVERFLOW_BIT = 1ULL << 63; // BlockHeader溢出标记位
 constexpr char const *OPERAND_RECORD = "OperandRecord.bin";
+constexpr char const *WARP_TIMELINE = "WarpTimeline.bin";
+constexpr uint32_t WARP_NUM_PER_BLOCK = 64U; // 每个block固定64个warp
+
 enum class ProfDBIType {
     AS_IS = 0, // 不插桩
     OPERAND_RECORD, // operand record桩
@@ -36,7 +39,8 @@ enum class ProfDBIType {
     INSTR_PROF_START, // start桩
     INSTR_PROF_END, // end桩
     INSTR_PROF_DFX, // dfx桩
-    BB_COUNT // bb count桩
+    BB_COUNT, // bb count桩
+    WARP_TIMELINE // warp timeline桩
 };
 
 constexpr uint32_t DBI_FLAG_OPERAND_RECORD = 1U << static_cast<uint32_t>(ProfDBIType::OPERAND_RECORD);
@@ -45,6 +49,7 @@ constexpr uint32_t DBI_FLAG_INSTR_PROF_START = 1U << static_cast<uint32_t>(ProfD
 constexpr uint32_t DBI_FLAG_INSTR_PROF_END = 1U << static_cast<uint32_t>(ProfDBIType::INSTR_PROF_END);
 constexpr uint32_t DBI_FLAG_INSTR_PROF_DFX = 1U << static_cast<uint32_t>(ProfDBIType::INSTR_PROF_DFX);
 constexpr uint32_t DBI_FLAG_BB_COUNT = 1U << static_cast<uint32_t>(ProfDBIType::BB_COUNT);
+constexpr uint32_t DBI_FLAG_WARP_TIMELINE = 1U << static_cast<uint32_t>(ProfDBIType::WARP_TIMELINE);
 
 enum class OperandType : uint8_t {
     // 浮点数据类型 - 新增浮点类型必须添加在 DATA_FLOAT_MAX 之前
@@ -94,8 +99,19 @@ struct OperandHeader {
     uint32_t reverse;
 };
 
-
 #pragma pack(4)
+struct WarpRecord {
+    uint64_t startTime;
+    uint64_t endTime;
+};
+
+struct WarpHeader {
+    uint32_t magicWords;
+    uint32_t warpCount;
+    uint32_t coreId;
+    uint32_t coreType;
+};
+
 struct OperandRecord {
     uint64_t instructions{};
     uint64_t operands{};

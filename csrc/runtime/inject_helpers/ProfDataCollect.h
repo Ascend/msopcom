@@ -54,7 +54,6 @@ public:
     void GenBBcountFile(uint64_t regId, uint64_t memSize, uint8_t *memInfo) const;
     void GenDBIData(uint64_t memSize, uint8_t *memInfo) const;
     void GenRecordData(uint64_t memSize, uint8_t *memInfo, const std::string &recordName) const;
-    void GenOperandRecordData(uint64_t memSize, uint8_t *memInfo);
     void PostProcess() const; // device
     bool IsNeedProf() const;
     bool IsBBCountNeedGen();
@@ -65,6 +64,7 @@ public:
     bool IsPCSamplingNeedGen();
     bool IsPipeTimelineNeedGen();
     bool IsInstrTimelineNeedGen();
+    bool IsWarpTimelineNeedGen();
     bool RangeReplay(const rtStream_t &stream, const aclmdlRI &modelRI);
     static std::string GetAicoreOutputPath(int32_t device);
     static uint32_t GetDeviceReplayCount(int32_t device);

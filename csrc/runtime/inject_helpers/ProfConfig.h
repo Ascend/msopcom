@@ -35,6 +35,7 @@ constexpr char const *IS_SIMULATOR_ENV = {"IS_SIMULATOR_ENV"};
 constexpr char const *DEVICE_PROF_DUMP_PATH_ENV = {"DEVICE_PROF_DUMP_PATH"};
 
 uint64_t GetCoreNumForDbi(uint64_t blockDim);
+uint64_t GetWarpTimelineMemSize(uint64_t blockDim);
 
 class ProfConfig {
 public:
@@ -70,6 +71,8 @@ public:
     bool IsPipeTimelineEnabled() const { return profConfig_.dbiFlag & DBI_FLAG_INSTR_PROF_END; }
 
     bool IsPCSamplingEnabled() const { return profConfig_.dbiFlag & DBI_FLAG_INSTR_PROF_START; }
+
+    bool IsWarpTimelineEnabled() const { return profConfig_.dbiFlag & DBI_FLAG_WARP_TIMELINE; }
 
     bool IsDbi() const
     {

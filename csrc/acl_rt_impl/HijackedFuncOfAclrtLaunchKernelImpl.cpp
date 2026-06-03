@@ -328,6 +328,19 @@ void HijackedFuncOfAclrtLaunchKernelImpl::ProfPost()
             }
         }
     }
+    if (profObj_->IsWarpTimelineNeedGen()) {
+        aclrtSynchronizeStreamImplOrigin(stream_);
+        uint64_t memSize = GetWarpTimelineMemSize(blockDim_);
+        if (PrepareDbiTask(ProfDBIType::WARP_TIMELINE, memSize) && originfunc_ != nullptr) {
+            originfunc_(funcHandle_, blockDim_, argsData_, argsSize_, stream_);
+            aclError ret = aclrtSynchronizeStreamImplOrigin(stream_);
+            if (ret == ACL_SUCCESS) {
+                profObj_->GenRecordData(memSize_, memInfo_, WARP_TIMELINE);
+            } else {
+                WARN_LOG("Run warp timeline func failed");
+            }
+        }
+    }
     profObj_->PostProcess();
 }
 
