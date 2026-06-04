@@ -478,6 +478,7 @@ bool SanitizerLaunchInit::AssignGlobalHead()
     globalHead_.checkParms.cacheSize = cliConfig.cacheSize;
     globalHead_.checkParms.checkBlockId = cliConfig.checkBlockId;
     globalHead_.checkParms.defaultcheck = cliConfig.defaultCheck;
+    globalHead_.checkParms.memcheck = cliConfig.memCheck;
     globalHead_.checkParms.racecheck = cliConfig.raceCheck;
     globalHead_.checkParms.initcheck = cliConfig.initCheck;
     globalHead_.checkParms.synccheck = cliConfig.syncCheck;
@@ -893,4 +894,3 @@ SanitizerLaunchFinalize::~SanitizerLaunchFinalize() {
     }
     DevMemManager::Instance().SetMemoryInitFlag(false);
 }
-
