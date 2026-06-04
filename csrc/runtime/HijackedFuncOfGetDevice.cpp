@@ -14,7 +14,7 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
- 
+
 #include <iostream>
 #include "HijackedFunc.h"
 #include "RuntimeConfig.h"
@@ -26,7 +26,7 @@
 
 HijackedFuncOfGetDevice::HijackedFuncOfGetDevice()
     : HijackedFuncType(RuntimeLibName(), "rtGetDevice"), devId_{0} { }
- 
+
 void HijackedFuncOfGetDevice::Pre(int32_t *devId)
 {
 }

@@ -14,7 +14,6 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
-
 #include "ProfDataCollect.h"
 
 #include <map>
@@ -61,11 +60,11 @@ constexpr uint32_t MSPROF_DEVICE_NUM = 1;
 constexpr uint32_t PROF_INVALID_MODE_ID = 0xFFFFFFFFUL;
 constexpr int32_t SYNCHRONIZE_TIME_OUT = 10000; // 设置MC2算子同步超时时间为10000ms
 constexpr int32_t WAIT_DATA_READ_TIME = 100; // 设置MC2算子等待时间为100us
-constexpr char const  *CAMODEL_LOG_PATH_ENV = "CAMODEL_LOG_PATH";
-constexpr char const  *MSOPPROF_INJECTION_LIB_PATH_FROM_MSOPPROF = "lib64/libmsopprof_injection.so";
-constexpr char const  *MSOPPROF_OUTPUT_DUMP_PATH_ENV = "MSOPPROF_OUTPUT_DUMP_PATH";
-constexpr char const  *AICORE_KERNEL_NAME = "aicore_binary.o";
-std::atomic<bool> g_receiveSignal {false};
+constexpr char const *CAMODEL_LOG_PATH_ENV = "CAMODEL_LOG_PATH";
+constexpr char const *MSOPPROF_INJECTION_LIB_PATH_FROM_MSOPPROF = "lib64/libmsopprof_injection.so";
+constexpr char const *MSOPPROF_OUTPUT_DUMP_PATH_ENV = "MSOPPROF_OUTPUT_DUMP_PATH";
+constexpr char const *AICORE_KERNEL_NAME = "aicore_binary.o";
+std::atomic<bool> g_receiveSignal{false};
 std::once_flag g_sigRegFlag;
 struct L2CacheClearTiling {
     uint64_t clearSizePerCore; // B
@@ -122,8 +121,7 @@ static std::map<std::string, L2CacheClearTiling> l2CacheClearTilingMap = {
     {"Ascend950PR_9599", {3729920, 36}},
 };
 
-aclError CheckAclResult(aclError result, const string &apiName)
-{
+aclError CheckAclResult(aclError result, const string &apiName) {
     if (result == ACL_SUCCESS) {
         return result;
     }
@@ -131,12 +129,12 @@ aclError CheckAclResult(aclError result, const string &apiName)
     return result;
 }
 struct L2cacheParam {
-    void* flushBuffer;
-    void* buffer;
-    void* cmoBuffer;
-    void* stream;
-    void* blockLen;
-    void* l2Buffer;
+    void *flushBuffer;
+    void *buffer;
+    void *cmoBuffer;
+    void *stream;
+    void *blockLen;
+    void *l2Buffer;
     uint32_t blockDim;
     uint64_t bufferSize;
 };
@@ -146,18 +144,18 @@ class SimulatorLauncher {
 public:
     SimulatorLauncher();
     void Launch(const std::string &dumpPath, uint64_t launchId = UINT64_MAX, bool aclNew = false);
+
 private:
-    bool RuntimeToTargetLib(std::map<std::string, std::string> &env,
-                            const std::string &runtimePath, const std::string &targetPath) const;
+    bool RuntimeToTargetLib(
+        std::map<std::string, std::string> &env, const std::string &runtimePath, const std::string &targetPath) const;
     std::vector<std::string> SetEnvToSimu(const std::string &dumpPath);
-    std::vector <std::string> GetLaunchArgs(const std::string &outputDir);
+    std::vector<std::string> GetLaunchArgs(const std::string &outputDir);
 
     std::string kernelLaunchBinPath_;
     std::string opprofInjectionLib_;
 };
 
-static void HandleSigInt(int32_t signo)
-{
+static void HandleSigInt(int32_t signo) {
     if (signo == SIGINT) {
         g_receiveSignal = true;
         SignalWrapper::UnregisterCallback(SIGINT);
@@ -170,7 +168,7 @@ public:
     int32_t deviceId_ = 0;
     std::string outputPath_;
     std::string kernelName_;
-    LaunchContextSP launchCtx_ {nullptr};
+    LaunchContextSP launchCtx_{nullptr};
     bool hasSimt_ = false;
     static std::mutex outputMutex_;
     static std::map<int32_t, std::string> deviceOutputPathMap_;
@@ -189,19 +187,20 @@ public:
 
     virtual bool RangeReplay(const rtStream_t &stream, const aclmdlRI &modelRI) { return false; };
 
-    bool GetPcStartAddr(const void *hdlOrStubFunc, uint64_t tiling, bool type, uint64_t &pcStart) const
-    {
+    bool GetPcStartAddr(const void *hdlOrStubFunc, uint64_t tiling, bool type, uint64_t &pcStart) const {
         if (type) {
             KernelContext::StubFuncPtr stubFuncPtr{hdlOrStubFunc};
-            if (!KernelContext::Instance().CheckStubValid(stubFuncPtr.value) || !KernelContext::Instance().GetDeviceContext()
-                .GetPcStartAddr(KernelContext::StubFuncArgs{stubFuncPtr.value, nullptr}, pcStart)) {
+            if (!KernelContext::Instance().CheckStubValid(stubFuncPtr.value) ||
+                !KernelContext::Instance().GetDeviceContext().GetPcStartAddr(
+                    KernelContext::StubFuncArgs{stubFuncPtr.value, nullptr}, pcStart)) {
                 DEBUG_LOG("Failed to get start pc, StubFuncPtr value is %p", stubFuncPtr.value);
                 return false;
             }
         } else {
             KernelContext::KernelHandlePtr hdlPtr{hdlOrStubFunc};
-            if (!KernelContext::Instance().CheckHdlVaild(hdlPtr.value) || !KernelContext::Instance().GetDeviceContext()
-                .GetPcStartAddr(KernelContext::KernelHandleArgs{hdlPtr.value, nullptr, tiling}, pcStart)) {
+            if (!KernelContext::Instance().CheckHdlVaild(hdlPtr.value) ||
+                !KernelContext::Instance().GetDeviceContext().GetPcStartAddr(
+                    KernelContext::KernelHandleArgs{hdlPtr.value, nullptr, tiling}, pcStart)) {
                 DEBUG_LOG("Failed to get start pc, KernelHandlePtr value is %p", hdlPtr.value);
                 return false;
             }
@@ -216,50 +215,48 @@ public:
 std::map<int32_t, std::string> DataCollect::deviceOutputPathMap_; // 静态成员类外初始化
 std::map<int32_t, uint32_t> DataCollect::deviceReplayCountMap_;
 std::map<std::thread::id, RangeReplayConfig> DataCollect::threadRangeConfigMap_;
-std::mutex DataCollect::outputMutex_ {};
-std::mutex DataCollect::replayCountMutex_ {};
-std::mutex DataCollect::rangeConfigMutex_ {};
+std::mutex DataCollect::outputMutex_{};
+std::mutex DataCollect::replayCountMutex_{};
+std::mutex DataCollect::rangeConfigMutex_{};
 class DataCollectWithSimulator : public DataCollect {
     class SharedRecord {
     public:
-        static SharedRecord &Instance()
-        {
+        static SharedRecord &Instance() {
             static SharedRecord inst;
             return inst;
         }
-        const std::string &GetTmpDumpPath()
-        {
+        const std::string &GetTmpDumpPath() {
             if (tmpDumpPath_.empty()) {
                 tmpDumpPath_ = GetEnv(CAMODEL_LOG_PATH_ENV);
             }
             return tmpDumpPath_;
         }
-        std::map<const KernelHandle *, std::string> binaryPathMap_ ;
+        std::map<const KernelHandle *, std::string> binaryPathMap_;
+
     private:
         SharedRecord() : tmpDumpPath_(GetEnv(CAMODEL_LOG_PATH_ENV)) {}
         std::string tmpDumpPath_;
     };
+
 public:
     virtual ~DataCollectWithSimulator() = default;
     explicit DataCollectWithSimulator(const LaunchContextSP &ctx) : DataCollect(ctx) {};
     void ProfInit(const void *hdl, const void *stubFunc, bool type) override;
-    bool ProfData() override
-    {
-        return HandleDumpLogAfterLaunch();
-    }
+    bool ProfData() override { return HandleDumpLogAfterLaunch(); }
 
     static bool SaveObject(const KernelHandle *hdl);
     static bool SaveObject(const RegisterContextSP &ctx);
+
 private:
-    bool MakeCaFileReadable(const std::string& filePath) const;
+    bool MakeCaFileReadable(const std::string &filePath) const;
     void CopyAiCoreBinFile(const KernelHandle *hdl);
     void ClearCaFile(const std::string &fileName) const;
     bool HandleDumpLogAfterLaunch();
 };
 class DataCollectInDevice : public DataCollect {
 public:
-    explicit DataCollectInDevice(const LaunchContextSP &ctx, bool isInitOutput = true) : DataCollect(ctx, isInitOutput)
-    {
+    explicit DataCollectInDevice(const LaunchContextSP &ctx, bool isInitOutput = true)
+        : DataCollect(ctx, isInitOutput) {
         taskPtr_ = ProfTaskFactory::Create();
     }
     virtual ~DataCollectInDevice() = default;
@@ -270,23 +267,22 @@ public:
     void GenDBIData(uint64_t memSize, uint8_t *memInfo) override;
     void GenRecordData(uint64_t memSize, uint8_t *memInfo, const std::string &recordName) const override;
     bool RangeReplay(const rtStream_t &stream, const aclmdlRI &modelRI) override;
+
 private:
     bool ReplayOnce(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc, L2cacheParam &param);
-    bool KernelReplay(rtStream_t stream, const std::function<bool(void)>& kernelLaunchFunc);
+    bool KernelReplay(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc);
     bool KernelLaunchForInstrProf(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc);
     bool SupportProfL2CacheEvict();
     void MC2KernelLaunch(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc, bool &ret);
     void ProfCommandAction(MsprofCommandHandleType type) const;
     bool StartProf(std::thread &th);
-    void StopProf()
-    {
+    void StopProf() {
         if (taskPtr_ == nullptr) {
             return;
         }
         taskPtr_->Stop();
     }
-    std::string KernelNameConver(const std::string& kernelName) const
-    {
+    std::string KernelNameConver(const std::string &kernelName) const {
         auto start = kernelName.find("_Z");
         if (start == std::string::npos) {
             return kernelName;
@@ -307,8 +303,7 @@ private:
         }
         return kernelName;
     }
-    bool IsPmuEventEmpty(uint32_t replayCount) const
-    {
+    bool IsPmuEventEmpty(uint32_t replayCount) const {
         std::string socVersion = DeviceContext::Local().GetSocVersion();
         auto &config = ProfConfig::Instance().GetConfig();
         ChipProductType chipType = GetProductTypeBySocVersion(socVersion);
@@ -319,13 +314,12 @@ private:
             eventMaxNum = EVENT_MAX_NUM_A5;
         }
         uint32_t nextPmuId = replayCount * pmuEventMaxNum;
-        if ((nextPmuId >= eventMaxNum) ||
-            (config.aicPmu[nextPmuId] == 0 && config.aivPmu[nextPmuId] == 0)) {
+        if ((nextPmuId >= eventMaxNum) || (config.aicPmu[nextPmuId] == 0 && config.aivPmu[nextPmuId] == 0)) {
             return true;
         }
         return false;
     }
-    bool IsReceiveSignal() const {return g_receiveSignal;}
+    bool IsReceiveSignal() const { return g_receiveSignal; }
     void LoadFrequency();
     void SaveBasicInfo();
     void WarmUp(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc) const;
@@ -337,8 +331,7 @@ private:
     void FreeL2Cache(L2cacheParam &param) const;
     bool ClearL2Cache(L2cacheParam &param) const;
     bool CallEmptyKernel(void *stream) const;
-    size_t GetReplayTimes() const
-    { return static_cast<size_t>(EVENT_MAX_NUM / PMU_EVENT_MAX_NUM); }
+    size_t GetReplayTimes() const { return static_cast<size_t>(EVENT_MAX_NUM / PMU_EVENT_MAX_NUM); }
     bool RangeReplayProfData(const rtStream_t &stream);
     bool RangeReplayInit(bool &needReplay);
     void SaveFrequency(const string &outputPath) const;
@@ -346,18 +339,18 @@ private:
 
     SimulatorLauncher simulatorLauncher;
     std::thread readThread_;
-    std::atomic<uint32_t> replayCount_ {0};
-    int32_t curFreq_ {-1};
-    int64_t ratedFreq_ {-1};
+    std::atomic<uint32_t> replayCount_{0};
+    int32_t curFreq_{-1};
+    int64_t ratedFreq_{-1};
     std::unique_ptr<ProfTask> taskPtr_;
-    bool isClearParamSuccess_ {false};
+    bool isClearParamSuccess_{false};
     bool profL2cacheEvict_ = false;
 };
 
-DataCollect::DataCollect(const LaunchContextSP &ctx, bool isInitOutput)
-{
-    if (ctx != nullptr && ctx->GetFuncContext()->GetRegisterContext()->GetBinaryType() ==
-        aclrtBinaryLoadOptionType::ACL_RT_BINARY_LOAD_OPT_CPU_KERNEL_MODE) {
+DataCollect::DataCollect(const LaunchContextSP &ctx, bool isInitOutput) {
+    if (ctx != nullptr &&
+        ctx->GetFuncContext()->GetRegisterContext()->GetBinaryType() ==
+            aclrtBinaryLoadOptionType::ACL_RT_BINARY_LOAD_OPT_CPU_KERNEL_MODE) {
         outputPath_ = "";
         DEBUG_LOG("ship aicpu kernel launch");
         return;
@@ -367,8 +360,8 @@ DataCollect::DataCollect(const LaunchContextSP &ctx, bool isInitOutput)
     if (!isInitOutput) {
         return;
     }
-    constexpr uint32_t unixFileNameLimit = 255;  // unix file name max limits is 255
-    constexpr uint32_t kernelNameReserved = 72;   // too long kernel name reserved 72
+    constexpr uint32_t unixFileNameLimit = 255; // unix file name max limits is 255
+    constexpr uint32_t kernelNameReserved = 72; // too long kernel name reserved 72
     if (MsTx::Instance().IsInMstxRange()) {
         if (ctx == nullptr) {
             kernelName_ = KernelContext::Instance().GetLaunchName();
@@ -387,8 +380,8 @@ DataCollect::DataCollect(const LaunchContextSP &ctx, bool isInitOutput)
         size_t hashValue = hashFunc(hashStr);
         kernelName = kernelName.substr(0, kernelNameReserved) + "_" + std::to_string(hashValue);
     }
-    hasSimt_ = launchCtx_ != nullptr ? launchCtx_->GetFuncContext()->GetRegisterContext()->HasSimtSymbol() :
-        KernelContext::Instance().HasSimtSymbol();
+    hasSimt_ = launchCtx_ != nullptr ? launchCtx_->GetFuncContext()->GetRegisterContext()->HasSimtSymbol()
+                                     : KernelContext::Instance().HasSimtSymbol();
     if (ProfConfig::Instance().IsSimulatorLaunchedByDevice()) {
         outputPath_ = GetEnv(MSOPPROF_OUTPUT_DUMP_PATH_ENV);
     } else {
@@ -401,8 +394,7 @@ DataCollect::DataCollect(const LaunchContextSP &ctx, bool isInitOutput)
     }
 }
 
-void SimulatorLauncher::Launch(const std::string &dumpPath, uint64_t launchId, bool aclNew)
-{
+void SimulatorLauncher::Launch(const std::string &dumpPath, uint64_t launchId, bool aclNew) {
     std::string outputDir = JoinPath({dumpPath, "kernel_data"});
     if (!KernelDumper::Instance().Dump(outputDir, launchId, aclNew)) {
         WARN_LOG("Msopt dump kernel failed");
@@ -411,13 +403,13 @@ void SimulatorLauncher::Launch(const std::string &dumpPath, uint64_t launchId, b
     std::vector<std::string> envs = SetEnvToSimu(dumpPath);
     std::vector<std::string> args = GetLaunchArgs(outputDir);
     std::vector<char *> argumentsOutput = ToRawCArgv(args);
-    const pid_t pid {fork()};
+    const pid_t pid{fork()};
     if (pid < 0) {
         WARN_LOG("Fork kernel-launcher process failed");
     } else if (pid == 0) {
         execvpe(kernelLaunchBinPath_.c_str(), argumentsOutput.data(), ToRawCArgv(envs).data());
         _exit(EXIT_FAILURE);
-    }  else {
+    } else {
         int status;
         waitpid(pid, &status, 0);
         if (status != 0) {
@@ -426,8 +418,8 @@ void SimulatorLauncher::Launch(const std::string &dumpPath, uint64_t launchId, b
     }
 }
 
-bool SimulatorLauncher::RuntimeToTargetLib(std::map<std::string, std::string> &env, const std::string &runtimePath,
-                                           const std::string &targetPath) const
+bool SimulatorLauncher::RuntimeToTargetLib(
+    std::map<std::string, std::string> &env, const std::string &runtimePath, const std::string &targetPath) const
 
 {
     if (runtimePath.empty() || !MkdirRecusively(runtimePath)) {
@@ -447,13 +439,12 @@ bool SimulatorLauncher::RuntimeToTargetLib(std::map<std::string, std::string> &e
     if (!ldEnv.empty()) {
         env["LD_LIBRARY_PATH"] += ":" + ldEnv;
     }
-    DEBUG_LOG("Symbol link runtime to simulator success, so path is %s, simulator path is %s",
-              soName.c_str(), targetPath.c_str());
+    DEBUG_LOG("Symbol link runtime to simulator success, so path is %s, simulator path is %s", soName.c_str(),
+        targetPath.c_str());
     return true;
 }
 
-std::vector<std::string> SimulatorLauncher::SetEnvToSimu(const std::string &dumpPath)
-{
+std::vector<std::string> SimulatorLauncher::SetEnvToSimu(const std::string &dumpPath) {
     std::map<std::string, std::string> env;
     std::string camodelPath = dumpPath;
     // outputPath is OPPOxxx/device0/kernelName/0/dump, and CAMODEL_LOG_PATH should in OPPOxxx/device0/tmp_dump
@@ -474,18 +465,16 @@ std::vector<std::string> SimulatorLauncher::SetEnvToSimu(const std::string &dump
     return outEnvs;
 }
 
-std::vector<std::string> SimulatorLauncher::GetLaunchArgs(const std::string &outputDir)
-{
+std::vector<std::string> SimulatorLauncher::GetLaunchArgs(const std::string &outputDir) {
     std::string binFilePath = JoinPath({outputDir, KERNEL_CONFIG_NAME});
-    std::vector <std::string> kernelLaunchArgs;
+    std::vector<std::string> kernelLaunchArgs;
     kernelLaunchArgs.emplace_back(kernelLaunchBinPath_);
     kernelLaunchArgs.emplace_back("-c");
     kernelLaunchArgs.emplace_back(binFilePath);
     return kernelLaunchArgs;
 }
 
-SimulatorLauncher::SimulatorLauncher()
-{
+SimulatorLauncher::SimulatorLauncher() {
     std::string opprofPath = ProfConfig::Instance().GetMsopprofPath();
     if (!opprofPath.empty()) {
         opprofInjectionLib_ = JoinPath({opprofPath, MSOPPROF_INJECTION_LIB_PATH_FROM_MSOPPROF});
@@ -497,8 +486,7 @@ SimulatorLauncher::SimulatorLauncher()
     }
 }
 
-void DataCollectWithSimulator::ProfInit(const void *hdl, const void *stubFunc, bool type)
-{
+void DataCollectWithSimulator::ProfInit(const void *hdl, const void *stubFunc, bool type) {
     DEBUG_LOG("Kernel running, kernel name is %s", kernelName_.c_str());
     if (outputPath_.empty()) {
         CamodelHelper::Instance().Disable();
@@ -534,8 +522,8 @@ void DataCollectWithSimulator::ProfInit(const void *hdl, const void *stubFunc, b
         }
     }
     if (pcStart != 0) {
-        WriteStringToFile(JoinPath({outputPath_, "pc_start_addr.txt"}),
-                          NumToHexString(pcStart), std::fstream::out | std::fstream::binary);
+        WriteStringToFile(JoinPath({outputPath_, "pc_start_addr.txt"}), NumToHexString(pcStart),
+            std::fstream::out | std::fstream::binary);
     }
     // 需要先复制aicore.o到dump下
     if (GetEnv("ENABLE_CA_LOG_TRANS") == "true") {
@@ -548,15 +536,14 @@ void DataCollectWithSimulator::ProfInit(const void *hdl, const void *stubFunc, b
     }
 }
 
-bool DataCollectWithSimulator::MakeCaFileReadable(const std::string &filePath) const
-{
+bool DataCollectWithSimulator::MakeCaFileReadable(const std::string &filePath) const {
     if (IsWritable(filePath)) {
         return true;
     }
     std::size_t end = filePath.find_last_of('.');
     std::size_t start = filePath.rfind('.', end - 1);
     if (start != std::string::npos && end != std::string::npos) {
-        std::string tempFile =  filePath.substr(start + 1, end - start - 1);
+        std::string tempFile = filePath.substr(start + 1, end - start - 1);
         if (!IsDigit(tempFile)) {
             return true;
         }
@@ -568,8 +555,7 @@ bool DataCollectWithSimulator::MakeCaFileReadable(const std::string &filePath) c
     return true;
 }
 
-void DataCollectWithSimulator::CopyAiCoreBinFile(const KernelHandle *hdl)
-{
+void DataCollectWithSimulator::CopyAiCoreBinFile(const KernelHandle *hdl) {
     using namespace std::experimental::filesystem;
     auto iter = SharedRecord::Instance().binaryPathMap_.find(hdl);
     if (iter == SharedRecord::Instance().binaryPathMap_.end()) {
@@ -588,8 +574,7 @@ void DataCollectWithSimulator::CopyAiCoreBinFile(const KernelHandle *hdl)
     CopyFile(tempPath, outputPath_);
 }
 
-void DataCollectWithSimulator::ClearCaFile(const std::string &fileName) const
-{
+void DataCollectWithSimulator::ClearCaFile(const std::string &fileName) const {
     std::string realPath = fileName;
     if (!CheckWriteFilePathValid(realPath)) {
         WARN_LOG("check file path %s failed", realPath.c_str());
@@ -606,8 +591,7 @@ void DataCollectWithSimulator::ClearCaFile(const std::string &fileName) const
     file.close();
 }
 
-bool DataCollectWithSimulator::HandleDumpLogAfterLaunch()
-{
+bool DataCollectWithSimulator::HandleDumpLogAfterLaunch() {
     using namespace std::experimental::filesystem;
     if (ProfConfig::Instance().IsEnableLogTrans() && CamodelHelper::Instance().IsEnable()) {
         CamodelHelper::Instance().SendSync();
@@ -619,7 +603,7 @@ bool DataCollectWithSimulator::HandleDumpLogAfterLaunch()
         return false;
     }
     if (!outputPath_.empty() && IsExist(outputPath_)) {
-        for (auto const& dirEntry : directory_iterator(tmpDumpPath)) {
+        for (auto const &dirEntry : directory_iterator(tmpDumpPath)) {
             if (IsDir(dirEntry.path()) || IsSoftLink(dirEntry.path())) {
                 continue;
             }
@@ -636,7 +620,7 @@ bool DataCollectWithSimulator::HandleDumpLogAfterLaunch()
         }
         return true;
     }
-    for (auto const& dirEntry : directory_iterator(tmpDumpPath)) {
+    for (auto const &dirEntry : directory_iterator(tmpDumpPath)) {
         if (IsDir(dirEntry.path()) || IsSoftLink(dirEntry.path())) {
             continue;
         }
@@ -645,8 +629,7 @@ bool DataCollectWithSimulator::HandleDumpLogAfterLaunch()
     return true;
 }
 
-bool DataCollectWithSimulator::SaveObject(const KernelHandle *hdl)
-{
+bool DataCollectWithSimulator::SaveObject(const KernelHandle *hdl) {
     if (SharedRecord::Instance().binaryPathMap_.count(hdl) != 0) {
         return true;
     }
@@ -659,8 +642,7 @@ bool DataCollectWithSimulator::SaveObject(const KernelHandle *hdl)
     return false;
 }
 
-bool DataCollectWithSimulator::SaveObject(const RegisterContextSP &ctx)
-{
+bool DataCollectWithSimulator::SaveObject(const RegisterContextSP &ctx) {
     auto hdl = ctx->GetHandle();
     if (SharedRecord::Instance().binaryPathMap_.count(hdl) != 0) {
         return true;
@@ -680,8 +662,7 @@ bool DataCollectWithSimulator::SaveObject(const RegisterContextSP &ctx)
     return false;
 }
 
-void DataCollectInDevice::ProfInit(const void *hdl, const void *stubFunc, bool type)
-{
+void DataCollectInDevice::ProfInit(const void *hdl, const void *stubFunc, bool type) {
     if (outputPath_.empty()) {
         return;
     }
@@ -705,7 +686,7 @@ void DataCollectInDevice::ProfInit(const void *hdl, const void *stubFunc, bool t
         // Get section headers
         rtDevBinary_t binary;
         KernelContext::Instance().GetDevBinary(KernelContext::KernelHandlePtr{hdl}, binary) &&
-        GetSectionHeaders(binary, headers);
+            GetSectionHeaders(binary, headers);
 
         // Dump obj file
         KernelDumper::Instance().DumpAicore(outputPath_);
@@ -722,7 +703,7 @@ void DataCollectInDevice::ProfInit(const void *hdl, const void *stubFunc, bool t
             DEBUG_LOG("Get pc start failed by hdl. Using pc start in dump log");
         }
     }
-    for (const auto &h: headers) {
+    for (const auto &h : headers) {
         if (h.first == "Attr_Section_Lcal") {
             KernelContext::Instance().SetLcclFlag(true);
             DEBUG_LOG("set lccl flag");
@@ -731,16 +712,15 @@ void DataCollectInDevice::ProfInit(const void *hdl, const void *stubFunc, bool t
     }
     KernelContext::Instance().SetMC2Flag();
     if (pcStart != 0) {
-        WriteStringToFile(JoinPath({outputPath_, "pc_start_addr.txt"}),
-                          NumToHexString(pcStart), std::fstream::out | std::fstream::binary);
+        WriteStringToFile(JoinPath({outputPath_, "pc_start_addr.txt"}), NumToHexString(pcStart),
+            std::fstream::out | std::fstream::binary);
     }
 }
 
-void DataCollectInDevice::ProfCommandAction(MsprofCommandHandleType type) const
-{
+void DataCollectInDevice::ProfCommandAction(MsprofCommandHandleType type) const {
     using RtCommandHandleParamsT = struct {
         uint32_t pathLen;
-        uint32_t storageLimit;  // MB
+        uint32_t storageLimit; // MB
         uint32_t profDataLen;
         char path[PARAM_LEN_MAX + 1];
         char profData[PATH_LEN_MAX + 1];
@@ -765,7 +745,8 @@ void DataCollectInDevice::ProfCommandAction(MsprofCommandHandleType type) const
     auto chipType = GetProductTypeBySocVersion(socVersion);
     if (IsChipSeriesTypeValid(chipType, ChipProductType::ASCEND310P_SERIES)) {
         command.profSwitch = PROF_AICORE_METRICS;
-    } else if (IsChipSeriesTypeValid(chipType, ChipProductType::ASCEND910B_SERIES) || IsChipSeriesTypeValid(chipType, ChipProductType::ASCEND910_93_SERIES)) {
+    } else if (IsChipSeriesTypeValid(chipType, ChipProductType::ASCEND910B_SERIES) ||
+        IsChipSeriesTypeValid(chipType, ChipProductType::ASCEND910_93_SERIES)) {
         command.profSwitch = PROF_L2CACHE | PROF_OP_TIMESTAMP;
     } else if (IsChipSeriesTypeValid(chipType, ChipProductType::ASCEND950_SERIES)) {
         if (ProfConfig::Instance().IsInstrTimelineEnabled() || ProfConfig::Instance().IsPipeTimelineEnabled() ||
@@ -779,11 +760,8 @@ void DataCollectInDevice::ProfCommandAction(MsprofCommandHandleType type) const
     DEBUG_LOG("profSetProfCommandOrigin type %d res is %d", static_cast<int>(type), static_cast<int>(res));
 }
 
-bool DataCollectInDevice::StartProf(std::thread &th)
-{
-    std::call_once(g_sigRegFlag, [&]() {
-        SignalWrapper::RegisterCallback(SIGINT, HandleSigInt);
-    });
+bool DataCollectInDevice::StartProf(std::thread &th) {
+    std::call_once(g_sigRegFlag, [&]() { SignalWrapper::RegisterCallback(SIGINT, HandleSigInt); });
     DEBUG_LOG("MSOPT INJECTION SUCCESS");
     if (!taskPtr_->Start(replayCount_, hasSimt_)) {
         return false;
@@ -797,8 +775,7 @@ bool DataCollectInDevice::StartProf(std::thread &th)
     return true;
 }
 
-void DataCollectInDevice::GenBBcountFile(uint64_t regId, uint64_t memSize, uint8_t *memInfo)
-{
+void DataCollectInDevice::GenBBcountFile(uint64_t regId, uint64_t memSize, uint8_t *memInfo) {
     if (!IsPlatformSupportDBI()) {
         DEBUG_LOG("Unsupported platform, exit DBI");
         return;
@@ -820,8 +797,7 @@ void DataCollectInDevice::GenBBcountFile(uint64_t regId, uint64_t memSize, uint8
     }
 }
 
-void DataCollectInDevice::GenDBIData(uint64_t memSize, uint8_t *memInfo)
-{
+void DataCollectInDevice::GenDBIData(uint64_t memSize, uint8_t *memInfo) {
     DEBUG_LOG("Gen DBI data, memSize is %lu", memSize);
     if (memSize == 0) {
         return;
@@ -829,14 +805,13 @@ void DataCollectInDevice::GenDBIData(uint64_t memSize, uint8_t *memInfo)
     std::vector<uint8_t> memInfoHost(MAX_BLOCK_DATA_SIZE);
     uint64_t count = memSize / BLOCK_MEM_SIZE;
     for (uint64_t i = 0; i < count; ++i) {
-        aclError error = aclrtMemcpyImplOrigin(memInfoHost.data(), MAX_BLOCK_DATA_SIZE,
-                                               memInfo + i * BLOCK_MEM_SIZE, MAX_BLOCK_DATA_SIZE,
-                                               aclrtMemcpyKind::ACL_MEMCPY_DEVICE_TO_HOST);
+        aclError error = aclrtMemcpyImplOrigin(memInfoHost.data(), MAX_BLOCK_DATA_SIZE, memInfo + i * BLOCK_MEM_SIZE,
+            MAX_BLOCK_DATA_SIZE, aclrtMemcpyKind::ACL_MEMCPY_DEVICE_TO_HOST);
         if (error != RT_ERROR_NONE) {
             ERROR_LOG("dump basic block data rtMemcpy memInfo error: %d", error);
             break;
         }
-        auto bh = reinterpret_cast<const BlockHeader*>(memInfoHost.data());
+        auto bh = reinterpret_cast<const BlockHeader *>(memInfoHost.data());
         uint64_t length = bh->length;
         if (length == 0) {
             continue;
@@ -861,8 +836,7 @@ void DataCollectInDevice::GenDBIData(uint64_t memSize, uint8_t *memInfo)
     ProfConfig::Instance().SendMsg(Serialize(head, dbiHeader) + outputPath_);
 }
 
-void DataCollectInDevice::GenRecordData(uint64_t memSize, uint8_t *memInfo, const std::string &recordName) const
-{
+void DataCollectInDevice::GenRecordData(uint64_t memSize, uint8_t *memInfo, const std::string &recordName) const {
     DEBUG_LOG("Gen record %s, memSize is %lu", recordName.c_str(), memSize);
     if (memSize == 0) {
         return;
@@ -872,8 +846,8 @@ void DataCollectInDevice::GenRecordData(uint64_t memSize, uint8_t *memInfo, cons
         ERROR_LOG("dump basic block data aclrtMallocHost");
         return;
     }
-    aclError error = aclrtMemcpyImplOrigin(memInfoHost, memSize, memInfo, memSize,
-                                           aclrtMemcpyKind::ACL_MEMCPY_DEVICE_TO_HOST);
+    aclError error =
+        aclrtMemcpyImplOrigin(memInfoHost, memSize, memInfo, memSize, aclrtMemcpyKind::ACL_MEMCPY_DEVICE_TO_HOST);
     if (error != ACL_SUCCESS) {
         ERROR_LOG("dump basic block data aclrtMemcpy memInfo error: %d", error);
         aclrtFreeHostImplOrigin(memInfoHost);
@@ -887,9 +861,8 @@ void DataCollectInDevice::GenRecordData(uint64_t memSize, uint8_t *memInfo, cons
     aclrtFreeHostImplOrigin(memInfoHost);
 }
 
-void DataCollectInDevice::MC2KernelLaunch(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc,
-                                          bool &ret)
-{
+void DataCollectInDevice::MC2KernelLaunch(
+    rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc, bool &ret) {
     ret = false;
     auto hcclComm = KernelContext::Instance().GetHcclComm();
     if (hcclComm == nullptr) {
@@ -905,9 +878,7 @@ void DataCollectInDevice::MC2KernelLaunch(rtStream_t stream, const std::function
         return;
     }
 
-    std::shared_ptr<void> deferA(nullptr, [&event](std::nullptr_t &) {
-        aclrtDestroyEventOrigin(event);
-    });
+    std::shared_ptr<void> deferA(nullptr, [&event](std::nullptr_t &) { aclrtDestroyEventOrigin(event); });
 
     HcclResult hcclRes = HcclBarrierOrigin(hcclComm, stream);
     if (hcclRes != HCCL_SUCCESS) {
@@ -919,7 +890,7 @@ void DataCollectInDevice::MC2KernelLaunch(rtStream_t stream, const std::function
         WARN_LOG("MC2 event record failed, device: %d, res: %d", deviceId_, aclrtRes);
         return;
     }
-    AicpuLaunchArgs& aicpuLaunchArgs = KernelContext::GetAicpuLaunchArgs();
+    AicpuLaunchArgs &aicpuLaunchArgs = KernelContext::GetAicpuLaunchArgs();
     aclrtRes = aclrtStreamWaitEventOrigin(aicpuLaunchArgs.stm, event);
     if (aclrtRes != ACL_ERROR_NONE) {
         WARN_LOG("MC2 event wait failed, device: %d, res: %d", deviceId_, aclrtRes);
@@ -931,12 +902,12 @@ void DataCollectInDevice::MC2KernelLaunch(rtStream_t stream, const std::function
         aicpuLaunchArgs.flags);
     ret = kernelLaunchFunc(); // mc2 aicore
     LoadFrequency();
-    aclError npuSyncRet {ACL_SUCCESS};
+    aclError npuSyncRet{ACL_SUCCESS};
     if (ret) {
         npuSyncRet = aclrtSynchronizeStreamWithTimeoutImplOrigin(stream, SYNCHRONIZE_TIME_OUT);
         DEBUG_LOG("MC2 AICore synchronize, device: %d, res: %d", deviceId_, npuSyncRet);
     }
-    aclError cpuSyncRet {ACL_SUCCESS};
+    aclError cpuSyncRet{ACL_SUCCESS};
     if (aicpuRet == RT_ERROR_NONE) {
         cpuSyncRet = aclrtSynchronizeStreamWithTimeoutImplOrigin(aicpuLaunchArgs.stm, SYNCHRONIZE_TIME_OUT);
         DEBUG_LOG("MC2 AICPU synchronize, device: %d, res: %d", deviceId_, cpuSyncRet);
@@ -950,8 +921,8 @@ void DataCollectInDevice::MC2KernelLaunch(rtStream_t stream, const std::function
     }
 }
 
-bool DataCollectInDevice::ReplayOnce(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc, L2cacheParam &param)
-{
+bool DataCollectInDevice::ReplayOnce(
+    rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc, L2cacheParam &param) {
     bool isMC2 = KernelContext::Instance().GetMC2Flag();
     uint16_t warmUpTimes = ProfConfig::Instance().GetWarmUpTimes();
     if (IsPmuEventEmpty(replayCount_) && replayCount_ != 0) {
@@ -981,7 +952,7 @@ bool DataCollectInDevice::ReplayOnce(rtStream_t stream, const std::function<bool
             kernelLaunchFunc();
         }
     }
-    aclError syncRet {ACL_SUCCESS};
+    aclError syncRet{ACL_SUCCESS};
     if (isMC2) {
         MC2KernelLaunch(stream, kernelLaunchFunc, ret);
     } else {
@@ -1007,8 +978,8 @@ bool DataCollectInDevice::ReplayOnce(rtStream_t stream, const std::function<bool
     return ret;
 }
 
-bool DataCollectInDevice::KernelLaunchForInstrProf(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc)
-{
+bool DataCollectInDevice::KernelLaunchForInstrProf(
+    rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc) {
     // 仅在采集 pc sampling 时对算子预热20次
     if (ProfConfig::Instance().IsPCSamplingEnabled()) {
         WarmUp(stream, kernelLaunchFunc, 20);
@@ -1023,7 +994,7 @@ bool DataCollectInDevice::KernelLaunchForInstrProf(rtStream_t stream, const std:
         return false;
     }
     bool ret = true;
-    aclError syncRet {ACL_SUCCESS};
+    aclError syncRet{ACL_SUCCESS};
     if (isMC2) {
         MC2KernelLaunch(stream, kernelLaunchFunc, ret);
     } else {
@@ -1051,15 +1022,14 @@ bool DataCollectInDevice::KernelLaunchForInstrProf(rtStream_t stream, const std:
     return ret;
 }
 
-bool DataCollectInDevice::KernelReplay(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc)
-{
+bool DataCollectInDevice::KernelReplay(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc) {
     if (ProfConfig::Instance().IsDbi()) {
         return true;
     }
     replayCount_ = ProfConfig::Instance().GetInitReplayCount();
-    bool funcRet {true};
+    bool funcRet{true};
     bool isMC2 = KernelContext::Instance().GetMC2Flag();
-    L2cacheParam param {};
+    L2cacheParam param{};
     param.blockLen = nullptr;
     param.l2Buffer = nullptr;
     param.stream = stream;
@@ -1088,8 +1058,7 @@ bool DataCollectInDevice::KernelReplay(rtStream_t stream, const std::function<bo
     return funcRet;
 }
 
-bool DataCollectInDevice::InstrProfData(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc)
-{
+bool DataCollectInDevice::InstrProfData(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc) {
     if (ProfConfig::Instance().IsRangeReplay()) {
         return false;
     }
@@ -1112,11 +1081,11 @@ bool DataCollectInDevice::InstrProfData(rtStream_t stream, const std::function<b
     return ret;
 }
 
-bool DataCollectInDevice::SupportProfL2CacheEvict()
-{
+bool DataCollectInDevice::SupportProfL2CacheEvict() {
     std::string socVersion = DeviceContext::Local().GetSocVersion();
     auto chipType = GetProductTypeBySocVersion(socVersion);
-    if (!IsChipSeriesTypeValid(chipType, ChipProductType::ASCEND910B_SERIES) && !IsChipSeriesTypeValid(chipType, ChipProductType::ASCEND910_93_SERIES)) {
+    if (!IsChipSeriesTypeValid(chipType, ChipProductType::ASCEND910B_SERIES) &&
+        !IsChipSeriesTypeValid(chipType, ChipProductType::ASCEND910_93_SERIES)) {
         return false;
     }
     auto profConfig = ProfConfig::Instance().GetConfig();
@@ -1127,13 +1096,11 @@ bool DataCollectInDevice::SupportProfL2CacheEvict()
     return false;
 }
 
-bool DataCollectInDevice::RangeReplayInit(bool &needReplay)
-{
+bool DataCollectInDevice::RangeReplayInit(bool &needReplay) {
     auto threadId = std::this_thread::get_id();
     RangeReplayConfig rangeConfig = ProfDataCollect::GetThreadRangeConfigMap(threadId);
-    bool hasValidOutput = any_of(rangeConfig.outputs.begin(), rangeConfig.outputs.end(), [](const string &out) {
-        return out != "-1";
-    });
+    bool hasValidOutput =
+        any_of(rangeConfig.outputs.begin(), rangeConfig.outputs.end(), [](const string &out) { return out != "-1"; });
     // if not in mstx range or no operator to optimize
     if (!rangeConfig.flag || !hasValidOutput) {
         needReplay = false;
@@ -1142,7 +1109,8 @@ bool DataCollectInDevice::RangeReplayInit(bool &needReplay)
         return true;
     }
     ProfDataCollect::ResetRangeConfig(threadId);
-    string replayPath = JoinPath({GetEnv(DEVICE_PROF_DUMP_PATH_ENV), "device" + to_string(deviceId_), to_string(getpid()), to_string(rangeConfig.count)});
+    string replayPath = JoinPath({GetEnv(DEVICE_PROF_DUMP_PATH_ENV), "device" + to_string(deviceId_),
+        to_string(getpid()), to_string(rangeConfig.count)});
     if (!MkdirRecusively(replayPath)) {
         ERROR_LOG("Mkdir device %d range replay temp path failed.", deviceId_);
         return false;
@@ -1158,7 +1126,7 @@ bool DataCollectInDevice::RangeReplayInit(bool &needReplay)
         ERROR_LOG("Cannot open file [%s]", outputTxt.c_str());
         return false;
     }
-    for (const auto &i: rangeConfig.outputs) {
+    for (const auto &i : rangeConfig.outputs) {
         outFile << i << "\n";
     }
     outFile.close();
@@ -1175,8 +1143,7 @@ bool DataCollectInDevice::RangeReplayInit(bool &needReplay)
     return true;
 }
 
-bool DataCollectInDevice::RangeReplayOnce(L2cacheParam &param, const aclmdlRI &modelRI)
-{
+bool DataCollectInDevice::RangeReplayOnce(L2cacheParam &param, const aclmdlRI &modelRI) {
     if (isClearParamSuccess_ && !ClearL2Cache(param)) {
         WARN_LOG("Clear L2Cache failed. replay count is %d", replayCount_ + 1);
     }
@@ -1210,10 +1177,9 @@ bool DataCollectInDevice::RangeReplayOnce(L2cacheParam &param, const aclmdlRI &m
     }
 }
 
-bool DataCollectInDevice::RangeReplay(const rtStream_t &stream, const aclmdlRI &modelRI)
-{
-    bool funcRet {false};
-    bool needReplay {true};
+bool DataCollectInDevice::RangeReplay(const rtStream_t &stream, const aclmdlRI &modelRI) {
+    bool funcRet{false};
+    bool needReplay{true};
     if (!RangeReplayInit(needReplay)) {
         return funcRet;
     }
@@ -1222,7 +1188,7 @@ bool DataCollectInDevice::RangeReplay(const rtStream_t &stream, const aclmdlRI &
     }
     MemoryContext::Instance().Backup();
     WarmUp(stream, modelRI);
-    L2cacheParam param {};
+    L2cacheParam param{};
     param.blockLen = nullptr;
     param.l2Buffer = nullptr;
     param.stream = stream;
@@ -1242,8 +1208,7 @@ bool DataCollectInDevice::RangeReplay(const rtStream_t &stream, const aclmdlRI &
     return funcRet;
 }
 
-bool DataCollectInDevice::RangeReplayProfData(const rtStream_t &stream)
-{
+bool DataCollectInDevice::RangeReplayProfData(const rtStream_t &stream) {
     auto threadId = std::this_thread::get_id();
     RangeReplayConfig rangeConfig = ProfDataCollect::GetThreadRangeConfigMap(threadId);
     if (!rangeConfig.flag) {
@@ -1270,8 +1235,7 @@ bool DataCollectInDevice::RangeReplayProfData(const rtStream_t &stream)
     return true;
 }
 
-bool DataCollectInDevice::ProfData(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc)
-{
+bool DataCollectInDevice::ProfData(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc) {
     DEBUG_LOG("Kernel running, kernel name is %s", kernelName_.c_str());
     bool isRange = ProfConfig::Instance().IsRangeReplay() && MsTx::Instance().IsInMstxRange();
     if (isRange && !RangeReplayProfData(stream)) {
@@ -1298,7 +1262,7 @@ bool DataCollectInDevice::ProfData(rtStream_t stream, const std::function<bool(v
     bool isMC2 = KernelContext::Instance().GetMC2Flag();
     if (isMC2) {
         // kernel warmup, profiling do not take into account
-        AicpuLaunchArgs& aicpuLaunchArgs = KernelContext::GetAicpuLaunchArgs();
+        AicpuLaunchArgs &aicpuLaunchArgs = KernelContext::GetAicpuLaunchArgs();
         kernelLaunchFunc();
         aclrtSynchronizeStreamWithTimeoutImplOrigin(stream, SYNCHRONIZE_TIME_OUT);
         aclrtSynchronizeStreamWithTimeoutImplOrigin(aicpuLaunchArgs.stm, SYNCHRONIZE_TIME_OUT);
@@ -1320,14 +1284,13 @@ bool DataCollectInDevice::ProfData(rtStream_t stream, const std::function<bool(v
     return ret;
 }
 
-void DataCollectInDevice::WarmUp(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc) const
-{
+void DataCollectInDevice::WarmUp(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc) const {
     uint16_t warmUpTimes = ProfConfig::Instance().GetWarmUpTimes();
     WarmUp(stream, kernelLaunchFunc, warmUpTimes);
 }
 
-void DataCollectInDevice::WarmUp(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc, uint16_t warmUpTimes) const
-{
+void DataCollectInDevice::WarmUp(
+    rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc, uint16_t warmUpTimes) const {
     if (warmUpTimes == 0 || KernelContext::Instance().GetMC2Flag() || KernelContext::Instance().GetLcclFlag()) {
         return;
     }
@@ -1344,21 +1307,19 @@ void DataCollectInDevice::WarmUp(rtStream_t stream, const std::function<bool(voi
     }
     uint8_t *memInfoA = nullptr;
     uint8_t *memInfoB = nullptr;
-    if (aclrtMallocImplOrigin(reinterpret_cast<void **>(&memInfoA), MB_TO_BYTES, ACL_MEM_MALLOC_HUGE_FIRST) != ACL_SUCCESS) {
+    if (aclrtMallocImplOrigin(reinterpret_cast<void **>(&memInfoA), MB_TO_BYTES, ACL_MEM_MALLOC_HUGE_FIRST) !=
+        ACL_SUCCESS) {
         return;
     }
-    std::shared_ptr<void> deferA(nullptr, [&memInfoA](std::nullptr_t &) {
-        aclrtFreeImplOrigin(memInfoA);
-    });
-    if (aclrtMallocImplOrigin(reinterpret_cast<void **>(&memInfoB), MB_TO_BYTES, ACL_MEM_MALLOC_HUGE_FIRST) != ACL_SUCCESS) {
+    std::shared_ptr<void> deferA(nullptr, [&memInfoA](std::nullptr_t &) { aclrtFreeImplOrigin(memInfoA); });
+    if (aclrtMallocImplOrigin(reinterpret_cast<void **>(&memInfoB), MB_TO_BYTES, ACL_MEM_MALLOC_HUGE_FIRST) !=
+        ACL_SUCCESS) {
         return;
     }
-    std::shared_ptr<void> deferB(nullptr, [&memInfoB](std::nullptr_t &) {
-        aclrtFreeImplOrigin(memInfoB);
-    });
+    std::shared_ptr<void> deferB(nullptr, [&memInfoB](std::nullptr_t &) { aclrtFreeImplOrigin(memInfoB); });
     for (uint16_t i = 0; i < warmUpTimes; ++i) {
-        if (aclrtMemcpyAsyncImplOrigin(memInfoB, MB_TO_BYTES, memInfoA, MB_TO_BYTES, ACL_MEMCPY_DEVICE_TO_DEVICE, stream)
-            != ACL_SUCCESS) {
+        if (aclrtMemcpyAsyncImplOrigin(
+                memInfoB, MB_TO_BYTES, memInfoA, MB_TO_BYTES, ACL_MEMCPY_DEVICE_TO_DEVICE, stream) != ACL_SUCCESS) {
             return;
         }
     }
@@ -1368,8 +1329,7 @@ void DataCollectInDevice::WarmUp(rtStream_t stream, const std::function<bool(voi
     DEBUG_LOG("Warm Up success in application replay mode.");
 }
 
-void DataCollectInDevice::WarmUp(const rtStream_t &stream, const aclmdlRI &modelRI) const
-{
+void DataCollectInDevice::WarmUp(const rtStream_t &stream, const aclmdlRI &modelRI) const {
     uint16_t warmUpTimes = ProfConfig::Instance().GetWarmUpTimes();
     if (warmUpTimes == 0) {
         return;
@@ -1383,8 +1343,7 @@ void DataCollectInDevice::WarmUp(const rtStream_t &stream, const aclmdlRI &model
     }
 }
 
-bool DataCollectInDevice::PrepareClearL2CacheParam(L2cacheParam &param) const
-{
+bool DataCollectInDevice::PrepareClearL2CacheParam(L2cacheParam &param) const {
     std::string socVersion = DeviceContext::Local().GetSocVersion();
     auto it = l2CacheClearTilingMap.find(socVersion);
     if (it == l2CacheClearTilingMap.end()) {
@@ -1406,9 +1365,8 @@ bool DataCollectInDevice::PrepareClearL2CacheParam(L2cacheParam &param) const
         aclrtFreeImplOrigin(param.l2Buffer);
         return false;
     }
-    shared_ptr<void> hostBlockLenDefer(nullptr, [&hostBlockLen](std::nullptr_t&) {
-        aclrtFreeHostImplOrigin(hostBlockLen);
-    });
+    shared_ptr<void> hostBlockLenDefer(
+        nullptr, [&hostBlockLen](std::nullptr_t &) { aclrtFreeHostImplOrigin(hostBlockLen); });
     *(uint64_t *)hostBlockLen = it->second.clearSizePerCore;
     // runtime接口好像不会补齐到32字节，申请小块的内存会出现访问时直接挂掉的情况
     if (aclrtMallocImplOrigin(&param.blockLen, 32, ACL_MEM_MALLOC_HUGE_FIRST) != ACL_SUCCESS) {
@@ -1417,7 +1375,7 @@ bool DataCollectInDevice::PrepareClearL2CacheParam(L2cacheParam &param) const
         return false;
     }
     if (aclrtMemcpyAsyncImplOrigin(param.blockLen, sizeof(uint64_t), hostBlockLen, sizeof(uint64_t),
-        ACL_MEMCPY_HOST_TO_DEVICE, param.stream) != ACL_SUCCESS ||
+            ACL_MEMCPY_HOST_TO_DEVICE, param.stream) != ACL_SUCCESS ||
         aclrtSynchronizeStreamImplOrigin(param.stream) != ACL_SUCCESS) {
         WARN_LOG("Memcpy tiling info failed when clear L2Cache.");
         aclrtFreeImplOrigin(param.l2Buffer);
@@ -1430,37 +1388,49 @@ bool DataCollectInDevice::PrepareClearL2CacheParam(L2cacheParam &param) const
 }
 
 // 初始化3个buffer，从flushbuffer搬运到buffer上，清除L2cache数据；cmobuffer用于将buffersize的数据预取到L2cahce，完成L2cache的清除
-bool DataCollectInDevice::MallocBuffer(L2cacheParam &param) const
-{
-    auto ret = CheckAclResult(aclrtMallocImplOrigin(&param.buffer, param.bufferSize, ACL_MEM_MALLOC_HUGE_FIRST), "buffer aclrtMallocImpl");
-    if (ret != ACL_SUCCESS) { return false; }
-    ret = CheckAclResult(aclrtMallocImplOrigin(&param.flushBuffer, param.bufferSize, ACL_MEM_MALLOC_HUGE_FIRST), "flush buffer aclrtMallocImpl");
-    if (ret != ACL_SUCCESS) { return false; }
-    ret = CheckAclResult(aclrtMallocImplOrigin(&param.cmoBuffer, param.bufferSize, ACL_MEM_MALLOC_HUGE_FIRST), "cmoBuffer aclrtMallocImpl");
+bool DataCollectInDevice::MallocBuffer(L2cacheParam &param) const {
+    auto ret = CheckAclResult(
+        aclrtMallocImplOrigin(&param.buffer, param.bufferSize, ACL_MEM_MALLOC_HUGE_FIRST), "buffer aclrtMallocImpl");
+    if (ret != ACL_SUCCESS) {
+        return false;
+    }
+    ret = CheckAclResult(aclrtMallocImplOrigin(&param.flushBuffer, param.bufferSize, ACL_MEM_MALLOC_HUGE_FIRST),
+        "flush buffer aclrtMallocImpl");
+    if (ret != ACL_SUCCESS) {
+        return false;
+    }
+    ret = CheckAclResult(aclrtMallocImplOrigin(&param.cmoBuffer, param.bufferSize, ACL_MEM_MALLOC_HUGE_FIRST),
+        "cmoBuffer aclrtMallocImpl");
     return ret == ACL_SUCCESS;
 }
 
-bool DataCollectInDevice::WaitClearL2Cache(L2cacheParam &param) const
-{
-    const std::string& runSocVersion = DeviceContext::Local().GetSocVersion();
+bool DataCollectInDevice::WaitClearL2Cache(L2cacheParam &param) const {
+    const std::string &runSocVersion = DeviceContext::Local().GetSocVersion();
     auto ret = CheckAclResult(aclrtMemcpyAsyncImplOrigin(param.flushBuffer, param.bufferSize, param.buffer,
-        param.bufferSize, ACL_MEMCPY_DEVICE_TO_DEVICE, param.stream), "aclrtMemcpyAsyncImpl");
-    if (ret != ACL_SUCCESS) { return false; }
+                                  param.bufferSize, ACL_MEMCPY_DEVICE_TO_DEVICE, param.stream),
+        "aclrtMemcpyAsyncImpl");
+    if (ret != ACL_SUCCESS) {
+        return false;
+    }
     ret = CheckAclResult(aclrtSynchronizeStreamImplOrigin(param.stream), "aclrtSynchronizeStreamImpl");
-    if (ret != ACL_SUCCESS) { return false; }
+    if (ret != ACL_SUCCESS) {
+        return false;
+    }
     auto chipType = GetProductTypeBySocVersion(runSocVersion);
     if (IsChipSeriesTypeValid(chipType, ChipProductType::ASCEND910B_SERIES) ||
         IsChipSeriesTypeValid(chipType, ChipProductType::ASCEND910_93_SERIES)) {
-        ret = CheckAclResult(aclrtCmoAsyncImplOrigin(param.cmoBuffer, param.bufferSize,
-            ACL_RT_CMO_TYPE_PREFETCH, param.stream), "aclrtCmoAsyncImpl");
-            if (ret != ACL_SUCCESS) { return false; }
+        ret = CheckAclResult(
+            aclrtCmoAsyncImplOrigin(param.cmoBuffer, param.bufferSize, ACL_RT_CMO_TYPE_PREFETCH, param.stream),
+            "aclrtCmoAsyncImpl");
+        if (ret != ACL_SUCCESS) {
+            return false;
+        }
     }
     ret = CheckAclResult(aclrtSynchronizeStreamImplOrigin(param.stream), "aclrtSynchronizeStreamImpl");
     return ret == ACL_SUCCESS;
 }
 
-void DataCollectInDevice::FreeL2Cache(L2cacheParam &param) const
-{
+void DataCollectInDevice::FreeL2Cache(L2cacheParam &param) const {
     if (param.flushBuffer != nullptr) {
         CheckAclResult(aclrtFreeImplOrigin(param.flushBuffer), "flush buffer aclrtFreeImpl");
     }
@@ -1478,8 +1448,7 @@ void DataCollectInDevice::FreeL2Cache(L2cacheParam &param) const
     }
 }
 
-bool DataCollectInDevice::ClearL2Cache(L2cacheParam &param) const
-{
+bool DataCollectInDevice::ClearL2Cache(L2cacheParam &param) const {
     std::vector<void *> inputArgs = {param.l2Buffer, param.blockLen};
     if (!DFXKernelLauncher::Instance().CallClearL2Cache(param.blockDim, param.stream, inputArgs)) {
         WARN_LOG("Failed to clear L2cache by operator");
@@ -1492,8 +1461,7 @@ bool DataCollectInDevice::ClearL2Cache(L2cacheParam &param) const
     return true;
 }
 
-bool DataCollectInDevice::CallEmptyKernel(void *stream) const
-{
+bool DataCollectInDevice::CallEmptyKernel(void *stream) const {
     if (!DFXKernelLauncher::Instance().CallEmptyKernel(stream)) {
         WARN_LOG("Failed to call empty kernel for L2cache");
         return false;
@@ -1501,8 +1469,7 @@ bool DataCollectInDevice::CallEmptyKernel(void *stream) const
     return true;
 }
 
-void DataCollectInDevice::LoadFrequency()
-{
+void DataCollectInDevice::LoadFrequency() {
     // get rated freq
     auto ret = halGetDeviceInfoOrigin(deviceId_, MODULE_TYPE_AICORE, INFO_TYPE_FREQUE, &ratedFreq_);
     if (ret != tagDrvError::DRV_ERROR_NONE) {
@@ -1511,8 +1478,8 @@ void DataCollectInDevice::LoadFrequency()
     }
     // get current freq
     int32_t size = sizeof(int32_t);
-    ret = halGetDeviceInfoByBuffOrigin(deviceId_, MODULE_TYPE_AICORE, INFO_TYPE_CURRENT_FREQ,
-                                       static_cast<void*>(&curFreq_), &size);
+    ret = halGetDeviceInfoByBuffOrigin(
+        deviceId_, MODULE_TYPE_AICORE, INFO_TYPE_CURRENT_FREQ, static_cast<void *>(&curFreq_), &size);
     if (ret != tagDrvError::DRV_ERROR_NONE) {
         WARN_LOG("Can not get current aicore frequency.Please check dlopen function. Error code:%d", ret);
         curFreq_ = -1;
@@ -1520,8 +1487,7 @@ void DataCollectInDevice::LoadFrequency()
     DEBUG_LOG("get current freq: %d, rated freq: %ld.", curFreq_, ratedFreq_);
 }
 
-void DataCollectInDevice::SaveBasicInfo()
-{
+void DataCollectInDevice::SaveBasicInfo() {
     std::string basicInfoTxt = JoinPath({outputPath_, "op_basic_info.txt"});
     if (!CheckWriteFilePathValid(basicInfoTxt)) {
         ERROR_LOG("check file: %s failed", basicInfoTxt.c_str());
@@ -1567,8 +1533,7 @@ void DataCollectInDevice::SaveBasicInfo()
     Chmod(basicInfoTxt, SAVE_DATA_FILE_AUTHORITY);
 }
 
-void DataCollectInDevice::SaveFrequency(const string &outputPath) const
-{
+void DataCollectInDevice::SaveFrequency(const string &outputPath) const {
     std::string outputFile = JoinPath({outputPath, "freq.txt"});
     if (!CheckWriteFilePathValid(outputFile)) {
         ERROR_LOG("check file: %s failed", outputFile.c_str());
@@ -1593,8 +1558,7 @@ void DataCollectInDevice::SaveFrequency(const string &outputPath) const
     Chmod(outputFile, SAVE_DATA_FILE_AUTHORITY);
 }
 
-ProfDataCollect::ProfDataCollect(const LaunchContextSP &ctx, bool isInitOutput)
-{
+ProfDataCollect::ProfDataCollect(const LaunchContextSP &ctx, bool isInitOutput) {
     if (ProfConfig::Instance().IsSimulator()) {
         dataCollect_ = MakeShared<DataCollectWithSimulator>(ctx);
     } else {
@@ -1602,38 +1566,25 @@ ProfDataCollect::ProfDataCollect(const LaunchContextSP &ctx, bool isInitOutput)
     }
 }
 
-bool ProfDataCollect::InstrProfData(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc)
-{
+bool ProfDataCollect::InstrProfData(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc) {
     return dataCollect_->InstrProfData(stream, kernelLaunchFunc);
 }
 
-bool ProfDataCollect::ProfData(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc)
-{
+bool ProfDataCollect::ProfData(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc) {
     return dataCollect_->ProfData(stream, kernelLaunchFunc);
 }
 
-bool ProfDataCollect::ProfData() const
-{
-    return dataCollect_->ProfData();
-}
+bool ProfDataCollect::ProfData() const { return dataCollect_->ProfData(); }
 
-void ProfDataCollect::ProfInit(const void *hdl, const void *stubFunc, bool type) const
-{
+void ProfDataCollect::ProfInit(const void *hdl, const void *stubFunc, bool type) const {
     dataCollect_->ProfInit(hdl, stubFunc, type);
 }
 
-bool ProfDataCollect::SaveObject(const void *hdl)
-{
-    return DataCollectWithSimulator::SaveObject(hdl);
-}
+bool ProfDataCollect::SaveObject(const void *hdl) { return DataCollectWithSimulator::SaveObject(hdl); }
 
-bool ProfDataCollect::SaveObject(const RegisterContextSP &ctx)
-{
-    return DataCollectWithSimulator::SaveObject(ctx);
-}
+bool ProfDataCollect::SaveObject(const RegisterContextSP &ctx) { return DataCollectWithSimulator::SaveObject(ctx); }
 
-void ProfDataCollect::TerminateInAdvance() const
-{
+void ProfDataCollect::TerminateInAdvance() const {
     auto currentDeviceId = DeviceContext::GetRunningDeviceId();
     INFO_LOG("Kill op process on device %d for the number of kernel reaches collection range.", currentDeviceId);
     (void)LocalProcess::GetInstance().TerminateWithSignal(SIGINT);
@@ -1642,8 +1593,7 @@ void ProfDataCollect::TerminateInAdvance() const
     (void)LocalProcess::GetInstance().TerminateWithSignal(SIGKILL);
 }
 
-void ProfDataCollect::PostProcess() const
-{
+void ProfDataCollect::PostProcess() const {
     // 与服务端进行采集后通信
     ProcessCtrl::Rsp rsp{};
     if (ProfConfig::Instance().PostNotify(rsp) && rsp.termination != 0) {
@@ -1651,36 +1601,25 @@ void ProfDataCollect::PostProcess() const
     }
 }
 
-void ProfDataCollect::GenBBcountFile(uint64_t regId, uint64_t memSize, uint8_t *memInfo) const
-{
+void ProfDataCollect::GenBBcountFile(uint64_t regId, uint64_t memSize, uint8_t *memInfo) const {
     dataCollect_->GenBBcountFile(regId, memSize, memInfo);
 }
-bool ProfDataCollect::IsNeedProf() const
-{
-    return (!dataCollect_->outputPath_.empty());
-}
+bool ProfDataCollect::IsNeedProf() const { return (!dataCollect_->outputPath_.empty()); }
 
-bool ProfDataCollect::IsBBCountNeedGen()
-{
+bool ProfDataCollect::IsBBCountNeedGen() {
     auto config = ProfConfig::Instance().GetConfig();
-    return ((config.dbiFlag & DBI_FLAG_BB_COUNT) &&
-        IsNeedProf() &&
-        !KernelContext::Instance().GetMC2Flag() &&
+    return ((config.dbiFlag & DBI_FLAG_BB_COUNT) && IsNeedProf() && !KernelContext::Instance().GetMC2Flag() &&
         !KernelContext::Instance().GetLcclFlag());
 }
 
-bool ProfDataCollect::IsNeedDumpContext()
-{
+bool ProfDataCollect::IsNeedDumpContext() {
     return IsNeedProf() && !KernelContext::Instance().GetMC2Flag() &&
         ProfConfig::Instance().GetConfig().isDeviceToSimulator;
 }
 
-bool ProfDataCollect::IsMemoryChartNeedGen()
-{
+bool ProfDataCollect::IsMemoryChartNeedGen() {
     auto config = ProfConfig::Instance().GetConfig();
-    return ((config.dbiFlag & DBI_FLAG_MEMORY_CHART) &&
-        IsNeedProf() &&
-        !KernelContext::Instance().GetMC2Flag() &&
+    return ((config.dbiFlag & DBI_FLAG_MEMORY_CHART) && IsNeedProf() && !KernelContext::Instance().GetMC2Flag() &&
         !KernelContext::Instance().GetLcclFlag());
 }
 
@@ -1690,9 +1629,7 @@ bool ProfDataCollect::IsOperandRecordNeedGen() {
         !KernelContext::Instance().GetLcclFlag() && !ProfConfig::Instance().IsRangeReplay());
 }
 
-bool ProfDataCollect::IsPCSamplingNeedGen() {
-    return (ProfConfig::Instance().IsPCSamplingEnabled() && IsNeedProf());
-}
+bool ProfDataCollect::IsPCSamplingNeedGen() { return (ProfConfig::Instance().IsPCSamplingEnabled() && IsNeedProf()); }
 
 bool ProfDataCollect::IsPipeTimelineNeedGen() {
     return (ProfConfig::Instance().IsPipeTimelineEnabled() && IsNeedProf());
@@ -1702,39 +1639,34 @@ bool ProfDataCollect::IsInstrTimelineNeedGen() {
     return (ProfConfig::Instance().IsInstrTimelineEnabled() && IsNeedProf());
 }
 
-bool ProfDataCollect::IsWarpTimelineNeedGen()
-{
+bool ProfDataCollect::IsWarpTimelineNeedGen() {
     return (ProfConfig::Instance().IsWarpTimelineEnabled() && IsNeedProf() && dataCollect_->hasSimt_ &&
         !ProfConfig::Instance().IsRangeReplay());
 }
 
-bool ProfDataCollect::IsNeedRunOriginLaunch()
-{
+bool ProfDataCollect::IsNeedRunOriginLaunch() {
     // application模式下只有bbcount桩才需要调用origin，其他模式都不需要，因为bbcount桩需要依赖Call这次运行。
     // 所有通算融合算子都不需要调用origin
     if (KernelContext::Instance().GetMC2Flag() || KernelContext::Instance().GetLcclFlag()) {
         return false;
     }
-    return !IsNeedProf() || !(ProfConfig::Instance().GetConfig().dbiFlag != DBI_FLAG_BB_COUNT && ProfConfig::Instance().IsAppReplay());
+    return !IsNeedProf() ||
+        !(ProfConfig::Instance().GetConfig().dbiFlag != DBI_FLAG_BB_COUNT && ProfConfig::Instance().IsAppReplay());
 }
 
-void ProfDataCollect::GenDBIData(uint64_t memSize, uint8_t *memInfo) const
-{
+void ProfDataCollect::GenDBIData(uint64_t memSize, uint8_t *memInfo) const {
     dataCollect_->GenDBIData(memSize, memInfo);
 }
 
-void ProfDataCollect::GenRecordData(uint64_t memSize, uint8_t *memInfo, const std::string &recordName) const
-{
+void ProfDataCollect::GenRecordData(uint64_t memSize, uint8_t *memInfo, const std::string &recordName) const {
     dataCollect_->GenRecordData(memSize, memInfo, recordName);
 }
 
-bool ProfDataCollect::RangeReplay(const rtStream_t &stream, const aclmdlRI &modelRI)
-{
+bool ProfDataCollect::RangeReplay(const rtStream_t &stream, const aclmdlRI &modelRI) {
     return dataCollect_->RangeReplay(stream, modelRI);
 }
 
-std::string ProfDataCollect::GetAicoreOutputPath(int32_t device)
-{
+std::string ProfDataCollect::GetAicoreOutputPath(int32_t device) {
     std::lock_guard<std::mutex> lk(DataCollect::outputMutex_);
     if (DataCollect::deviceOutputPathMap_.find(device) == DataCollect::deviceOutputPathMap_.end()) {
         ERROR_LOG("Can not find device %d output path", device);
@@ -1743,8 +1675,7 @@ std::string ProfDataCollect::GetAicoreOutputPath(int32_t device)
     return DataCollect::deviceOutputPathMap_[device];
 }
 
-uint32_t ProfDataCollect::GetDeviceReplayCount(int32_t device)
-{
+uint32_t ProfDataCollect::GetDeviceReplayCount(int32_t device) {
     std::lock_guard<std::mutex> lk(DataCollect::replayCountMutex_);
     if (DataCollect::deviceReplayCountMap_.find(device) == DataCollect::deviceReplayCountMap_.end()) {
         DEBUG_LOG("Can not find device %d replay count, use default 0.", device);
@@ -1753,18 +1684,17 @@ uint32_t ProfDataCollect::GetDeviceReplayCount(int32_t device)
     return DataCollect::deviceReplayCountMap_[device];
 }
 
-RangeReplayConfig ProfDataCollect::GetThreadRangeConfigMap(std::thread::id threadId)
-{
+RangeReplayConfig ProfDataCollect::GetThreadRangeConfigMap(std::thread::id threadId) {
     std::lock_guard<std::mutex> lk(DataCollect::rangeConfigMutex_);
     if (DataCollect::threadRangeConfigMap_.find(threadId) == DataCollect::threadRangeConfigMap_.end()) {
-        DEBUG_LOG("Can not find threadId %zu range replay config, use default value.", std::hash<std::thread::id>()(threadId));
+        DEBUG_LOG("Can not find threadId %zu range replay config, use default value.",
+            std::hash<std::thread::id>()(threadId));
         DataCollect::threadRangeConfigMap_[threadId] = {false, 0, nullptr, {}};
     }
     return DataCollect::threadRangeConfigMap_[threadId];
 }
 
-void ProfDataCollect::ResetRangeConfig(std::thread::id threadId)
-{
+void ProfDataCollect::ResetRangeConfig(std::thread::id threadId) {
     // reset range replay flag and outputs
     std::lock_guard<std::mutex> lk(DataCollect::rangeConfigMutex_);
     if (DataCollect::threadRangeConfigMap_.find(threadId) != DataCollect::threadRangeConfigMap_.end()) {

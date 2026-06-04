@@ -14,7 +14,7 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
- 
+
 #include <iostream>
 #include "HijackedFunc.h"
 #include "RuntimeConfig.h"

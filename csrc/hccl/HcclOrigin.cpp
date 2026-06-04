@@ -14,20 +14,16 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
-
 #include "HcclOrigin.h"
 #include "core/FunctionLoader.h"
 
-#define LOAD_FUNCTION_BODY(soName, funcName, ...)                           \
-    FUNC_BODY(soName, funcName, Origin, HCCL_E_INTERNAL, __VA_ARGS__)
+#define LOAD_FUNCTION_BODY(soName, funcName, ...) FUNC_BODY(soName, funcName, Origin, HCCL_E_INTERNAL, __VA_ARGS__)
 
-void HcclOriginCtor()
-{
+void HcclOriginCtor() {
     REGISTER_LIBRARY("hccl");
     REGISTER_FUNCTION("hccl", HcclBarrier);
 }
 
-HcclResult HcclBarrierOrigin(HcclComm comm, aclrtStream stream)
-{
+HcclResult HcclBarrierOrigin(HcclComm comm, aclrtStream stream) {
     LOAD_FUNCTION_BODY("hccl", HcclBarrier, comm, stream);
 }

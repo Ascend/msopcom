@@ -14,10 +14,9 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
- 
 #ifndef __HCCL_ORIGIN_H__
 #define __HCCL_ORIGIN_H__
- 
+
 #include "hccl.h"
 
 void HcclOriginCtor();

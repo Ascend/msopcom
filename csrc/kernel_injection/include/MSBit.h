@@ -302,7 +302,7 @@ enum class InstrType {
     FDIV_F32_IMM,
     FEXPDIF_FMIX = 280,
     FEXPDIF_F32,
-    IMAD_S32,  // IMAD_U32 = 347
+    IMAD_S32, // IMAD_U32 = 347
     IMAD_HI_U32,
     IMAD_HI_S32,
     IMAD_WIDE_U32,
@@ -351,7 +351,7 @@ enum class InstrType {
     SHF_S64,
     SHFI_S32,
     SHFI_U32 = 330,
-    SHFI_S64,  // SHFI_U64 = 348
+    SHFI_S64, // SHFI_U64 = 348
     PLOP3,
     LOP3,
     LOP3_IMM,

@@ -23,8 +23,7 @@
 HijackedFuncOfMsprofNotifySetDevice::HijackedFuncOfMsprofNotifySetDevice()
     : HijackedFuncType("profapi", "MsprofNotifySetDevice") {}
 
-void HijackedFuncOfMsprofNotifySetDevice::Pre(uint32_t chipId, uint32_t deviceId, bool isOpen)
-{
+void HijackedFuncOfMsprofNotifySetDevice::Pre(uint32_t chipId, uint32_t deviceId, bool isOpen) {
     if (IsOpProf()) {
         // ISOPEN = TRUE的时调callback开启aicpu通道, 单卡只开启一次
         if (!isOpen) {

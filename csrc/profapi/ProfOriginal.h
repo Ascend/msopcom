@@ -14,7 +14,6 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
-
 #ifndef MSOPT_PROFORIGINAL_H
 #define MSOPT_PROFORIGINAL_H
 

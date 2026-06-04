@@ -14,7 +14,7 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
- 
+
 #include <iostream>
 #include "HijackedFunc.h"
 #include "RuntimeConfig.h"
@@ -25,7 +25,7 @@
 
 HijackedFuncOfCtxCreateV2::HijackedFuncOfCtxCreateV2()
     : HijackedFuncType(RuntimeLibName(), "rtCtxCreateV2"), devId_{0} { }
- 
+
 void HijackedFuncOfCtxCreateV2::Pre(void **createCtx, uint32_t flags, int32_t devId, rtDeviceMode deviceMode)
 {
     DeviceContext::Local().SetDeviceId(devId);

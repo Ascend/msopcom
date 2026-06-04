@@ -14,7 +14,6 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
-
 #include "Camodel.h"
 #include <cstring>
 #include <algorithm>
@@ -22,25 +21,22 @@
 #include "core/FunctionLoader.h"
 #include "CamodelHelper.h"
 
-#define LOAD_FUNCTION_BODY(soName, funcName, ...)                           \
+#define LOAD_FUNCTION_BODY(soName, funcName, ...) \
     FUNC_BODY(soName, funcName, Origin, CAMOLDEL_ERROR_INTERNAL_ERROR, __VA_ARGS__)
 
 constexpr int LOG_TYPE = 6;
-const char* const SO_NAME = "pem_davinci";
+const char *const SO_NAME = "pem_davinci";
 
-int DvcSetLogLevelOrigin(const uint32_t filePrintLevel, const uint32_t screenPrintLevel, const uint32_t flushLevel)
-{
+int DvcSetLogLevelOrigin(const uint32_t filePrintLevel, const uint32_t screenPrintLevel, const uint32_t flushLevel) {
     LOAD_FUNCTION_BODY(SO_NAME, DvcSetLogLevel, filePrintLevel, screenPrintLevel, flushLevel);
 }
 
-int DvcAttachLogCallbackOrigin(DvcLogType_t logType, DvcLogCbFnUnion_t fnUnion)
-{
+int DvcAttachLogCallbackOrigin(DvcLogType_t logType, DvcLogCbFnUnion_t fnUnion) {
     LOAD_FUNCTION_BODY(SO_NAME, DvcAttachLogCallback, logType, fnUnion);
 }
 
 namespace {
-void InstrAndPopLog(uint64_t time, const DvcInstrLogEntry_t *logContent, ProfPacketType type)
-{
+void InstrAndPopLog(uint64_t time, const DvcInstrLogEntry_t *logContent, ProfPacketType type) {
     if (logContent == nullptr || logContent->decode_descr == nullptr || logContent->exec_descr == nullptr) {
         return;
     }
@@ -57,24 +53,21 @@ void InstrAndPopLog(uint64_t time, const DvcInstrLogEntry_t *logContent, ProfPac
     CamodelHelper::Instance().SendCaLog(std::move(popLogPtr));
 }
 // 定义下面的函数本身的原始动态库名
-void InstrPoppedLog(uint64_t time, const DvcInstrLogEntry_t *popLog)
-{
+void InstrPoppedLog(uint64_t time, const DvcInstrLogEntry_t *popLog) {
     if (!CamodelHelper::Instance().IsEnable()) {
         return;
     }
     InstrAndPopLog(time, popLog, ProfPacketType::POPPED_LOG);
 }
 
-void InstrLog(uint64_t time, const DvcInstrLogEntry_t *instrLog)
-{
+void InstrLog(uint64_t time, const DvcInstrLogEntry_t *instrLog) {
     if (!CamodelHelper::Instance().IsEnable()) {
         return;
     }
     InstrAndPopLog(time, instrLog, ProfPacketType::INSTR_LOG);
 }
 
-void MteLog(uint64_t time, const DvcMteLogEntry_t *mteLog)
-{
+void MteLog(uint64_t time, const DvcMteLogEntry_t *mteLog) {
     if (!CamodelHelper::Instance().IsEnable()) {
         return;
     }
@@ -89,15 +82,15 @@ void MteLog(uint64_t time, const DvcMteLogEntry_t *mteLog)
             return;
         }
         log = {time, mteLog->data.bif_op_info.size, mteLog->data.bif_op_info.instr_id, mteLog->core_id,
-               mteLog->data.bif_op_info.req_id};
+            mteLog->data.bif_op_info.req_id};
         intf = mteLog->data.bif_op_info.intf;
     } else if (strcmp(mteLog->op, "recv_rsp") == 0 || strcmp(mteLog->op, "send_req") == 0 ||
-               strcmp(mteLog->op, "send_data") == 0) {
+        strcmp(mteLog->op, "send_data") == 0) {
         if (mteLog->data.intf_op_info.intf == nullptr) {
             return;
         }
         log = {time, mteLog->data.intf_op_info.size, mteLog->data.intf_op_info.instr_id, mteLog->core_id,
-               mteLog->data.intf_op_info.req_id};
+            mteLog->data.intf_op_info.req_id};
         intf = mteLog->data.intf_op_info.intf;
     }
     size_t len = std::min(intf.length(), sizeof(log.intf) - 1);
@@ -107,8 +100,7 @@ void MteLog(uint64_t time, const DvcMteLogEntry_t *mteLog)
     CamodelHelper::Instance().SendCaLog(std::move(mteLogPtr));
 }
 
-void ICacheLog(uint64_t time, const DvcIcacheLogEntry_t *iCacheLog)
-{
+void ICacheLog(uint64_t time, const DvcIcacheLogEntry_t *iCacheLog) {
     if (!CamodelHelper::Instance().IsEnable()) {
         return;
     }
@@ -148,8 +140,7 @@ void CcuLog(uint64_t time, const DvcCcuLogEntry_t *ccuLog) {
     }
 }
 
-void GetSimulatorLogWithoutDump()
-{
+void GetSimulatorLogWithoutDump() {
     auto res = DvcSetLogLevelOrigin(6, 4, 2); // 6 ,4, 2 not save log level
     if (res == CAMOLDEL_ERROR_INTERNAL_ERROR) {
         WARN_LOG("Failed to set simulator log level, dump mode will change to on");
@@ -178,8 +169,7 @@ void GetSimulatorLogWithoutDump()
 }
 }
 
-void CamodelCtor()
-{
+void CamodelCtor() {
     REGISTER_LIBRARY(SO_NAME);
     REGISTER_FUNCTION(SO_NAME, DvcAttachLogCallback);
     REGISTER_FUNCTION(SO_NAME, DvcSetLogLevel);

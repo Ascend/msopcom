@@ -23,8 +23,7 @@
 #include "acl.h"
 #include "core/HijackedFuncTemplate.h"
 
-template <>
-struct EmptyFuncError<aclError> {
+template <> struct EmptyFuncError<aclError> {
     // `ACL_ERROR_INTERNAL_ERROR' 用于代表 aclError 类型中原始函数获取失败
     static constexpr aclError VALUE = ACL_ERROR_INTERNAL_ERROR;
 };

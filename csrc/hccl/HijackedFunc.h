@@ -23,8 +23,7 @@
 #include "hccl.h"
 #include "core/HijackedFuncTemplate.h"
 
-template <>
-struct EmptyFuncError<HcclResult> {
+template <> struct EmptyFuncError<HcclResult> {
     // `HCCL_E_INTERNAL' 用于代表 HcclResult类型中internal error
     static constexpr HcclResult VALUE = HCCL_E_INTERNAL;
 };
@@ -35,17 +34,19 @@ public:
     ~HijackedFuncOfHcclCommInitClusterInfo() override = default;
     void Pre(const char *clusterInfo, uint32_t rank, HcclComm *comm) override;
     HcclResult Post(HcclResult ret) override;
+
 private:
     HcclComm *comm_{nullptr};
 };
 
-class HijackedFuncOfHcclCommInitClusterInfoConfig : public decltype(HijackedFuncHelper(
-    &HcclCommInitClusterInfoConfig)) {
+class HijackedFuncOfHcclCommInitClusterInfoConfig
+    : public decltype(HijackedFuncHelper(&HcclCommInitClusterInfoConfig)) {
 public:
     explicit HijackedFuncOfHcclCommInitClusterInfoConfig();
     ~HijackedFuncOfHcclCommInitClusterInfoConfig() override = default;
     void Pre(const char *clusterInfo, uint32_t rank, HcclCommConfig *config, HcclComm *comm) override;
     HcclResult Post(HcclResult ret) override;
+
 private:
     HcclComm *comm_{nullptr};
 };
@@ -56,6 +57,7 @@ public:
     ~HijackedFuncOfHcclCommInitRootInfo() override = default;
     void Pre(uint32_t nRanks, const HcclRootInfo *rootInfo, uint32_t rank, HcclComm *comm) override;
     HcclResult Post(HcclResult ret) override;
+
 private:
     HcclComm *comm_{nullptr};
 };
@@ -64,9 +66,10 @@ class HijackedFuncOfHcclCommInitRootInfoConfig : public decltype(HijackedFuncHel
 public:
     explicit HijackedFuncOfHcclCommInitRootInfoConfig();
     ~HijackedFuncOfHcclCommInitRootInfoConfig() override = default;
-    void Pre(uint32_t nRanks, const HcclRootInfo *rootInfo, uint32_t rank, const HcclCommConfig *config,
-             HcclComm *comm) override;
+    void Pre(uint32_t nRanks, const HcclRootInfo *rootInfo, uint32_t rank, const HcclCommConfig *config, HcclComm *comm)
+        override;
     HcclResult Post(HcclResult ret) override;
+
 private:
     HcclComm *comm_{nullptr};
 };

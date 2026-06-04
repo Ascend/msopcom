@@ -26,7 +26,7 @@
 
 HijackedFuncOfDeviceResetEx::HijackedFuncOfDeviceResetEx()
     : HijackedFuncType(RuntimeLibName(), "rtDeviceResetEx"), devId_{0} { }
- 
+
 void HijackedFuncOfDeviceResetEx::Pre(int32_t devId)
 {
     this->devId_ = devId;

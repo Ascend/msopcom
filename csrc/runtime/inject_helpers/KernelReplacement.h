@@ -16,11 +16,11 @@
 
 #ifndef __RUNTIME_INJECT_HELPERS_KERNEL_REPLACEMENT_H__
 #define __RUNTIME_INJECT_HELPERS_KERNEL_REPLACEMENT_H__
- 
+
 #include <string>
 #include <vector>
 #include <memory>
- 
+
 #include "runtime.h"
 #include "core/FunctionLoader.h"
 #include "runtime/inject_helpers/KernelMatcher.h"
@@ -84,17 +84,17 @@ public:
         static KernelReplacement inst;
         return inst;
     }
- 
+
     void Init(const std::string &kernelPath, const KernelMatcher::Config &config)
     {
         kernelPath_ = kernelPath;
         matcher_ = MakeShared<KernelMatcher>(config);
     }
- 
+
     bool CreateHandle(void **handle, uint64_t launchId);
 
     bool ReleaseHandle(const void *handle);
- 
+
 private:
     KernelReplacement() = default;
 

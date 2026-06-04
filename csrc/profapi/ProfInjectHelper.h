@@ -21,9 +21,7 @@
 
 class ProfInjectHelper {
 public:
-
-    static ProfInjectHelper &Instance()
-    {
+    static ProfInjectHelper &Instance() {
         static ProfInjectHelper inst;
         return inst;
     }

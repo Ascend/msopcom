@@ -14,7 +14,7 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
- 
+
 #include "HijackedFunc.h"
 #include "RuntimeConfig.h"
 #include "core/FuncSelector.h"
@@ -31,7 +31,7 @@ rtError_t HijackedFuncOfStreamSynchronizeWithTimeout::Call(rtStream_t stream, in
         ERROR_LOG("HijackedFuncOfStreamSynchronizeWithTimeout originfunc is nullptr.");
         return RT_ERROR_RESERVED;
     }
-    
+
     rtError_t ret = this->originfunc_(stream, -1);
     return Post(ret);
 }

@@ -23,14 +23,12 @@
 HijackedFuncOfHcclCommInitRootInfoConfig::HijackedFuncOfHcclCommInitRootInfoConfig()
     : HijackedFuncType("hccl", "HcclCommInitRootInfoConfig") {}
 
-void HijackedFuncOfHcclCommInitRootInfoConfig::Pre(uint32_t nRanks, const HcclRootInfo *rootInfo, uint32_t rank,
-                                                   const HcclCommConfig *config, HcclComm *comm)
-{
+void HijackedFuncOfHcclCommInitRootInfoConfig::Pre(
+    uint32_t nRanks, const HcclRootInfo *rootInfo, uint32_t rank, const HcclCommConfig *config, HcclComm *comm) {
     this->comm_ = comm;
 }
 
-HcclResult HijackedFuncOfHcclCommInitRootInfoConfig::Post(HcclResult ret)
-{
+HcclResult HijackedFuncOfHcclCommInitRootInfoConfig::Post(HcclResult ret) {
     if (IsOpProf()) {
         if (this->comm_ != nullptr) {
             KernelContext::Instance().SetHcclComm(*this->comm_);

@@ -14,7 +14,6 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
- 
 #include "ascend_hal/HijackedFunc.h"
 #include "runtime/inject_helpers/KernelContext.h"
 #include "runtime/RuntimeConfig.h"
@@ -22,12 +21,9 @@
 #include "core/FuncSelector.h"
 #include "utils/InjectLogger.h"
 
+HijackedFuncOfHalGetSocVersion::HijackedFuncOfHalGetSocVersion() : HijackedFuncType("ascend_hal", "halGetSocVersion") {}
 
-HijackedFuncOfHalGetSocVersion::HijackedFuncOfHalGetSocVersion()
-    : HijackedFuncType("ascend_hal", "halGetSocVersion") {}
-
-drvError_t HijackedFuncOfHalGetSocVersion::Call(uint32_t devId, char *version, const uint32_t maxLen)
-{
+drvError_t HijackedFuncOfHalGetSocVersion::Call(uint32_t devId, char *version, const uint32_t maxLen) {
     if (IsOpProf() && ProfConfig::Instance().IsSimulator()) {
         std::string simSocVersion = ProfConfig::Instance().GetSocVersion();
         if (version != nullptr && !simSocVersion.empty() && maxLen >= (simSocVersion.length() + 1)) {

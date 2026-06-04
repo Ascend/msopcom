@@ -14,7 +14,7 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
- 
+
 #include <iostream>
 #include "HijackedFunc.h"
 #include "RuntimeConfig.h"
@@ -25,7 +25,7 @@
 
 HijackedFuncOfDeviceStatusQuery::HijackedFuncOfDeviceStatusQuery()
     : HijackedFuncType(RuntimeLibName(), "rtDeviceStatusQuery"), devId_{0} { }
- 
+
 void HijackedFuncOfDeviceStatusQuery::Pre(const uint32_t devId, rtDeviceStatus *deviceStatus)
 {
     this->devId_ = devId;

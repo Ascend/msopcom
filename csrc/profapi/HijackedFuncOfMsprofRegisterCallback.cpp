@@ -24,8 +24,7 @@
 HijackedFuncOfMsprofRegisterCallback::HijackedFuncOfMsprofRegisterCallback()
     : HijackedFuncType("profapi", "MsprofRegisterCallback") {}
 
-void HijackedFuncOfMsprofRegisterCallback::Pre(uint32_t moduleId, ProfCommandHandle handle)
-{
+void HijackedFuncOfMsprofRegisterCallback::Pre(uint32_t moduleId, ProfCommandHandle handle) {
     if (IsOpProf()) {
         ProfInjectHelper::Instance().handleMap_[moduleId] = handle;
         DEBUG_LOG("HijackedFuncOfMsprofRegisterCallback get module %u", moduleId);

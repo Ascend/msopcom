@@ -21,19 +21,19 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif  // __cplusplus
+#endif // __cplusplus
 
 #define PROF_REAL 1
 #define DV_MEM_RESV 8
 #define CHANNEL_AICORE (43)
-#define CHANNEL_HWTS_LOG (45)    /* add for ts0 as hwts channel */
+#define CHANNEL_HWTS_LOG (45) /* add for ts0 as hwts channel */
 #define CHANNEL_TSFW_L2 (47)
-#define CHANNEL_STARS_SOC_LOG_BUFFER (50)   /* add for ascend910B */
-#define CHANNEL_FFTS_PROFILE_BUFFER_TASK (53)   /* add for ascend910B */
+#define CHANNEL_STARS_SOC_LOG_BUFFER (50) /* add for ascend910B */
+#define CHANNEL_FFTS_PROFILE_BUFFER_TASK (53) /* add for ascend910B */
 #define CHANNEL_AICPU (143)
 #define CHANNEL_HCCS (9)
 
-typedef void* DVdeviceptr;
+typedef void *DVdeviceptr;
 
 enum class InstrChannel : uint32_t {
     GROUP0_AIC = 11,
@@ -57,13 +57,13 @@ enum class InstrChannel : uint32_t {
 };
 
 typedef enum {
-    MODULE_TYPE_SYSTEM = 0,  /**< system info*/
-    MODULE_TYPE_AICPU,       /** < aicpu info*/
-    MODULE_TYPE_CCPU,        /**< ccpu_info*/
-    MODULE_TYPE_DCPU,        /**< dcpu info*/
-    MODULE_TYPE_AICORE,      /**< AI CORE info*/
-    MODULE_TYPE_TSCPU,       /**< tscpu info*/
-    MODULE_TYPE_PCIE,        /**< PCIE info*/
+    MODULE_TYPE_SYSTEM = 0, /**< system info*/
+    MODULE_TYPE_AICPU, /** < aicpu info*/
+    MODULE_TYPE_CCPU, /**< ccpu_info*/
+    MODULE_TYPE_DCPU, /**< dcpu info*/
+    MODULE_TYPE_AICORE, /**< AI CORE info*/
+    MODULE_TYPE_TSCPU, /**< tscpu info*/
+    MODULE_TYPE_PCIE, /**< PCIE info*/
     MODULE_TYPE_VECTOR_CORE, /**< VECTOR CORE info*/
     MODULE_TYPE_COMPUTING = 0x8000, /* computing power info */
 } DEV_MODULE_TYPE;
@@ -79,17 +79,16 @@ typedef struct prof_poll_info {
     unsigned int channel_id;
 } prof_poll_info_t;
 
-
 typedef struct prof_start_para {
-    PROF_CHANNEL_TYPE channel_type;     /* for ts and other device */
+    PROF_CHANNEL_TYPE channel_type; /* for ts and other device */
     unsigned int sample_period;
-    unsigned int real_time;             /* real mode */
-    void *user_data;                    /* ts data's pointer */
-    unsigned int user_data_size;        /* user data's size */
+    unsigned int real_time; /* real mode */
+    void *user_data; /* ts data's pointer */
+    unsigned int user_data_size; /* user data's size */
 } prof_start_para_t;
 
 typedef enum tagDrvError {
-    DRV_ERROR_NONE = 0,                /**< success */
+    DRV_ERROR_NONE = 0, /**< success */
     DRV_ERROR_NOT_SUPPORT = 0xfffe,
     DRV_ERROR_RESERVED
 } drvError_t;
@@ -134,12 +133,12 @@ typedef enum {
 } DEV_INFO_TYPE;
 
 typedef enum tagMemType {
-    DV_MEM_SVM = 0x0001,            /**< DV_MEM_SVM_DEVICE : svm memory & mapped device */
-    DV_MEM_SVM_HOST = 0x0002,       /**< DV_MEM_SVM_HOST : svm memory & mapped host */
-    DV_MEM_SVM_DEVICE = 0x0004,     /**< DV_MEM_SVM : svm memory & no mapped */
-    DV_MEM_LOCK_HOST = 0x0008,      /**< DV_MEM_LOCK_HOST :    host mapped memory & lock host */
-    DV_MEM_LOCK_DEV = 0x0010,       /**< DV_MEM_LOCK_DEV : dev mapped memory & lock dev */
-    DV_MEM_LOCK_DEV_DVPP = 0x0020,  /**< DV_MEM_LOCK_DEV_DVPP : dev_dvpp mapped memory & lock dev */
+    DV_MEM_SVM = 0x0001, /**< DV_MEM_SVM_DEVICE : svm memory & mapped device */
+    DV_MEM_SVM_HOST = 0x0002, /**< DV_MEM_SVM_HOST : svm memory & mapped host */
+    DV_MEM_SVM_DEVICE = 0x0004, /**< DV_MEM_SVM : svm memory & no mapped */
+    DV_MEM_LOCK_HOST = 0x0008, /**< DV_MEM_LOCK_HOST :    host mapped memory & lock host */
+    DV_MEM_LOCK_DEV = 0x0010, /**< DV_MEM_LOCK_DEV : dev mapped memory & lock dev */
+    DV_MEM_LOCK_DEV_DVPP = 0x0020, /**< DV_MEM_LOCK_DEV_DVPP : dev_dvpp mapped memory & lock dev */
 } DV_MEM_TYPE;
 
 struct DVattribute {
@@ -161,14 +160,14 @@ int prof_stop_origin(unsigned int device_id, unsigned int channel_id);
 int prof_channel_poll_origin(struct prof_poll_info *out_buf, int num, int timeout);
 
 drvError_t halGetDeviceInfoByBuffOrigin(
-    uint32_t deviceId, int32_t aicoreType, int32_t frequeType, void* freq, int32_t* size);
+    uint32_t deviceId, int32_t aicoreType, int32_t frequeType, void *freq, int32_t *size);
 
-drvError_t halGetDeviceInfoOrigin(uint32_t deviceId, int32_t aicoreType, int32_t frequeType, int64_t* freq);
+drvError_t halGetDeviceInfoOrigin(uint32_t deviceId, int32_t aicoreType, int32_t frequeType, int64_t *freq);
 
 drvError_t drvMemGetAttributeOrigin(DVdeviceptr vptr, struct DVattribute *attr);
 
 #ifdef __cplusplus
 }
-#endif  // __cplusplus
+#endif // __cplusplus
 
-#endif  // __MSOPPROF_ASCEND_HAL_H__
+#endif // __MSOPPROF_ASCEND_HAL_H__

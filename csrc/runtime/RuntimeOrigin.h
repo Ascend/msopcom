@@ -15,10 +15,10 @@
  * ------------------------------------------------------------------------- */
 
 // 这个文件将被劫持的接口改名
- 
+
 #ifndef __RUNTIME_ORIGIN_H__
 #define __RUNTIME_ORIGIN_H__
- 
+
 #include <string>
 #include <iostream>
 

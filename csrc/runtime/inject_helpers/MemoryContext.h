@@ -17,7 +17,7 @@
 #pragma once
 #include <mutex>
 #include <map>
- 
+
 #include "runtime.h"
 #include "acl_rt_impl/AscendclImplOrigin.h"
 

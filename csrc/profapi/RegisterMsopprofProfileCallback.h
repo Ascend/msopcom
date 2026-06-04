@@ -14,7 +14,6 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
-
 #ifndef MSOPT_REGISTER_MSOPPROF_FUNC_H
 #define MSOPT_REGISTER_MSOPPROF_FUNC_H
 
@@ -36,7 +35,7 @@ struct MsprofApi { // for MsprofReportApi
     uint64_t itemId;
 };
 
-struct MsprofEvent {  // for MsprofReportEvent
+struct MsprofEvent { // for MsprofReportEvent
     uint16_t magicNumber = MSPROF_DATA_HEAD_MAGIC_NUM;
     uint16_t level;
     uint32_t type;
@@ -51,15 +50,15 @@ int32_t MsprofCompactInfoReportCallbackImpl(uint32_t agingFlag, const VOID_PTR d
 
 int32_t MsprofReportAdditionalInfoCallbackImpl(uint32_t agingFlag, const VOID_PTR data, uint32_t len);
 
-uint64_t MsprofGetHashIdImpl(const char* hashInfo, size_t len);
+uint64_t MsprofGetHashIdImpl(const char *hashInfo, size_t len);
 
 int8_t MsprofHostFreqIsEnableImpl();
 
-int32_t MsprofApiReporterCallbackImpl(uint32_t agingFlag, const MsprofApi * const data);
+int32_t MsprofApiReporterCallbackImpl(uint32_t agingFlag, const MsprofApi *const data);
 
-int32_t MsprofEventReporterCallbackImpl(uint32_t agingFlag, const MsprofEvent* const event);
+int32_t MsprofEventReporterCallbackImpl(uint32_t agingFlag, const MsprofEvent *const event);
 
-int32_t MsprofRegReportTypeInfoImpl(uint16_t level, uint32_t typeId, const char* name, size_t len);
+int32_t MsprofRegReportTypeInfoImpl(uint16_t level, uint32_t typeId, const char *name, size_t len);
 
 int32_t MsprofDeviceStateImpl(VOID_PTR deviceState, uint32_t len);
 
@@ -68,6 +67,7 @@ public:
     static RegisterMsopprofProfileCallback *Instance();
     ~RegisterMsopprofProfileCallback();
     void RegisterFuncMsprof();
+
 private:
     std::map<uint32_t, VOID_PTR> callBackFuncMap;
     bool register_ = false;

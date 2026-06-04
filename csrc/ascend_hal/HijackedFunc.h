@@ -24,9 +24,7 @@
 #include "ascend_hal.h"
 #include "core/HijackedFuncTemplate.h"
 
-
-template <>
-struct EmptyFuncError<drvError_t> {
+template <> struct EmptyFuncError<drvError_t> {
     // `DRV_ERROR_RESERVED' 用于代表 drvError_t 类型中原始函数获取失败
     static constexpr drvError_t VALUE = DRV_ERROR_RESERVED;
 };

@@ -14,7 +14,6 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
-
 #ifndef FUNC_INJECTION_CAMODELHELPER_H
 #define FUNC_INJECTION_CAMODELHELPER_H
 #include <thread>
@@ -30,20 +29,13 @@ public:
 };
 
 // 模板派生类（存储具体类型）
-template <typename T>
-class CaLogMessageHolder : public DataHolderBase {
+template <typename T> class CaLogMessageHolder : public DataHolderBase {
 public:
-    CaLogMessageHolder(T &&value, ProfPacketType t) :type(t), logContent(std::move(value)) {}
+    CaLogMessageHolder(T &&value, ProfPacketType t) : type(t), logContent(std::move(value)) {}
 
-    ProfPacketType GetType() const override
-    {
-        return type;
-    }
+    ProfPacketType GetType() const override { return type; }
 
-    const T& GetData() const
-    {
-        return logContent;
-    }
+    const T &GetData() const { return logContent; }
 
 private:
     ProfPacketType type;
@@ -52,8 +44,7 @@ private:
 
 class CamodelHelper {
 public:
-    static CamodelHelper &Instance()
-    {
+    static CamodelHelper &Instance() {
         static CamodelHelper inst;
         return inst;
     }
@@ -63,8 +54,7 @@ public:
     void Disable() { enable_ = false; }
     bool IsEnable() const { return enable_; }
 
-    void SendSync()
-    {
+    void SendSync() {
         std::unique_lock<std::mutex> lock(mtx_);
         if (queue_.empty()) {
             return;
@@ -73,13 +63,11 @@ public:
     }
 
 private:
-    CamodelHelper()
-    {
+    CamodelHelper() {
         isListening_ = true;
         sendThread_ = std::thread(&CamodelHelper::PopMessage, this);
     }
-    ~CamodelHelper()
-    {
+    ~CamodelHelper() {
         isListening_ = false;
         if (sendThread_.joinable()) {
             sendThread_.join();
@@ -87,12 +75,11 @@ private:
     }
     void PopMessage();
     std::thread sendThread_;
-    std::atomic<bool> isListening_ {false};
-    std::atomic<bool> enable_ {false};
+    std::atomic<bool> isListening_{false};
+    std::atomic<bool> enable_{false};
     std::mutex mtx_;
     std::queue<std::unique_ptr<DataHolderBase>> queue_;
     std::condition_variable cv_;
 };
-
 
 #endif // FUNC_INJECTION_CAMODELHELPER_H

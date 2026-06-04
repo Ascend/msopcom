@@ -14,7 +14,7 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
- 
+
 #include "RuntimeOrigin.h"
 #include "core/FunctionLoader.h"
 #include "RuntimeConfig.h"
@@ -218,22 +218,22 @@ RTS_API rtError_t rtCallbackLaunchOrigin(rtCallback_t callBackFunc, void *fnData
 {
     LOAD_FUNCTION_BODY(RuntimeLibName(), rtCallbackLaunch, callBackFunc, fnData, stm, isBlock);
 }
- 
+
 RTS_API rtError_t rtSubscribeReportOrigin(uint64_t threadId, rtStream_t stm)
 {
     LOAD_FUNCTION_BODY(RuntimeLibName(), rtSubscribeReport, threadId, stm);
 }
- 
+
 RTS_API rtError_t rtProcessReportOrigin(int32_t timeout)
 {
     LOAD_FUNCTION_BODY(RuntimeLibName(), rtProcessReport, timeout);
 }
- 
+
 RTS_API rtError_t rtUnSubscribeReportOrigin(uint64_t threadId, rtStream_t stm)
 {
     LOAD_FUNCTION_BODY(RuntimeLibName(), rtUnSubscribeReport, threadId, stm);
 }
- 
+
 RTS_API rtError_t rtModelBindStreamOrigin(rtModel_t mdl, rtStream_t stm, uint32_t flag)
 {
     LOAD_FUNCTION_BODY(RuntimeLibName(), rtModelBindStream, mdl, stm, flag);

@@ -17,7 +17,7 @@
 
 #ifndef __CORE_LOCAL_DEVICE_H__
 #define __CORE_LOCAL_DEVICE_H__
- 
+
 #include <string>
 #include <mutex>
 #include <unordered_map>

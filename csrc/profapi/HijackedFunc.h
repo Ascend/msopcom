@@ -25,15 +25,12 @@
 
 class ProfErrorTag;
 
-template <>
-struct EmptyFuncError<TaggedType<int32_t, ProfErrorTag>> {
+template <> struct EmptyFuncError<TaggedType<int32_t, ProfErrorTag>> {
     static constexpr int32_t VALUE = 500000;
 };
 
 template <typename ReturnType, typename... Args>
-auto ProfHijackedType(ReturnType (*func)(Args...))
-    -> HijackedFunc<TaggedType<ReturnType, ProfErrorTag>, Args...>
-{
+auto ProfHijackedType(ReturnType (*func)(Args...)) -> HijackedFunc<TaggedType<ReturnType, ProfErrorTag>, Args...> {
     return HijackedFuncHelperTagged<ProfErrorTag>(func);
 }
 

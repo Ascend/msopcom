@@ -47,7 +47,7 @@ struct GuardBlockInfo {
 
 /**
  * @brief 内存越界检测守护单例类
- * 
+ *
  * 在劫持的 malloc/free 中记录用户可见内存地址与实际内存地址大小关系，并检测越界写入
  */
 class MemoryGuard : public Singleton<MemoryGuard, false> {

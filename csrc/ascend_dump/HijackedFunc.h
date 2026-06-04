@@ -23,10 +23,11 @@
 #include <memory>
 #include "ascend_dump.h"
 #include "core/HijackedFuncTemplate.h"
-class HijackedFuncOfAdumpGetDFXInfoAddrForDynamic : public decltype(HijackedFuncHelper(&AdumpGetDFXInfoAddrForDynamic)) {
+class HijackedFuncOfAdumpGetDFXInfoAddrForDynamic
+    : public decltype(HijackedFuncHelper(&AdumpGetDFXInfoAddrForDynamic)) {
 public:
     explicit HijackedFuncOfAdumpGetDFXInfoAddrForDynamic();
-    void* Call(uint32_t space, uint64_t &atomicIndex) override;
+    void *Call(uint32_t space, uint64_t & atomicIndex) override;
 
 }; // class HijackedFuncOfAdumpGetDFXInfoAddrForDynamic
 

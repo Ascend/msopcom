@@ -14,6 +14,4 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
-extern "C" __global__ [aicore] void EmptyKernel()
-{
-}
+extern "C" __global__[aicore] void EmptyKernel() {}

@@ -14,7 +14,6 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
-
 #ifndef FUNC_INJECTION_CAMODEL_H
 #define FUNC_INJECTION_CAMODEL_H
 #include <string>

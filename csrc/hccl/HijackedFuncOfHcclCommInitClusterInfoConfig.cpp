@@ -23,14 +23,12 @@
 HijackedFuncOfHcclCommInitClusterInfoConfig::HijackedFuncOfHcclCommInitClusterInfoConfig()
     : HijackedFuncType("hccl", "HcclCommInitClusterInfoConfig") {}
 
-void HijackedFuncOfHcclCommInitClusterInfoConfig::Pre(const char *clusterInfo, uint32_t rank, HcclCommConfig *config,
-                                                      HcclComm *comm)
-{
+void HijackedFuncOfHcclCommInitClusterInfoConfig::Pre(
+    const char *clusterInfo, uint32_t rank, HcclCommConfig *config, HcclComm *comm) {
     this->comm_ = comm;
 }
 
-HcclResult HijackedFuncOfHcclCommInitClusterInfoConfig::Post(HcclResult ret)
-{
+HcclResult HijackedFuncOfHcclCommInitClusterInfoConfig::Post(HcclResult ret) {
     if (IsOpProf()) {
         if (this->comm_ != nullptr) {
             KernelContext::Instance().SetHcclComm(*this->comm_);

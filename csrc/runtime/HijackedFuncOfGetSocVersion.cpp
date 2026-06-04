@@ -14,7 +14,7 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
- 
+
 #include <iostream>
 #include "HijackedFunc.h"
 #include "runtime/inject_helpers/KernelContext.h"
@@ -41,4 +41,3 @@ rtError_t HijackedFuncOfGetSocVersion::Call(char *version, const uint32_t maxLen
     }
     return RT_ERROR_RESERVED;
 }
-

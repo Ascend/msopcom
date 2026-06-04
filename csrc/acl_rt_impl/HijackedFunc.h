@@ -28,15 +28,13 @@
 
 class AclErrorTag;
 
-template <>
-struct EmptyFuncError<TaggedType<aclError, AclErrorTag>> {
+template <> struct EmptyFuncError<TaggedType<aclError, AclErrorTag>> {
     static constexpr aclError VALUE = ACL_ERROR_INTERNAL_ERROR;
 };
 
 template <typename ReturnType, typename... Args>
-auto AscendclImpHijackedType(ReturnType (*func)(Args...))
-    -> HijackedFunc<TaggedType<ReturnType, AclErrorTag>, Args...>
-{
+auto AscendclImpHijackedType(
+    ReturnType (*func)(Args...)) -> HijackedFunc<TaggedType<ReturnType, AclErrorTag>, Args...> {
     return HijackedFuncHelperTagged<AclErrorTag>(func);
 }
 
@@ -73,7 +71,7 @@ public:
 private:
     void **devPtr_{nullptr};
     size_t size_{0};
-    aclrtMemMallocPolicy policy_ {aclrtMemMallocPolicy::ACL_MEM_MALLOC_HUGE_FIRST};
+    aclrtMemMallocPolicy policy_{aclrtMemMallocPolicy::ACL_MEM_MALLOC_HUGE_FIRST};
     size_t actualSize_{0};
 };
 class HijackedFuncOfAclrtMallocWithCfgImpl : public decltype(AscendclImpHijackedType(&aclrtMallocWithCfgImpl)) {
@@ -87,7 +85,7 @@ public:
 private:
     void **devPtr_{nullptr};
     size_t size_{0};
-    aclrtMemMallocPolicy policy_ {aclrtMemMallocPolicy::ACL_MEM_MALLOC_HUGE_FIRST};
+    aclrtMemMallocPolicy policy_{aclrtMemMallocPolicy::ACL_MEM_MALLOC_HUGE_FIRST};
     size_t actualSize_{0};
 };
 
@@ -102,7 +100,7 @@ public:
 private:
     void **devPtr_{nullptr};
     size_t size_{0};
-    aclrtMemMallocPolicy policy_ {aclrtMemMallocPolicy::ACL_MEM_MALLOC_HUGE_FIRST};
+    aclrtMemMallocPolicy policy_{aclrtMemMallocPolicy::ACL_MEM_MALLOC_HUGE_FIRST};
     size_t actualSize_{0};
 };
 
@@ -174,24 +172,24 @@ class HijackedFuncOfAclrtMemcpyAsyncImpl : public decltype(AscendclImpHijackedTy
 public:
     explicit HijackedFuncOfAclrtMemcpyAsyncImpl();
     ~HijackedFuncOfAclrtMemcpyAsyncImpl() override = default;
-    void Pre(void *dst, size_t destMax, const void *src, size_t count,
-             aclrtMemcpyKind kind, aclrtStream stream) override;
+    void Pre(void *dst, size_t destMax, const void *src, size_t count, aclrtMemcpyKind kind, aclrtStream stream)
+        override;
 };
 
 class HijackedFuncOfAclrtMemcpy2dImpl : public decltype(AscendclImpHijackedType(&aclrtMemcpy2dImpl)) {
 public:
     explicit HijackedFuncOfAclrtMemcpy2dImpl();
     ~HijackedFuncOfAclrtMemcpy2dImpl() override = default;
-    void Pre(void *dst, size_t dpitch, const void *src, size_t spitch,
-             size_t width, size_t height, aclrtMemcpyKind kind) override;
+    void Pre(void *dst, size_t dpitch, const void *src, size_t spitch, size_t width, size_t height,
+        aclrtMemcpyKind kind) override;
 };
 
 class HijackedFuncOfAclrtMemcpy2dAsyncImpl : public decltype(AscendclImpHijackedType(&aclrtMemcpy2dAsyncImpl)) {
 public:
     explicit HijackedFuncOfAclrtMemcpy2dAsyncImpl();
     ~HijackedFuncOfAclrtMemcpy2dAsyncImpl() override = default;
-    void Pre(void *dst, size_t dpitch, const void *src, size_t spitch,
-             size_t width, size_t height, aclrtMemcpyKind kind, aclrtStream stream) override;
+    void Pre(void *dst, size_t dpitch, const void *src, size_t spitch, size_t width, size_t height,
+        aclrtMemcpyKind kind, aclrtStream stream) override;
 };
 
 class HijackedFuncOfAclrtMapMemImpl : public decltype(AscendclImpHijackedType(&aclrtMapMemImpl)) {
@@ -200,6 +198,7 @@ public:
     ~HijackedFuncOfAclrtMapMemImpl() override = default;
     void Pre(void *virPtr, size_t size, size_t offset, aclrtDrvMemHandle handle, uint64_t flags) override;
     aclError Post(aclError ret) override;
+
 private:
     void *virPtr_{nullptr};
     uint64_t size_{0};
@@ -220,8 +219,7 @@ private:
     size_t len_{};
 };
 
-class HijackedFuncOfAclrtIpcMemImportByKeyImpl
-    : public decltype(AscendclImpHijackedType(&aclrtIpcMemImportByKeyImpl)) {
+class HijackedFuncOfAclrtIpcMemImportByKeyImpl : public decltype(AscendclImpHijackedType(&aclrtIpcMemImportByKeyImpl)) {
 public:
     explicit HijackedFuncOfAclrtIpcMemImportByKeyImpl();
     void Pre(void **devPtr, const char *key, uint64_t flag) override;
@@ -233,8 +231,7 @@ private:
     const char *key_{};
 };
 
-class HijackedFuncOfAclrtIpcMemCloseImpl
-    : public decltype(AscendclImpHijackedType(&aclrtIpcMemCloseImpl)) {
+class HijackedFuncOfAclrtIpcMemCloseImpl : public decltype(AscendclImpHijackedType(&aclrtIpcMemCloseImpl)) {
 public:
     explicit HijackedFuncOfAclrtIpcMemCloseImpl();
     void Pre(const char *key) override;
@@ -248,97 +245,104 @@ class HijackedFuncOfAclrtUnmapMemImpl : public decltype(AscendclImpHijackedType(
 public:
     explicit HijackedFuncOfAclrtUnmapMemImpl();
     ~HijackedFuncOfAclrtUnmapMemImpl() override = default;
-    void Pre(void* virPtr) override;
+    void Pre(void *virPtr) override;
 };
 
-class HijackedFuncOfAclrtBinaryLoadFromFileImpl: public decltype(AscendclImpHijackedType(&aclrtBinaryLoadFromFileImpl)) {
+class HijackedFuncOfAclrtBinaryLoadFromFileImpl
+    : public decltype(AscendclImpHijackedType(&aclrtBinaryLoadFromFileImpl)) {
 public:
     explicit HijackedFuncOfAclrtBinaryLoadFromFileImpl();
-    void Pre(const char* binPath, aclrtBinaryLoadOptions *options, aclrtBinHandle *binHandle) override;
+    void Pre(const char *binPath, aclrtBinaryLoadOptions *options, aclrtBinHandle *binHandle) override;
 
     aclError Post(aclError ret) override;
+
 private:
     const char *binPath_{nullptr};
     aclrtBinHandle *binHandle_{nullptr};
     aclrtBinaryLoadOptions *options_{nullptr};
 };
 
-class HijackedFuncOfAclrtBinaryLoadImpl: public decltype(AscendclImpHijackedType(&aclrtBinaryLoadImpl)) {
+class HijackedFuncOfAclrtBinaryLoadImpl : public decltype(AscendclImpHijackedType(&aclrtBinaryLoadImpl)) {
 public:
     explicit HijackedFuncOfAclrtBinaryLoadImpl();
 
     void Pre(const aclrtBinary binary, aclrtBinHandle *binHandle) override;
 
     aclError Post(aclError ret) override;
+
 private:
     aclrtBinary bin_{nullptr};
     aclrtBinHandle *binHandle_{nullptr};
 };
 
-class HijackedFuncOfAclrtBinaryLoadFromDataImpl: public decltype(AscendclImpHijackedType(&aclrtBinaryLoadFromDataImpl)) {
+class HijackedFuncOfAclrtBinaryLoadFromDataImpl
+    : public decltype(AscendclImpHijackedType(&aclrtBinaryLoadFromDataImpl)) {
 public:
     explicit HijackedFuncOfAclrtBinaryLoadFromDataImpl();
 
-    void Pre(const void *data, size_t length, const aclrtBinaryLoadOptions *options, aclrtBinHandle *binHandle) override;
+    void Pre(const void *data, size_t length, const aclrtBinaryLoadOptions *options, aclrtBinHandle *binHandle)
+        override;
 
     aclError Post(aclError ret) override;
+
 private:
-    const void * bin_{nullptr};
+    const void *bin_{nullptr};
     aclrtBinHandle *binHandle_{nullptr};
     aclrtBinaryLoadOptions *options_{nullptr};
-    size_t length_ {0};
+    size_t length_{0};
 };
 
-class HijackedFuncOfAclrtCreateBinaryImpl: public decltype(HijackedFuncHelper(&aclrtCreateBinaryImpl)) {
+class HijackedFuncOfAclrtCreateBinaryImpl : public decltype(HijackedFuncHelper(&aclrtCreateBinaryImpl)) {
 public:
     explicit HijackedFuncOfAclrtCreateBinaryImpl();
 
     void Pre(const void *data, size_t dataLen) override;
 
     aclrtBinary Post(aclrtBinary bin) override;
+
 private:
     const char *data_{nullptr};
     size_t dataLen_{0};
 };
 
-class HijackedFuncOfAclrtBinaryGetFunctionImpl: public decltype(
-    AscendclImpHijackedType(&aclrtBinaryGetFunctionImpl)) {
+class HijackedFuncOfAclrtBinaryGetFunctionImpl : public decltype(AscendclImpHijackedType(&aclrtBinaryGetFunctionImpl)) {
 public:
     explicit HijackedFuncOfAclrtBinaryGetFunctionImpl();
 
-    void Pre(const aclrtBinHandle binHandle,
-             const char *kernelName, aclrtFuncHandle *funcHandle) override;
+    void Pre(const aclrtBinHandle binHandle, const char *kernelName, aclrtFuncHandle *funcHandle) override;
 
     aclError Post(aclError ret) override;
+
 private:
     const char *kernelName_{nullptr};
     aclrtFuncHandle *funcHandle_{nullptr};
     aclrtBinHandle binHandle_{nullptr};
 };
 
-
-class HijackedFuncOfAclrtBinaryGetFunctionByEntryImpl: public decltype(
-    AscendclImpHijackedType(&aclrtBinaryGetFunctionByEntryImpl)) {
+class HijackedFuncOfAclrtBinaryGetFunctionByEntryImpl
+    : public decltype(AscendclImpHijackedType(&aclrtBinaryGetFunctionByEntryImpl)) {
 public:
     explicit HijackedFuncOfAclrtBinaryGetFunctionByEntryImpl();
 
-    void Pre(aclrtBinHandle binHandle, uint64_t funcEntry, aclrtFuncHandle *funcHandle) override;
+    void Pre(aclrtBinHandle binHandle, uint64_t funcEntry, aclrtFuncHandle * funcHandle) override;
 
     aclError Post(aclError ret) override;
+
 private:
     uint64_t funcEntry_{0};
     aclrtFuncHandle *funcHandle_{nullptr};
     aclrtBinHandle binHandle_{nullptr};
 };
 
-class HijackedFuncOfAclrtRegisterCpuFuncImpl: public decltype(
-    AscendclImpHijackedType(&aclrtRegisterCpuFuncImpl)) {
+class HijackedFuncOfAclrtRegisterCpuFuncImpl : public decltype(AscendclImpHijackedType(&aclrtRegisterCpuFuncImpl)) {
 public:
     explicit HijackedFuncOfAclrtRegisterCpuFuncImpl();
 
-    void Pre(const aclrtBinHandle binHandle, const char *funcName, const char *kernelName, aclrtFuncHandle *funcHandle) override;
+    void Pre(const aclrtBinHandle binHandle, const char *funcName, const char *kernelName, aclrtFuncHandle *funcHandle)
+        override;
 
     aclError Post(aclError ret) override;
+
 private:
     const char *funcName_{nullptr};
     const char *kernelName_{nullptr};
@@ -346,27 +350,27 @@ private:
     aclrtBinHandle binHandle_{nullptr};
 };
 
-class HijackedFuncOfAclrtKernelArgsInitImpl: public decltype(
-    AscendclImpHijackedType(&aclrtKernelArgsInitImpl)) {
+class HijackedFuncOfAclrtKernelArgsInitImpl : public decltype(AscendclImpHijackedType(&aclrtKernelArgsInitImpl)) {
 public:
     explicit HijackedFuncOfAclrtKernelArgsInitImpl();
 
-    void Pre(aclrtFuncHandle funcHandle, aclrtArgsHandle *argsHandle) override;
+    void Pre(aclrtFuncHandle funcHandle, aclrtArgsHandle * argsHandle) override;
 
     aclError Post(aclError ret) override;
+
 private:
     aclrtFuncHandle funcHandle_{nullptr};
     aclrtArgsHandle *argsHandle_{nullptr};
 };
 
-class HijackedFuncOfAclrtKernelArgsAppendImpl: public decltype(
-    AscendclImpHijackedType(&aclrtKernelArgsAppendImpl)) {
+class HijackedFuncOfAclrtKernelArgsAppendImpl : public decltype(AscendclImpHijackedType(&aclrtKernelArgsAppendImpl)) {
 public:
     explicit HijackedFuncOfAclrtKernelArgsAppendImpl();
 
     void Pre(aclrtArgsHandle argsHandle, void *param, size_t paramSize, aclrtParamHandle *paramHandle) override;
 
     aclError Post(aclError ret) override;
+
 private:
     aclrtArgsHandle argsHandle_{nullptr};
     void *param_{nullptr};
@@ -374,28 +378,29 @@ private:
     aclrtParamHandle *paramHandle_{nullptr};
 };
 
-class HijackedFuncOfAclrtKernelArgsAppendPlaceHolderImpl: public decltype(
-    AscendclImpHijackedType(&aclrtKernelArgsAppendPlaceHolderImpl)) {
+class HijackedFuncOfAclrtKernelArgsAppendPlaceHolderImpl
+    : public decltype(AscendclImpHijackedType(&aclrtKernelArgsAppendPlaceHolderImpl)) {
 public:
     explicit HijackedFuncOfAclrtKernelArgsAppendPlaceHolderImpl();
 
-    void Pre(aclrtArgsHandle argsHandle, aclrtParamHandle *paramHandle) override;
+    void Pre(aclrtArgsHandle argsHandle, aclrtParamHandle * paramHandle) override;
 
     aclError Post(aclError ret) override;
+
 private:
     aclrtArgsHandle argsHandle_{nullptr};
     aclrtParamHandle *paramHandle_{nullptr};
 };
 
-class HijackedFuncOfAclrtKernelArgsGetPlaceHolderBufferImpl: public decltype(
-    AscendclImpHijackedType(&aclrtKernelArgsGetPlaceHolderBufferImpl)) {
+class HijackedFuncOfAclrtKernelArgsGetPlaceHolderBufferImpl
+    : public decltype(AscendclImpHijackedType(&aclrtKernelArgsGetPlaceHolderBufferImpl)) {
 public:
     explicit HijackedFuncOfAclrtKernelArgsGetPlaceHolderBufferImpl();
 
-    void Pre(aclrtArgsHandle argsHandle, aclrtParamHandle paramHandle,
-             size_t dataSize, void **bufferAddr) override;
+    void Pre(aclrtArgsHandle argsHandle, aclrtParamHandle paramHandle, size_t dataSize, void **bufferAddr) override;
 
     aclError Post(aclError ret) override;
+
 private:
     aclrtArgsHandle argsHandle_{nullptr};
     aclrtParamHandle paramHandle_{nullptr};
@@ -403,15 +408,15 @@ private:
     size_t dataSize_{0};
 };
 
-class HijackedFuncOfAclrtKernelArgsParaUpdateImpl: public decltype(
-    AscendclImpHijackedType(&aclrtKernelArgsParaUpdateImpl)) {
+class HijackedFuncOfAclrtKernelArgsParaUpdateImpl
+    : public decltype(AscendclImpHijackedType(&aclrtKernelArgsParaUpdateImpl)) {
 public:
     explicit HijackedFuncOfAclrtKernelArgsParaUpdateImpl();
 
-    void Pre(aclrtArgsHandle argsHandle, aclrtParamHandle paramHandle,
-             void *param, size_t paramSize) override;
+    void Pre(aclrtArgsHandle argsHandle, aclrtParamHandle paramHandle, void *param, size_t paramSize) override;
 
     aclError Post(aclError ret) override;
+
 private:
     aclrtArgsHandle argsHandle_{nullptr};
     aclrtParamHandle paramHandle_{nullptr};
@@ -419,14 +424,15 @@ private:
     size_t paramSize_{0};
 };
 
-class HijackedFuncOfAclrtKernelArgsFinalizeImpl: public decltype(
-    AscendclImpHijackedType(&aclrtKernelArgsFinalizeImpl)) {
+class HijackedFuncOfAclrtKernelArgsFinalizeImpl
+    : public decltype(AscendclImpHijackedType(&aclrtKernelArgsFinalizeImpl)) {
 public:
     explicit HijackedFuncOfAclrtKernelArgsFinalizeImpl();
 
     void Pre(aclrtArgsHandle argsHandle) override;
 
     aclError Post(aclError ret) override;
+
 private:
     aclrtArgsHandle argsHandle_{nullptr};
 };
@@ -434,74 +440,74 @@ private:
 class HijackedFuncOfAclrtGetDeviceImpl : public decltype(AscendclImpHijackedType(&aclrtGetDeviceImpl)) {
 public:
     explicit HijackedFuncOfAclrtGetDeviceImpl();
-    aclError Call(int32_t *devId) override;
+    aclError Call(int32_t * devId) override;
 };
 
 class HijackedFuncOfAclrtCreateContextImpl : public decltype(AscendclImpHijackedType(&aclrtCreateContextImpl)) {
 public:
     explicit HijackedFuncOfAclrtCreateContextImpl();
-    aclError Call(aclrtContext *context, int32_t deviceId) override;
+    aclError Call(aclrtContext * context, int32_t deviceId) override;
 };
 
 class HijackedFuncOfAclrtQueryDeviceStatusImpl : public decltype(AscendclImpHijackedType(&aclrtQueryDeviceStatusImpl)) {
 public:
     explicit HijackedFuncOfAclrtQueryDeviceStatusImpl();
-    aclError Call(int32_t deviceId, aclrtDeviceStatus *deviceStatus) override;
+    aclError Call(int32_t deviceId, aclrtDeviceStatus * deviceStatus) override;
 };
 
 class HijackedFuncOfAclrtGetDeviceCountImpl : public decltype(AscendclImpHijackedType(&aclrtGetDeviceCountImpl)) {
 public:
     explicit HijackedFuncOfAclrtGetDeviceCountImpl();
-    aclError Call(uint32_t *count) override;
+    aclError Call(uint32_t * count) override;
 };
 
 class HijackedFuncOfAclrtGetDeviceInfoImpl : public decltype(AscendclImpHijackedType(&aclrtGetDeviceInfoImpl)) {
 public:
     explicit HijackedFuncOfAclrtGetDeviceInfoImpl();
-    aclError Call(uint32_t deviceId, aclrtDevAttr attr, int64_t *value) override;
+    aclError Call(uint32_t deviceId, aclrtDevAttr attr, int64_t * value) override;
 };
 
 class HijackedFuncOfAclrtGetSocNameImpl : public decltype(HijackedFuncHelper(&aclrtGetSocNameImpl)) {
 public:
     explicit HijackedFuncOfAclrtGetSocNameImpl();
-    const char* Call() override;
-    const char* EmptyFunc() override
-    {
-        return nullptr;
-    }
+    const char *Call() override;
+    const char *EmptyFunc() override { return nullptr; }
 };
 
 class HijackedFuncOfAclrtLaunchKernelImpl : public decltype(AscendclImpHijackedType(&aclrtLaunchKernelImpl)) {
 public:
     explicit HijackedFuncOfAclrtLaunchKernelImpl();
-    aclError Call(aclrtFuncHandle funcHandle, uint32_t blockDim, const void *argsData,
-                  size_t argsSize, aclrtStream stream) override;
-    void Pre(aclrtFuncHandle funcHandle, uint32_t blockDim, const void *argsData,
-             size_t argsSize, aclrtStream stream) override;
+    aclError Call(aclrtFuncHandle funcHandle, uint32_t blockDim, const void *argsData, size_t argsSize,
+        aclrtStream stream) override;
+    void Pre(aclrtFuncHandle funcHandle, uint32_t blockDim, const void *argsData, size_t argsSize, aclrtStream stream)
+        override;
     aclError Post(aclError ret) override;
+
 private:
-    bool InitParam(aclrtFuncHandle funcHandle, uint32_t blockDim,
-                   const void *argsData, size_t argsSize, aclrtStream stream);
+    bool InitParam(
+        aclrtFuncHandle funcHandle, uint32_t blockDim, const void *argsData, size_t argsSize, aclrtStream stream);
     void ProfPre(const std::function<bool(void)> &func, const std::function<void(const std::string &)> &bbCountTask,
-                 aclrtStream stm);
+        aclrtStream stm);
     void ProfPost();
-    void ProfPreForInstrProf(const std::function<bool(void)> &func,const std::function<void(const std::string &)> &bbCountTask, rtStream_t stream);
+    void ProfPreForInstrProf(const std::function<bool(void)> &func,
+        const std::function<void(const std::string &)> &bbCountTask, rtStream_t stream);
     bool PrepareDbiTask(ProfDBIType mode, uint64_t memSize);
     void SanitizerPre();
     void SanitizerPost();
+
 private:
-    aclrtFuncHandle funcHandle_ {nullptr};
-    uint32_t blockDim_ {0};
-    aclrtStream stream_ {nullptr};
-    void *argsData_ {nullptr};
-    size_t argsSize_ {0};
-    std::shared_ptr<ProfDataCollect> profObj_ {nullptr};
-    std::function<void()> refreshParamFunc_ {nullptr};
+    aclrtFuncHandle funcHandle_{nullptr};
+    uint32_t blockDim_{0};
+    aclrtStream stream_{nullptr};
+    void *argsData_{nullptr};
+    size_t argsSize_{0};
+    std::shared_ptr<ProfDataCollect> profObj_{nullptr};
+    std::function<void()> refreshParamFunc_{nullptr};
     int32_t devId_{0};
     uint8_t *memInfo_{nullptr};
     uint64_t memSize_{0};
     FuncContextSP funcCtx_{nullptr};
-    LaunchContextSP launchCtx_ {nullptr};
+    LaunchContextSP launchCtx_{nullptr};
     ArgsContextSP newArgsCtx_{nullptr};
     ArgsContextSP argsCtx_{nullptr};
     uint64_t regId_{0};
@@ -512,35 +518,38 @@ private:
 class HijackedFuncOfAclrtLaunchKernelV2Impl : public decltype(AscendclImpHijackedType(&aclrtLaunchKernelV2Impl)) {
 public:
     explicit HijackedFuncOfAclrtLaunchKernelV2Impl();
-    aclError Call(aclrtFuncHandle funcHandle, uint32_t numBlocks, const void *argsData,
-                  size_t argsSize, aclrtLaunchKernelCfg *cfg, aclrtStream stream) override;
-    void Pre(aclrtFuncHandle funcHandle, uint32_t numBlocks, const void *argsData,
-             size_t argsSize, aclrtLaunchKernelCfg *cfg, aclrtStream stream) override;
+    aclError Call(aclrtFuncHandle funcHandle, uint32_t numBlocks, const void *argsData, size_t argsSize,
+        aclrtLaunchKernelCfg *cfg, aclrtStream stream) override;
+    void Pre(aclrtFuncHandle funcHandle, uint32_t numBlocks, const void *argsData, size_t argsSize,
+        aclrtLaunchKernelCfg *cfg, aclrtStream stream) override;
     aclError Post(aclError ret) override;
+
 private:
-    bool InitParam(aclrtFuncHandle funcHandle, uint32_t numBlocks,
-                   const void *argsData, size_t argsSize, aclrtLaunchKernelCfg *cfg, aclrtStream stream);
+    bool InitParam(aclrtFuncHandle funcHandle, uint32_t numBlocks, const void *argsData, size_t argsSize,
+        aclrtLaunchKernelCfg *cfg, aclrtStream stream);
     void ProfPre(const std::function<bool(void)> &func, const std::function<void(const std::string &)> &bbCountTask,
-                 aclrtStream stm);
+        aclrtStream stm);
     void ProfPost();
-    void ProfPreForInstrProf(const std::function<bool(void)> &func,const std::function<void(const std::string &)> &bbCountTask, rtStream_t stream);
+    void ProfPreForInstrProf(const std::function<bool(void)> &func,
+        const std::function<void(const std::string &)> &bbCountTask, rtStream_t stream);
     bool PrepareDbiTask(ProfDBIType mode, uint64_t memSize);
     void SanitizerPre();
     void SanitizerPost();
+
 private:
-    aclrtFuncHandle funcHandle_ {nullptr};
-    uint32_t numBlocks_ {0};
-    aclrtStream stream_ {nullptr};
-    void *argsData_ {nullptr};
-    size_t argsSize_ {0};
+    aclrtFuncHandle funcHandle_{nullptr};
+    uint32_t numBlocks_{0};
+    aclrtStream stream_{nullptr};
+    void *argsData_{nullptr};
+    size_t argsSize_{0};
     aclrtLaunchKernelCfg *cfg_{nullptr};
-    std::shared_ptr<ProfDataCollect> profObj_ {nullptr};
-    std::function<void()> refreshParamFunc_ {nullptr};
+    std::shared_ptr<ProfDataCollect> profObj_{nullptr};
+    std::function<void()> refreshParamFunc_{nullptr};
     int32_t devId_{0};
     uint8_t *memInfo_{nullptr};
     uint64_t memSize_{0};
     FuncContextSP funcCtx_{nullptr};
-    LaunchContextSP launchCtx_ {nullptr};
+    LaunchContextSP launchCtx_{nullptr};
     ArgsContextSP newArgsCtx_{nullptr};
     ArgsContextSP argsCtx_{nullptr};
     uint64_t regId_{0};
@@ -548,40 +557,44 @@ private:
     bool isSink_{false};
 };
 
-class HijackedFuncOfAclrtLaunchKernelWithHostArgsImpl : public decltype(AscendclImpHijackedType(&aclrtLaunchKernelWithHostArgsImpl)) {
+class HijackedFuncOfAclrtLaunchKernelWithHostArgsImpl
+    : public decltype(AscendclImpHijackedType(&aclrtLaunchKernelWithHostArgsImpl)) {
 public:
     explicit HijackedFuncOfAclrtLaunchKernelWithHostArgsImpl();
-    aclError Call(aclrtFuncHandle funcHandle, uint32_t blockDim, aclrtStream stream, aclrtLaunchKernelCfg *cfg,
-                  void *hostArgs, size_t argsSize, aclrtPlaceHolderInfo *placeHolderArray, size_t placeHolderNum) override;
-    void Pre(aclrtFuncHandle funcHandle, uint32_t blockDim, aclrtStream stream, aclrtLaunchKernelCfg *cfg,
-             void *hostArgs, size_t argsSize, aclrtPlaceHolderInfo *placeHolderArray, size_t placeHolderNum) override;
+    aclError Call(aclrtFuncHandle funcHandle, uint32_t blockDim, aclrtStream stream, aclrtLaunchKernelCfg * cfg,
+        void *hostArgs, size_t argsSize, aclrtPlaceHolderInfo *placeHolderArray, size_t placeHolderNum) override;
+    void Pre(aclrtFuncHandle funcHandle, uint32_t blockDim, aclrtStream stream, aclrtLaunchKernelCfg * cfg,
+        void *hostArgs, size_t argsSize, aclrtPlaceHolderInfo *placeHolderArray, size_t placeHolderNum) override;
     aclError Post(aclError ret) override;
+
 private:
-    bool InitParam(aclrtFuncHandle funcHandle, uint32_t blockDim, aclrtStream stream, aclrtLaunchKernelCfg *cfg,
-                   void *hostArgs, size_t argsSize, aclrtPlaceHolderInfo *placeHolderArray, size_t placeHolderNum);
+    bool InitParam(aclrtFuncHandle funcHandle, uint32_t blockDim, aclrtStream stream, aclrtLaunchKernelCfg * cfg,
+        void *hostArgs, size_t argsSize, aclrtPlaceHolderInfo *placeHolderArray, size_t placeHolderNum);
     void ProfPre(const std::function<bool(void)> &func, const std::function<void(const std::string &)> &bbCountTask,
-                 aclrtStream stm);
-    void ProfPreForInstrProf(const std::function<bool(void)> &func,const std::function<void(const std::string &)> &bbCountTask, rtStream_t stream);
+        aclrtStream stm);
+    void ProfPreForInstrProf(const std::function<bool(void)> &func,
+        const std::function<void(const std::string &)> &bbCountTask, rtStream_t stream);
     bool PrepareDbiTask(ProfDBIType mode, uint64_t memSize);
     void ProfPost();
     void SanitizerPre();
     void SanitizerPost();
+
 private:
-    aclrtFuncHandle funcHandle_ {nullptr};
-    uint32_t blockDim_ {0};
-    aclrtStream stream_ {nullptr};
-    void *hostArgs_ {nullptr};
-    size_t argsSize_ {0};
+    aclrtFuncHandle funcHandle_{nullptr};
+    uint32_t blockDim_{0};
+    aclrtStream stream_{nullptr};
+    void *hostArgs_{nullptr};
+    size_t argsSize_{0};
     aclrtLaunchKernelCfg *cfg_{nullptr};
     std::vector<aclrtPlaceHolderInfo> placeHolderArray_;
     size_t placeHolderNum_{0};
-    std::shared_ptr<ProfDataCollect> profObj_ {nullptr};
-    std::function<void()> refreshParamFunc_ {nullptr};
+    std::shared_ptr<ProfDataCollect> profObj_{nullptr};
+    std::function<void()> refreshParamFunc_{nullptr};
     int32_t devId_{0};
     uint8_t *memInfo_{nullptr};
     uint64_t memSize_{0};
     FuncContextSP funcCtx_{nullptr};
-    LaunchContextSP launchCtx_ {nullptr};
+    LaunchContextSP launchCtx_{nullptr};
     ArgsContextSP newArgsCtx_{nullptr};
     ArgsContextSP argsCtx_{nullptr};
     uint64_t regId_{0};
@@ -590,88 +603,85 @@ private:
     KernelType kernelType_{KernelType::INVALID}; // 当前funcHandle对应的kernelType
 };
 
-
-class HijackedFuncOfAclrtLaunchKernelWithConfigImpl: public decltype(
-    AscendclImpHijackedType(&aclrtLaunchKernelWithConfigImpl)) {
+class HijackedFuncOfAclrtLaunchKernelWithConfigImpl
+    : public decltype(AscendclImpHijackedType(&aclrtLaunchKernelWithConfigImpl)) {
 public:
     explicit HijackedFuncOfAclrtLaunchKernelWithConfigImpl();
 
-    void Pre(aclrtFuncHandle funcHandle, uint32_t blockDim,
-             aclrtStream stream, aclrtLaunchKernelCfg *cfg,
-             aclrtArgsHandle argsHandle, void *reserve) override;
+    void Pre(aclrtFuncHandle funcHandle, uint32_t blockDim, aclrtStream stream, aclrtLaunchKernelCfg * cfg,
+        aclrtArgsHandle argsHandle, void *reserve) override;
 
-    aclError Call(aclrtFuncHandle funcHandle, uint32_t blockDim,
-                  aclrtStream stream, aclrtLaunchKernelCfg *cfg,
-                  aclrtArgsHandle argsHandle, void *reserve) override;
+    aclError Call(aclrtFuncHandle funcHandle, uint32_t blockDim, aclrtStream stream, aclrtLaunchKernelCfg * cfg,
+        aclrtArgsHandle argsHandle, void *reserve) override;
 
     aclError Post(aclError ret) override;
 
 private:
-    bool InitParam(
-        aclrtFuncHandle funcHandle, uint32_t blockDim, aclrtStream stream,
-        aclrtLaunchKernelCfg *cfg, aclrtArgsHandle argsHandle, void *reserve);
+    bool InitParam(aclrtFuncHandle funcHandle, uint32_t blockDim, aclrtStream stream, aclrtLaunchKernelCfg * cfg,
+        aclrtArgsHandle argsHandle, void *reserve);
 
     void ProfPost();
-    void ProfPre(const std::function<bool(void)> &func,
-                 const std::function<void(const std::string &)> &bbCountTask, aclrtStream stm);
-    void ProfPreForInstrProf(const std::function<bool(void)> &func,const std::function<void(const std::string &)> &bbCountTask, rtStream_t stream);
+    void ProfPre(const std::function<bool(void)> &func, const std::function<void(const std::string &)> &bbCountTask,
+        aclrtStream stm);
+    void ProfPreForInstrProf(const std::function<bool(void)> &func,
+        const std::function<void(const std::string &)> &bbCountTask, rtStream_t stream);
     bool PrepareDbiTask(ProfDBIType mode, uint64_t memSize);
 
     void SanitizerPre();
     void SanitizerPost();
 
 private:
-    aclrtFuncHandle funcHandle_ {nullptr};
-    uint32_t blockDim_ {0};
-    aclrtStream stream_ {nullptr};
-    aclrtLaunchKernelCfg *cfg_ {nullptr};
-    aclrtArgsHandle argsHandle_ {nullptr};;
-    void *reserve_ {nullptr};
-    std::function<void()> refreshParamFunc_ {nullptr};
-    LaunchContextSP launchCtx_ {nullptr};
+    aclrtFuncHandle funcHandle_{nullptr};
+    uint32_t blockDim_{0};
+    aclrtStream stream_{nullptr};
+    aclrtLaunchKernelCfg *cfg_{nullptr};
+    aclrtArgsHandle argsHandle_{nullptr};
+    ;
+    void *reserve_{nullptr};
+    std::function<void()> refreshParamFunc_{nullptr};
+    LaunchContextSP launchCtx_{nullptr};
     uint8_t *memInfo_{nullptr};
     uint64_t memSize_{0};
-    std::shared_ptr<ProfDataCollect> profObj_ {nullptr};
+    std::shared_ptr<ProfDataCollect> profObj_{nullptr};
     bool skipSanitizer_{false}; // 是否跳过检测
     bool isSink_{false};
     uint64_t regId_{0};
     FuncContextSP funcCtx_{nullptr};
     ArgsContextSP newArgsCtx_{nullptr};
     int32_t devId_{0};
-
 };
 
-class HijackedFuncOfAclrtKernelArgsInitByUserMemImpl : public decltype(AscendclImpHijackedType(&aclrtKernelArgsInitByUserMemImpl)) {
+class HijackedFuncOfAclrtKernelArgsInitByUserMemImpl
+    : public decltype(AscendclImpHijackedType(&aclrtKernelArgsInitByUserMemImpl)) {
 public:
     explicit HijackedFuncOfAclrtKernelArgsInitByUserMemImpl();
     void Pre(aclrtFuncHandle funcHandle, aclrtArgsHandle argsHandle, void *userHostMem, size_t actualArgsSize) override;
     aclError Post(aclError ret) override;
+
 private:
     aclrtFuncHandle funcHandle_{nullptr};
     aclrtArgsHandle argsHandle_{nullptr};
 };
 
-class HijackedFuncOfAclmdlRICaptureBeginImpl: public decltype(AscendclImpHijackedType(&aclmdlRICaptureBeginImpl)) {
+class HijackedFuncOfAclmdlRICaptureBeginImpl : public decltype(AscendclImpHijackedType(&aclmdlRICaptureBeginImpl)) {
 public:
     explicit HijackedFuncOfAclmdlRICaptureBeginImpl();
     void Pre(aclrtStream stream, aclmdlRICaptureMode mode) override;
 };
 
-class HijackedFuncOfAclmdlRICaptureEndImpl: public decltype(AscendclImpHijackedType(&aclmdlRICaptureEndImpl)) {
+class HijackedFuncOfAclmdlRICaptureEndImpl : public decltype(AscendclImpHijackedType(&aclmdlRICaptureEndImpl)) {
 public:
     explicit HijackedFuncOfAclmdlRICaptureEndImpl();
-    void Pre(aclrtStream stream, aclmdlRI *modeRI) override;
+    void Pre(aclrtStream stream, aclmdlRI * modeRI) override;
 };
 
-class HijackedFuncOfAclmdlRIBindStreamImpl
-    : public decltype(AscendclImpHijackedType(&aclmdlRIBindStreamImpl)) {
+class HijackedFuncOfAclmdlRIBindStreamImpl : public decltype(AscendclImpHijackedType(&aclmdlRIBindStreamImpl)) {
 public:
     explicit HijackedFuncOfAclmdlRIBindStreamImpl();
     void Pre(aclmdlRI modelRI, aclrtStream stream, uint32_t flag) override;
 };
 
-class HijackedFuncOfAclmdlRIUnbindStreamImpl
-    : public decltype(AscendclImpHijackedType(&aclmdlRIUnbindStreamImpl)) {
+class HijackedFuncOfAclmdlRIUnbindStreamImpl : public decltype(AscendclImpHijackedType(&aclmdlRIUnbindStreamImpl)) {
 public:
     explicit HijackedFuncOfAclmdlRIUnbindStreamImpl();
     void Pre(aclmdlRI modelRI, aclrtStream stream) override;

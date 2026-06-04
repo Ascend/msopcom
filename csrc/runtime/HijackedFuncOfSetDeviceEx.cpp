@@ -14,7 +14,6 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
- 
 #include <iostream>
 #include "HijackedFunc.h"
 #include "RuntimeConfig.h"
@@ -27,7 +26,7 @@
 
 HijackedFuncOfSetDeviceEx::HijackedFuncOfSetDeviceEx()
     : HijackedFuncType(RuntimeLibName(), "rtSetDeviceEx"), devId_{0} { }
- 
+
 void HijackedFuncOfSetDeviceEx::Pre(int32_t devId)
 {
     ThreadContext::Instance().SetDeviceId(devId);

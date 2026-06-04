@@ -14,15 +14,13 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
-
 #include "AscendclOrigin.h"
 #include "core/FunctionLoader.h"
 
-#define LOAD_FUNCTION_BODY(soName, funcName, ...)                           \
+#define LOAD_FUNCTION_BODY(soName, funcName, ...) \
     FUNC_BODY(soName, funcName, Origin, ACL_ERROR_INTERNAL_ERROR, __VA_ARGS__)
 
-void AscendclOriginCtor()
-{
+void AscendclOriginCtor() {
     REGISTER_LIBRARY("ascendcl");
     REGISTER_FUNCTION("ascendcl", aclrtSetOpExecuteTimeOut);
     REGISTER_FUNCTION("ascendcl", aclrtCreateEvent);
@@ -32,32 +30,22 @@ void AscendclOriginCtor()
     REGISTER_FUNCTION("ascendcl", aclrtDestroyEvent);
 }
 
-aclError aclrtSetOpExecuteTimeOutOrigin(uint32_t timeout)
-{
+aclError aclrtSetOpExecuteTimeOutOrigin(uint32_t timeout) {
     LOAD_FUNCTION_BODY("ascendcl", aclrtSetOpExecuteTimeOut, timeout);
 }
 
-aclError aclrtCreateEventOrigin(aclrtEvent *event)
-{
-    LOAD_FUNCTION_BODY("ascendcl", aclrtCreateEvent, event);
-}
+aclError aclrtCreateEventOrigin(aclrtEvent *event) { LOAD_FUNCTION_BODY("ascendcl", aclrtCreateEvent, event); }
 
-aclError aclrtStreamWaitEventOrigin(aclrtStream stream, aclrtEvent event)
-{
+aclError aclrtStreamWaitEventOrigin(aclrtStream stream, aclrtEvent event) {
     LOAD_FUNCTION_BODY("ascendcl", aclrtStreamWaitEvent, stream, event);
 }
 
-aclError aclrtRecordEventOrigin(aclrtEvent event, aclrtStream stream)
-{
+aclError aclrtRecordEventOrigin(aclrtEvent event, aclrtStream stream) {
     LOAD_FUNCTION_BODY("ascendcl", aclrtRecordEvent, event, stream);
 }
 
-aclError aclrtResetEventOrigin(aclrtEvent event, aclrtStream stream)
-{
+aclError aclrtResetEventOrigin(aclrtEvent event, aclrtStream stream) {
     LOAD_FUNCTION_BODY("ascendcl", aclrtResetEvent, event, stream);
 }
 
-aclError aclrtDestroyEventOrigin(aclrtEvent event)
-{
-    LOAD_FUNCTION_BODY("ascendcl", aclrtDestroyEvent, event);
-}
+aclError aclrtDestroyEventOrigin(aclrtEvent event) { LOAD_FUNCTION_BODY("ascendcl", aclrtDestroyEvent, event); }

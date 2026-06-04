@@ -14,10 +14,10 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
- 
+
 #include <iostream>
 #include "HijackedFunc.h"
- 
+
 #include "core/FuncSelector.h"
 #include "runtime/inject_helpers/KernelContext.h"
 #include "RuntimeConfig.h"
@@ -25,12 +25,12 @@
 HijackedFuncOfSetExceptionExtInfo::HijackedFuncOfSetExceptionExtInfo()
     : HijackedFuncOfSetExceptionExtInfo::HijackedFuncType(
     std::string(RuntimeLibName()), std::string("rtSetExceptionExtInfo")) {}
- 
+
 void HijackedFuncOfSetExceptionExtInfo::Pre(const rtArgsSizeInfo_t * const sizeInfo)
 {
     KernelContext::Instance().SetArgsSize(sizeInfo);
 }
- 
+
 rtError_t HijackedFuncOfSetExceptionExtInfo::Post(rtError_t ret)
 {
     return ret;

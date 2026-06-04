@@ -22,13 +22,9 @@
 #include "utils/FileSystem.h"
 #include "utils/InjectLogger.h"
 
-int32_t MsprofCompactInfoReportCallbackImpl(uint32_t agingFlag, const VOID_PTR data, uint32_t len)
-{
-    return 0;
-}
+int32_t MsprofCompactInfoReportCallbackImpl(uint32_t agingFlag, const VOID_PTR data, uint32_t len) { return 0; }
 
-int32_t MsprofReportAdditionalInfoCallbackImpl(uint32_t agingFlag, const VOID_PTR data, uint32_t len)
-{
+int32_t MsprofReportAdditionalInfoCallbackImpl(uint32_t agingFlag, const VOID_PTR data, uint32_t len) {
     int32_t device = DeviceContext::GetRunningDeviceId();
     auto *hostData = static_cast<struct MsprofAdditionalInfo *>(data);
     std::string outputPath = JoinPath({GetEnv(DEVICE_PROF_DUMP_PATH_ENV), "device" + std::to_string(device)});
@@ -36,56 +32,36 @@ int32_t MsprofReportAdditionalInfoCallbackImpl(uint32_t agingFlag, const VOID_PT
         ERROR_LOG("Failed to create output path %s for aicoreTimeStamp.bin", outputPath.c_str());
         return 0;
     }
-    if (outputPath.empty() || hostData == nullptr ||
-        hostData->level != MSPROF_REPORT_AIC_LEVEL || hostData->type != MSPROF_REPORT_AIC_TIMESTAMP_TYPE) {
+    if (outputPath.empty() || hostData == nullptr || hostData->level != MSPROF_REPORT_AIC_LEVEL ||
+        hostData->type != MSPROF_REPORT_AIC_TIMESTAMP_TYPE) {
         return 0;
     }
     std::string binFile = JoinPath({outputPath, "aic_timestamp.bin"});
-    if (WriteBinary(binFile, reinterpret_cast<const char*>(&hostData->data[0]), hostData->dataLen,
-        std::ios::app) == 0) {
+    if (WriteBinary(binFile, reinterpret_cast<const char *>(&hostData->data[0]), hostData->dataLen, std::ios::app) ==
+        0) {
         WARN_LOG("Write bin failed, bin is %s", binFile.c_str());
     }
     return 0;
 }
 
-uint64_t MsprofGetHashIdImpl(const char* hashInfo, size_t len)
-{
-    return 0;
-}
+uint64_t MsprofGetHashIdImpl(const char *hashInfo, size_t len) { return 0; }
 
-int8_t MsprofHostFreqIsEnableImpl()
-{
-    return 0;
-}
+int8_t MsprofHostFreqIsEnableImpl() { return 0; }
 
-int32_t MsprofApiReporterCallbackImpl(uint32_t agingFlag, const MsprofApi * const data)
-{
-    return 0;
-}
+int32_t MsprofApiReporterCallbackImpl(uint32_t agingFlag, const MsprofApi *const data) { return 0; }
 
-int32_t MsprofEventReporterCallbackImpl(uint32_t agingFlag, const MsprofEvent* const event)
-{
-    return 0;
-}
+int32_t MsprofEventReporterCallbackImpl(uint32_t agingFlag, const MsprofEvent *const event) { return 0; }
 
-int32_t MsprofRegReportTypeInfoImpl(uint16_t level, uint32_t typeId, const char* name, size_t len)
-{
-    return 0;
-}
+int32_t MsprofRegReportTypeInfoImpl(uint16_t level, uint32_t typeId, const char *name, size_t len) { return 0; }
 
-int32_t MsprofDeviceStateImpl(VOID_PTR deviceState, uint32_t len)
-{
-    return 0;
-}
+int32_t MsprofDeviceStateImpl(VOID_PTR deviceState, uint32_t len) { return 0; }
 
-RegisterMsopprofProfileCallback * RegisterMsopprofProfileCallback::Instance()
-{
+RegisterMsopprofProfileCallback *RegisterMsopprofProfileCallback::Instance() {
     static RegisterMsopprofProfileCallback instance;
     return &instance;
 }
 
-void RegisterMsopprofProfileCallback::RegisterFuncMsprof()
-{
+void RegisterMsopprofProfileCallback::RegisterFuncMsprof() {
     if (register_) {
         return;
     }
@@ -116,8 +92,7 @@ void RegisterMsopprofProfileCallback::RegisterFuncMsprof()
     register_ = true;
 }
 
-RegisterMsopprofProfileCallback::~RegisterMsopprofProfileCallback()
-{
+RegisterMsopprofProfileCallback::~RegisterMsopprofProfileCallback() {
     if (register_) {
         for (const auto &iter : callBackFuncMap) {
             MsprofRegisterProfileCallbackOrigin(static_cast<uint32_t>(iter.first), nullptr, sizeof(VOID_PTR));
