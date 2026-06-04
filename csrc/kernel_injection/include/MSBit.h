@@ -499,8 +499,15 @@ enum class InstrType {
     MAX
 };
 
+enum class InstrForCore : uint8_t {
+    MIX = 0,
+    CUBE = 1,
+    VEC = 2
+};
+
 #if !defined(__CCE_IS_AICORE__)
-void Bind(InstrType instrType, const std::string &injectedFuncName, const std::vector<uint16_t> &paraMask);
+void Bind(InstrType instrType, const std::string &injectedFuncName, const std::vector<uint16_t> &paraMask,
+    const InstrForCore type = InstrForCore::MIX);
 #endif
 extern "C" {
 __attribute__((weak)) void MSBitAtInit();

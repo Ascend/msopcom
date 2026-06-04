@@ -104,7 +104,7 @@ public:
     bool SetConfig(const Config& config) override;
 
 private:
-    using PluginInitFunc = void(*)(const char *outputPath, uint16_t length);
+    using PluginInitFunc = void (*)(const char *outputPath, uint16_t length, const char *archName);
 
     bool GenerateOrderingFile(std::string const &kernelFile,
                               std::string const &probeFile,

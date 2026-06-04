@@ -25,14 +25,14 @@
 using namespace std;
 
 extern "C" {
-void MSBitStart(const char *output, uint16_t length);
+void MSBitStart(const char *output, uint16_t length, const char *archName);
 }
 
 TEST(MSBit, bind_probe_func_then_start_expect_gen_ctrl_bin_file)
 {
     Bind(InstrType::COPY_GM_TO_UBUF, "probe_function1", {0, 1, 2});
     string outputPath = "./tmp_ctrl.bin";
-    MSBitStart(outputPath.c_str(), outputPath.size());
+    MSBitStart(outputPath.c_str(), outputPath.size(), nullptr);
     ASSERT_TRUE(IsPathExists(outputPath));
     RemoveAll(outputPath);
 }

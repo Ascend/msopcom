@@ -98,7 +98,7 @@ TEST(CustomDBI, input_invalid_lib_path_then_set_plugin_path_convert_expect_True)
     GlobalMockObject::verify();
 }
 
-void BitMockFunc(const char *output, uint16_t length)
+void BitMockFunc(const char *output, uint16_t length, const char *)
 {
     return;
 }

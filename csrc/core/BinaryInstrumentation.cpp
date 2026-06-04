@@ -224,7 +224,7 @@ bool CustomDBI::Convert(const std::string& newKernelFile, const std::string& old
         WARN_LOG("generate kernel with probe file failed");
         return false;
     }
-    initFunc_(tempCtrlPath.c_str(), tempCtrlPath.length());
+    initFunc_(tempCtrlPath.c_str(), tempCtrlPath.length(), archName.c_str());
     if (!Chmod(tempCtrlPath, SAVE_DATA_FILE_AUTHORITY)) {
         return false;
     }
