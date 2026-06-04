@@ -81,10 +81,28 @@ public:
         funcNames_.clear();
         injectFuncIdMap_.clear();
         injectInfo_.clear();
+        type_ = InstrForCore::MIX;
     }
 
-    void Bind(InstrType instrType, const string &injectedFuncName, const vector<uint16_t> &paraMask)
-    {
+    void Init(const string &archName) {
+        if (archName.find("-vec") != std::string::npos) {
+            type_ = InstrForCore::VEC;
+        } else if (archName.find("-cube") != std::string::npos) {
+            type_ = InstrForCore::CUBE;
+        }
+    }
+
+    void Bind(InstrType instrType, const string &injectedFuncName, const vector<uint16_t> &paraMask,
+        const InstrForCore type) {
+        if (type_ != InstrForCore::MIX && type != InstrForCore::MIX) {
+            // mix op, all ctrl needed
+            // vec op, only vec probe
+            // cube op, only cube probe
+            if (type_ != type) {
+                return;
+            }
+        }
+
         if (injectFuncIdMap_.count(injectedFuncName) == 0) {
             injectFuncIdMap_[injectedFuncName] = static_cast<uint16_t>(funcNames_.size());
             funcNames_.push_back(injectedFuncName);
@@ -129,6 +147,7 @@ private:
     vector<string> funcNames_;
     unordered_map<string, uint16_t> injectFuncIdMap_;
     vector<InjectInfo> injectInfo_;
+    InstrForCore type_;
 };
 
 void WriteToBin(const string &outputData, const string &filepath)
@@ -152,9 +171,9 @@ void GenerateCtrlBin(const string &outputPath)
 }
 } // namespace
 
-void Bind(InstrType instrType, const string &injectedFuncName, const vector<uint16_t> &paraMask)
-{
-    InjectBindHelper::Instance().Bind(instrType, injectedFuncName, paraMask);
+void Bind(
+    InstrType instrType, const string &injectedFuncName, const vector<uint16_t> &paraMask, const InstrForCore type) {
+    InjectBindHelper::Instance().Bind(instrType, injectedFuncName, paraMask, type);
 }
 
 extern "C" {
@@ -163,9 +182,11 @@ void MSBitAtInit()
     return;
 }
 
-void MSBitStart(const char *output, uint16_t length)
-{
+void MSBitStart(const char *output, uint16_t length, const char *archName) {
     InjectBindHelper::Instance().Reset();
+    if (archName) {
+        InjectBindHelper::Instance().Init(string(archName));
+    }
     MSBitAtInit();
     string outputPath(output, length);
     GenerateCtrlBin(outputPath);

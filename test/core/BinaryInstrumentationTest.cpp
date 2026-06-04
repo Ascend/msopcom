@@ -103,7 +103,7 @@ void BitMockFunc(const char *output, uint16_t length)
     return;
 }
 
-void StubInitFunc(const char*, uint16_t) {}
+void StubInitFunc(const char *, uint16_t, const char *) {}
 
 TEST(CustomDBI, input_valid_lib_path_then_set_plugin_path_expect_success)
 {
