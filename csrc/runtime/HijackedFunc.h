@@ -26,6 +26,7 @@
 #include "core/HijackedFuncTemplate.h"
 #include "runtime/inject_helpers/ProfDataCollect.h"
 #include "runtime/inject_helpers/ProfConfig.h"
+#include "runtime/inject_helpers/RuntimeKernelLaunchMixin.h"
 
 template <>
 struct EmptyFuncError<rtError_t> {
@@ -70,7 +71,8 @@ private:
 }; // class HijackedFuncOfFunctionRegister
 
 // For rtKernelLaunch
-class HijackedFuncOfKernelLaunch : public decltype(HijackedFuncHelper(&rtKernelLaunch)) {
+class HijackedFuncOfKernelLaunch : public decltype(HijackedFuncHelper(&rtKernelLaunch)),
+                                   protected RuntimeKernelLaunchMixin {
 public:
     explicit HijackedFuncOfKernelLaunch();
     void Pre(const void *stubFunc, uint32_t blockDim, void *args,
@@ -92,28 +94,13 @@ private:
 private:
     const void *stubFunc_{nullptr};
     std::string bbStubFuncStr_;
-    rtDevBinary_t *stubBinPtr_{nullptr};
-    void *stubHdl_{nullptr};
-    uint32_t blockDim_{0};
     void *args_{nullptr};
     uint32_t argsSize_{0};
-    rtSmDesc_t *smDesc_{nullptr};
-    uint8_t *memInfo_{nullptr}; // 额外引入, 需要在Pre清空
-    uint64_t memSize_{0}; // 额外引入, 需要在Pre清空
-    std::vector<uint8_t> argsVec_; // 额外引入, 需要在Pre清空
-    rtStream_t stm_{};
-    std::shared_ptr<ProfDataCollect> profObj_; // 额外引入, 需要在Pre清空
-    bool skipSanitizer_{false}; // 是否跳过检测
-    uint64_t launchId_{0};
-    uint64_t regId_{0};
-    std::function<void()> refreshParamFunc_;
-    int32_t devId_{0};
-    bool isSink_{false};
-    std::vector<Elf64_Shdr> sections_;
 }; // class HijackedFuncOfKernelLaunch
 
 // For rtKernelLaunchWithHandleV2
-class HijackedFuncOfKernelLaunchWithHandleV2 : public decltype(HijackedFuncHelper(&rtKernelLaunchWithHandleV2)) {
+class HijackedFuncOfKernelLaunchWithHandleV2 : public decltype(HijackedFuncHelper(&rtKernelLaunchWithHandleV2)),
+                                               protected RuntimeKernelLaunchMixin {
 public:
     explicit HijackedFuncOfKernelLaunchWithHandleV2();
     void Pre(void *hdl, const uint64_t tilingKey, uint32_t blockDim, rtArgsEx_t *argsInfo,
@@ -139,27 +126,12 @@ private:
     void SanitizerPost();
 private:
     void *hdl_{nullptr};
-    void *stubHdl_{nullptr};
-    rtDevBinary_t *stubBinPtr_{nullptr};
     rtArgsEx_t *argsInfo_{nullptr};
-    uint8_t *memInfo_{nullptr}; // 额外引入, 需要在Pre清空
-    uint64_t memSize_{0}; // 额外引入, 需要在Pre清空
-    uint32_t blockDim_{0};
-    std::vector<uint8_t> argsVec_; // 额外引入, 需要在Pre清空
-    std::vector<rtHostInputInfo_t> hostInput_; // 额外引入, 需要在Pre清空
-    rtArgsEx_t newArgsInfo_{}; // 额外引入, 需要在Pre清空
-    rtStream_t stm_{};
-    std::shared_ptr<ProfDataCollect> profObj_; // 额外引入, 需要在Pre清空
-    bool skipSanitizer_{false}; // 是否跳过检测
-    uint64_t launchId_{0};
-    uint64_t regId_{0};
+    std::vector<rtHostInputInfo_t> hostInput_;
+    rtArgsEx_t newArgsInfo_{};
     rtSmDesc_t *smDesc_{nullptr};
     const rtTaskCfgInfo_t *cfgInfo_{nullptr};
-    std::function<void()> refreshParamFunc_;
     uint64_t tilingKey_{0};
-    int32_t devId_{0};
-    bool isSink_{false};
-    std::vector<Elf64_Shdr> sections_;
 }; // class HijackedFuncOfKernelLaunchWithHandleV2
 
 class HijackedFuncOfAiCpuKernelLaunchExWithArgs : public decltype(HijackedFuncHelper(&rtAicpuKernelLaunchExWithArgs)) {
@@ -171,7 +143,8 @@ public:
 }; // class HijackedFuncOfAiCpuKernelLaunchExWithArgs
 
 // For rtKernelLaunchWithFlagV2
-class HijackedFuncOfKernelLaunchWithFlagV2 : public decltype(HijackedFuncHelper(&rtKernelLaunchWithFlagV2)) {
+class HijackedFuncOfKernelLaunchWithFlagV2 : public decltype(HijackedFuncHelper(&rtKernelLaunchWithFlagV2)),
+                                             protected RuntimeKernelLaunchMixin {
 public:
     explicit HijackedFuncOfKernelLaunchWithFlagV2();
     void Pre(const void *stubFunc, uint32_t blockDim, rtArgsEx_t *argsInfo,
@@ -197,27 +170,11 @@ private:
 private:
     const void *stubFunc_{nullptr};
     std::string bbStubFuncStr_;
-    rtDevBinary_t *stubBinPtr_{nullptr};
-    void *stubHdl_{nullptr};
-    uint32_t blockDim_{0};
     rtArgsEx_t *argsInfo_{nullptr};
-    uint8_t *memInfo_{nullptr}; // 额外引入, 需要在Pre清空
-    uint64_t memSize_{0}; // 额外引入, 需要在Pre清空
-    std::vector<uint8_t> argsVec_; // 额外引入, 需要在Pre清空
-    std::vector<rtHostInputInfo_t> hostInput_; // 额外引入, 需要在Pre清空
-    rtArgsEx_t newArgsInfo_{}; // 额外引入, 需要在Pre清空
-    rtStream_t stm_{};
-    std::shared_ptr<ProfDataCollect> profObj_; // 额外引入, 需要在Pre清空
-    bool skipSanitizer_{false}; // 是否跳过检测
-    uint64_t launchId_{0};
-    uint64_t regId_{0};
+    std::vector<rtHostInputInfo_t> hostInput_;
+    rtArgsEx_t newArgsInfo_{};
     uint32_t flags_{0};
-    rtSmDesc_t *smDesc_{nullptr};
     const rtTaskCfgInfo_t *cfgInfo_{nullptr};
-    std::function<void()> refreshParamFunc_;
-    bool isSink_{false};
-    int32_t devId_{0};
-    std::vector<Elf64_Shdr> sections_;
 }; // class HijackedFuncOfKernelLaunchWithFlagV2
 
 // For rtDevBinaryUnRegister

@@ -25,6 +25,8 @@
 #include "runtime/inject_helpers/ProfDataCollect.h"
 #include "acl_rt_impl/AclRuntimeConfig.h"
 #include "runtime/inject_helpers/ProfConfig.h"
+#include "acl_rt_impl/AclLaunchKernelMixin.h"
+#include "acl_rt_impl/AclLaunchKernelMixin.h"
 
 class AclErrorTag;
 
@@ -474,7 +476,8 @@ public:
     const char *EmptyFunc() override { return nullptr; }
 };
 
-class HijackedFuncOfAclrtLaunchKernelImpl : public decltype(AscendclImpHijackedType(&aclrtLaunchKernelImpl)) {
+class HijackedFuncOfAclrtLaunchKernelImpl : public decltype(AscendclImpHijackedType(&aclrtLaunchKernelImpl)),
+                                            protected AclLaunchKernelMixin {
 public:
     explicit HijackedFuncOfAclrtLaunchKernelImpl();
     aclError Call(aclrtFuncHandle funcHandle, uint32_t blockDim, const void *argsData, size_t argsSize,
@@ -497,26 +500,14 @@ private:
     void SanitizerPost();
 
 private:
-    aclrtFuncHandle funcHandle_{nullptr};
     uint32_t blockDim_{0};
-    aclrtStream stream_{nullptr};
     void *argsData_{nullptr};
     size_t argsSize_{0};
-    std::shared_ptr<ProfDataCollect> profObj_{nullptr};
-    std::function<void()> refreshParamFunc_{nullptr};
-    int32_t devId_{0};
-    uint8_t *memInfo_{nullptr};
-    uint64_t memSize_{0};
-    FuncContextSP funcCtx_{nullptr};
-    LaunchContextSP launchCtx_{nullptr};
-    ArgsContextSP newArgsCtx_{nullptr};
     ArgsContextSP argsCtx_{nullptr};
-    uint64_t regId_{0};
-    bool skipSanitizer_{false}; // 是否跳过检测
-    bool isSink_{false};
 };
 
-class HijackedFuncOfAclrtLaunchKernelV2Impl : public decltype(AscendclImpHijackedType(&aclrtLaunchKernelV2Impl)) {
+class HijackedFuncOfAclrtLaunchKernelV2Impl : public decltype(AscendclImpHijackedType(&aclrtLaunchKernelV2Impl)),
+                                              protected AclLaunchKernelMixin {
 public:
     explicit HijackedFuncOfAclrtLaunchKernelV2Impl();
     aclError Call(aclrtFuncHandle funcHandle, uint32_t numBlocks, const void *argsData, size_t argsSize,
@@ -539,28 +530,16 @@ private:
     void SanitizerPost();
 
 private:
-    aclrtFuncHandle funcHandle_{nullptr};
     uint32_t numBlocks_{0};
-    aclrtStream stream_{nullptr};
     void *argsData_{nullptr};
     size_t argsSize_{0};
     aclrtLaunchKernelCfg *cfg_{nullptr};
-    std::shared_ptr<ProfDataCollect> profObj_{nullptr};
-    std::function<void()> refreshParamFunc_{nullptr};
-    int32_t devId_{0};
-    uint8_t *memInfo_{nullptr};
-    uint64_t memSize_{0};
-    FuncContextSP funcCtx_{nullptr};
-    LaunchContextSP launchCtx_{nullptr};
-    ArgsContextSP newArgsCtx_{nullptr};
     ArgsContextSP argsCtx_{nullptr};
-    uint64_t regId_{0};
-    bool skipSanitizer_{false}; // 是否跳过检测
-    bool isSink_{false};
 };
 
 class HijackedFuncOfAclrtLaunchKernelWithHostArgsImpl
-    : public decltype(AscendclImpHijackedType(&aclrtLaunchKernelWithHostArgsImpl)) {
+    : public decltype(AscendclImpHijackedType(&aclrtLaunchKernelWithHostArgsImpl)),
+      protected AclLaunchKernelMixin {
 public:
     explicit HijackedFuncOfAclrtLaunchKernelWithHostArgsImpl();
     aclError Call(aclrtFuncHandle funcHandle, uint32_t blockDim, aclrtStream stream, aclrtLaunchKernelCfg * cfg,
@@ -583,31 +562,19 @@ private:
     void SanitizerPost();
 
 private:
-    aclrtFuncHandle funcHandle_{nullptr};
     uint32_t blockDim_{0};
-    aclrtStream stream_{nullptr};
     void *hostArgs_{nullptr};
     size_t argsSize_{0};
     aclrtLaunchKernelCfg *cfg_{nullptr};
     std::vector<aclrtPlaceHolderInfo> placeHolderArray_;
     size_t placeHolderNum_{0};
-    std::shared_ptr<ProfDataCollect> profObj_{nullptr};
-    std::function<void()> refreshParamFunc_{nullptr};
-    int32_t devId_{0};
-    uint8_t *memInfo_{nullptr};
-    uint64_t memSize_{0};
-    FuncContextSP funcCtx_{nullptr};
-    LaunchContextSP launchCtx_{nullptr};
-    ArgsContextSP newArgsCtx_{nullptr};
     ArgsContextSP argsCtx_{nullptr};
-    uint64_t regId_{0};
-    bool skipSanitizer_{false}; // 是否跳过检测
-    bool isSink_{false};
-    KernelType kernelType_{KernelType::INVALID}; // 当前funcHandle对应的kernelType
+    KernelType kernelType_{KernelType::INVALID};
 };
 
 class HijackedFuncOfAclrtLaunchKernelWithConfigImpl
-    : public decltype(AscendclImpHijackedType(&aclrtLaunchKernelWithConfigImpl)) {
+    : public decltype(AscendclImpHijackedType(&aclrtLaunchKernelWithConfigImpl)),
+      protected AclLaunchKernelMixin {
 public:
     explicit HijackedFuncOfAclrtLaunchKernelWithConfigImpl();
 
@@ -635,24 +602,10 @@ private:
     void SanitizerPost();
 
 private:
-    aclrtFuncHandle funcHandle_{nullptr};
     uint32_t blockDim_{0};
-    aclrtStream stream_{nullptr};
     aclrtLaunchKernelCfg *cfg_{nullptr};
     aclrtArgsHandle argsHandle_{nullptr};
-    ;
     void *reserve_{nullptr};
-    std::function<void()> refreshParamFunc_{nullptr};
-    LaunchContextSP launchCtx_{nullptr};
-    uint8_t *memInfo_{nullptr};
-    uint64_t memSize_{0};
-    std::shared_ptr<ProfDataCollect> profObj_{nullptr};
-    bool skipSanitizer_{false}; // 是否跳过检测
-    bool isSink_{false};
-    uint64_t regId_{0};
-    FuncContextSP funcCtx_{nullptr};
-    ArgsContextSP newArgsCtx_{nullptr};
-    int32_t devId_{0};
 };
 
 class HijackedFuncOfAclrtKernelArgsInitByUserMemImpl
