@@ -65,7 +65,7 @@ struct InstrChnReadCtrl {
 };
 
 enum class ProfDBIType {
-    AS_IS = 0, // 不插桩 
+    AS_IS = 0, // 不插桩
     OPERAND_RECORD, // operand record桩
     MEMORY_CHART, // memory chart桩
     INSTR_PROF_START, // start桩
@@ -161,6 +161,7 @@ enum class ProfPacketType : uint32_t {
     POPPED_LOG,
     ICACHE_LOG,
     MTE_LOG,
+    CCU_LOG,
     INVALID,
 };
 

@@ -38,6 +38,7 @@ struct DvciCacheLog {
     uint32_t size;
     uint32_t type;
     uint8_t last;
+    char opType[32];
 };
 
 struct DvcInstrLog {
@@ -47,6 +48,13 @@ struct DvcInstrLog {
     uint32_t subCoreId;
     char decodeDescr[200];
     char execDescr[200];
+};
+
+struct DvcCcuLog {
+    uint64_t time;
+    uint64_t pc;
+    uint32_t coreId;
+    uint32_t subCoreId;
 };
 
 int DvcSetLogLevelOrigin(const uint32_t filePrintLevel, const uint32_t screenPrintLevel, const uint32_t flushLevel);

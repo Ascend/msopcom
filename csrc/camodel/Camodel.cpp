@@ -25,7 +25,7 @@
 #define LOAD_FUNCTION_BODY(soName, funcName, ...)                           \
     FUNC_BODY(soName, funcName, Origin, CAMOLDEL_ERROR_INTERNAL_ERROR, __VA_ARGS__)
 
-constexpr int LOG_TYPE = 4;
+constexpr int LOG_TYPE = 6;
 const char* const SO_NAME = "pem_davinci";
 
 int DvcSetLogLevelOrigin(const uint32_t filePrintLevel, const uint32_t screenPrintLevel, const uint32_t flushLevel)
@@ -115,12 +115,36 @@ void ICacheLog(uint64_t time, const DvcIcacheLogEntry_t *iCacheLog)
     if (iCacheLog == nullptr || iCacheLog->op == nullptr) {
         return;
     }
+    if (strcmp(iCacheLog->op, "miss_read") != 0 && strcmp(iCacheLog->op, "fetch_req") != 0) {
+        return;
+    }
+    DvciCacheLog log{};
+
     if (strcmp(iCacheLog->op, "miss_read") == 0) {
-        DvciCacheLog log = {time, iCacheLog->data.miss_read_info.addr, iCacheLog->core_id, iCacheLog->sub_core_id,
-                            iCacheLog->data.miss_read_info.size, iCacheLog->data.miss_read_info.type,
-                            iCacheLog->data.miss_read_info.last};
-        auto iCacheLogPtr = MakeUnique<CaLogMessageHolder<DvciCacheLog>>(std::move(log), ProfPacketType::ICACHE_LOG);
-        CamodelHelper::Instance().SendCaLog(std::move(iCacheLogPtr));
+        log = {time, iCacheLog->data.miss_read_info.addr, iCacheLog->core_id, iCacheLog->sub_core_id,
+            iCacheLog->data.miss_read_info.size, iCacheLog->data.miss_read_info.type,
+            iCacheLog->data.miss_read_info.last};
+    } else if (strcmp(iCacheLog->op, "fetch_req") == 0) {
+        log = {time, iCacheLog->data.fetch_req_info.addr, iCacheLog->core_id, iCacheLog->sub_core_id, 0, 0, 0};
+    }
+    size_t len = std::min(strlen(iCacheLog->op), sizeof(log.opType) - 1);
+    std::copy_n(iCacheLog->op, len, log.opType);
+    log.opType[len] = '\0';
+    auto iCacheLogPtr = MakeUnique<CaLogMessageHolder<DvciCacheLog>>(std::move(log), ProfPacketType::ICACHE_LOG);
+    CamodelHelper::Instance().SendCaLog(std::move(iCacheLogPtr));
+}
+
+void CcuLog(uint64_t time, const DvcCcuLogEntry_t *ccuLog) {
+    if (!CamodelHelper::Instance().IsEnable()) {
+        return;
+    }
+    if (ccuLog == nullptr || ccuLog->op == nullptr) {
+        return;
+    }
+    if (strcmp(ccuLog->op, "ISSUE_SUCCESS") == 0) {
+        DvcCcuLog log = {time, ccuLog->data.issue_success_info.pc, ccuLog->core_id, ccuLog->sub_core_id};
+        auto ccuLogPtr = MakeUnique<CaLogMessageHolder<DvcCcuLog>>(std::move(log), ProfPacketType::CCU_LOG);
+        CamodelHelper::Instance().SendCaLog(std::move(ccuLogPtr));
     }
 }
 
@@ -136,8 +160,12 @@ void GetSimulatorLogWithoutDump()
     dvcLogCbFnUnion[static_cast<uint32_t>(DvcLogType::DVC_INSTR_LOG)].instrLogCb = InstrLog;
     dvcLogCbFnUnion[static_cast<uint32_t>(DvcLogType::DVC_MTE_LOG)].mteLogCb = MteLog;
     dvcLogCbFnUnion[static_cast<uint32_t>(DvcLogType::DVC_ICACHE_LOG)].icacheLogCb = ICacheLog;
+    dvcLogCbFnUnion[static_cast<uint32_t>(DvcLogType::DVC_CCU_LOG)].ccuLogCb = CcuLog;
     for (uint32_t i = 0; i < LOG_TYPE; i++) {
         if (!ProfConfig::Instance().IsEnablePmSampling() && i == static_cast<uint32_t>(DvcLogType::DVC_MTE_LOG)) {
+            continue;
+        }
+        if (i == static_cast<uint32_t>(DvcLogType::DVC_IFU_LOG)) {
             continue;
         }
         auto resCb = DvcAttachLogCallbackOrigin(static_cast<DvcLogType>(i), dvcLogCbFnUnion[i]);

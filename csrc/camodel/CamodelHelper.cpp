@@ -56,6 +56,10 @@ void CamodelHelper::PopMessage()
             auto *mteLog = static_cast<CaLogMessageHolder<DvcMteLog>*>(data.get());
             ProfPacketHead head{data->GetType(), static_cast<uint32_t>(sizeof(DvcMteLog))};
             mes = Serialize(head, mteLog->GetData());
+        } else if (data->GetType() == ProfPacketType::CCU_LOG) {
+            auto *ccuLog = static_cast<CaLogMessageHolder<DvcCcuLog> *>(data.get());
+            ProfPacketHead head{data->GetType(), static_cast<uint32_t>(sizeof(DvcCcuLog))};
+            mes = Serialize(head, ccuLog->GetData());
         }
         ProfConfig::Instance().SendMsg(mes);
     }
