@@ -33,7 +33,7 @@ TEST(HijackedFuncOfIpcSetMemoryNameTest, normal_calling)
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(&LocalDevice::Notify).stubs().will(returnValue(0));
     HijackedFuncOfIpcSetMemoryName instance;
-    FuncSelector::Instance()->Set(ToolType::SANITIZER);
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
     const void *ptr = reinterpret_cast<void*>(0x12005810000);
     uint64_t byteCount = 1024;
     char *name = "IPC_MEM_NAME_01234";
@@ -53,7 +53,7 @@ TEST(HijackedFuncOfIpcSetMemoryNameTest, origin_bad_calling)
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(&LocalDevice::Notify).stubs().will(returnValue(0));
     HijackedFuncOfIpcSetMemoryName instance;
-    FuncSelector::Instance()->Set(ToolType::SANITIZER);
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
     const void *ptr = reinterpret_cast<void*>(0x12005810000);
     uint64_t byteCount = 1024;
     char *name = "IPC_MEM_NAME_01234";

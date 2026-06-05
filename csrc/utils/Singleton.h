@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <utility>
+
 
 template <typename T, bool threadLocal, typename... Args>
 class Singleton {

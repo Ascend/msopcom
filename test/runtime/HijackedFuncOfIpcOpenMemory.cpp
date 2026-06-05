@@ -33,7 +33,7 @@ TEST(HijackedFuncOfIpcOpenMemory, normal_calling)
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(&LocalDevice::Notify).stubs().will(returnValue(0));
     HijackedFuncOfIpcOpenMemory instance;
-    FuncSelector::Instance()->Set(ToolType::SANITIZER);
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
 
     void *gmPtr = nullptr;
     void **ptr = &gmPtr;
@@ -54,7 +54,7 @@ TEST(HijackedFuncOfIpcOpenMemory, origin_bad_calling)
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(&LocalDevice::Notify).stubs().will(returnValue(0));
     HijackedFuncOfIpcOpenMemory instance;
-    FuncSelector::Instance()->Set(ToolType::SANITIZER);
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
 
     void *gmPtr = nullptr;
     void **ptr = &gmPtr;

@@ -23,7 +23,7 @@
 TEST(HijackedFuncOfHcclCommInitRootInfoConfig, get_hccl_comm_normal_when_type_is_prof)
 {
     KernelContext::Instance().SetHcclComm(nullptr);
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     HijackedFuncOfHcclCommInitRootInfoConfig instance;
     HcclRootInfo rootInfo;
     HcclCommConfig config;
@@ -36,7 +36,7 @@ TEST(HijackedFuncOfHcclCommInitRootInfoConfig, get_hccl_comm_normal_when_type_is
 TEST(HijackedFuncOfHcclCommInitRootInfoConfig, get_hccl_comm_null_when_type_is_not_prof)
 {
     KernelContext::Instance().SetHcclComm(nullptr);
-    FuncSelector::Instance()->Set(ToolType::TEST);
+    FuncSelector::Instance().Set(ToolType::TEST);
     HijackedFuncOfHcclCommInitRootInfoConfig instance;
     HcclRootInfo rootInfo;
     HcclCommConfig config;

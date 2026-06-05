@@ -40,7 +40,7 @@ using namespace std;
 TEST(HijackedFuncOfAiCpuKernelLaunchExWithArgsTest, SetKernelContext_WhenProfConfigIsOpProfAndKernelTypeIsAICPU_KFC)
 {
     HijackedFuncOfAiCpuKernelLaunchExWithArgs instance;
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = false;
     instance.Call(KERNEL_TYPE_AICPU_KFC, "testOpMc2AicpuKernel", 1, nullptr, nullptr, 0, 0);
     EXPECT_TRUE(KernelContext::GetAicpuLaunchArgs().isValid);
@@ -49,7 +49,7 @@ TEST(HijackedFuncOfAiCpuKernelLaunchExWithArgsTest, SetKernelContext_WhenProfCon
 TEST(HijackedFuncOfAiCpuKernelLaunchExWithArgsTest, NotSetKernelContext_WhenKernelTypeIsNotAICPU_KFC)
 {
     HijackedFuncOfAiCpuKernelLaunchExWithArgs instance;
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = false;
     instance.Call(0, "testOp", 1, nullptr, nullptr, 0, 0);
     EXPECT_FALSE(KernelContext::GetAicpuLaunchArgs().isValid);

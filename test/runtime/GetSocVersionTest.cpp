@@ -39,12 +39,12 @@ TEST(rtGetSocVersion, call_function_not_in_prof_logical)
     uint32_t maxLen = 10;
     EXPECT_EQ(instance.Call(version, maxLen), RT_ERROR_RESERVED);
 
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = false;
     EXPECT_EQ(instance.Call(version, maxLen), RT_ERROR_RESERVED);
 
     ProfConfig::Instance().socVersion_ = "";
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = true;
     EXPECT_EQ(instance.Call(nullptr, maxLen), RT_ERROR_RESERVED);
     EXPECT_EQ(instance.Call(version, maxLen), RT_ERROR_RESERVED);
@@ -59,7 +59,7 @@ TEST(rtGetSocVersion, call_function_in_prof_logical)
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(&LocalProcess::Wait).stubs().will(returnValue(-1));
     ProfConfig::Instance().socVersion_ = "Ascend310P1";
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = true;
     HijackedFuncOfGetSocVersion instance;
     char version[100];

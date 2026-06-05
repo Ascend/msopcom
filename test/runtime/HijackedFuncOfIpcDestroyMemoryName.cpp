@@ -33,7 +33,7 @@ TEST(HijackedFuncOfIpcDestroyMemoryName, normal_calling)
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(&LocalDevice::Notify).stubs().will(returnValue(0));
     HijackedFuncOfIpcDestroyMemoryName instance;
-    FuncSelector::Instance()->Set(ToolType::SANITIZER);
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
     const char *name = "IPC_MEM_NAME_01234";
     ASSERT_EQ(instance.Call(name), RT_ERROR_RESERVED);
 
@@ -49,7 +49,7 @@ TEST(HijackedFuncOfIpcDestroyMemoryName, origin_bad_calling)
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(&LocalDevice::Notify).stubs().will(returnValue(0));
     HijackedFuncOfIpcDestroyMemoryName instance;
-    FuncSelector::Instance()->Set(ToolType::SANITIZER);
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
     const char *name = "IPC_MEM_NAME_01234";
     instance.Call(name);
     ASSERT_EQ(instance.Call(name), RT_ERROR_RESERVED);

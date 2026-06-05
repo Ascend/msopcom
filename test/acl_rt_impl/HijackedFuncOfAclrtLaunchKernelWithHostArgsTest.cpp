@@ -35,7 +35,7 @@ class HijackedFuncOfAclrtLaunchKernelWithHostArgsTest : public ContextMockHelper
 
 TEST_F(HijackedFuncOfAclrtLaunchKernelWithHostArgsTest, mock_valid_hijacked_input_then_test_call_expect_ok)
 {
-    FuncSelector::Instance()->Set(ToolType::SANITIZER);
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
     aclrtStream stream = &placeholder_;
     aclrtLaunchKernelCfg cfg{};
     HijackedFuncOfAclrtLaunchKernelWithHostArgsImpl inst;
@@ -46,7 +46,7 @@ TEST_F(HijackedFuncOfAclrtLaunchKernelWithHostArgsTest, mock_valid_hijacked_inpu
 
 TEST_F(HijackedFuncOfAclrtLaunchKernelWithHostArgsTest, input_nullptr_then_test_call_expect_no_core_dump)
 {
-    FuncSelector::Instance()->Set(ToolType::SANITIZER);
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
     HijackedFuncOfAclrtLaunchKernelWithHostArgsImpl inst;
     testing::internal::CaptureStdout();
     ASSERT_EQ(inst.Call(nullptr, 3, nullptr, nullptr, nullptr, 0, nullptr, 0), ACL_SUCCESS);
@@ -56,7 +56,7 @@ TEST_F(HijackedFuncOfAclrtLaunchKernelWithHostArgsTest, input_nullptr_then_test_
 
 TEST_F(HijackedFuncOfAclrtLaunchKernelWithHostArgsTest, call_function_msprof_simulator_init)
 {
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     std::string r;
     MOCKER(&ProfConfig::GetOutputPathFromRemote).stubs().will(returnValue(r));
     ProfConfig::Instance().profConfig_.isSimulator = true;
@@ -68,7 +68,7 @@ TEST_F(HijackedFuncOfAclrtLaunchKernelWithHostArgsTest, call_function_msprof_sim
 
 TEST_F(HijackedFuncOfAclrtLaunchKernelWithHostArgsTest, prof_gen_bbfile_and_dbifile_fail)
 {
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = false;
     MOCKER(&ProfDataCollect::IsBBCountNeedGen).stubs().will(returnValue(true));
     MOCKER(&ProfDataCollect::IsMemoryChartNeedGen).stubs().will(returnValue(true));
@@ -85,7 +85,7 @@ TEST_F(HijackedFuncOfAclrtLaunchKernelWithHostArgsTest, prof_gen_bbfile_and_dbif
 
 TEST_F(HijackedFuncOfAclrtLaunchKernelWithHostArgsTest, test_operand_record_expand_args_failed)
 {
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = false;
     MOCKER(&ProfDataCollect::IsOperandRecordNeedGen).stubs().will(returnValue(true));
     MOCKER(&RunDBITask, FuncContextSP(*)(const LaunchContextSP &)).stubs().will(returnValue(false));

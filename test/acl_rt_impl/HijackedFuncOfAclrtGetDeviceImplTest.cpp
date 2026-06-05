@@ -37,13 +37,13 @@ class HijackedFuncOfAclrtGetDeviceImplTest : public ContextMockHelper {
 TEST_F(HijackedFuncOfAclrtGetDeviceImplTest, prof_simulator_get_device_id_suc)
 {
     HijackedFuncOfAclrtGetDeviceImpl inst;
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = true;
     auto func = [](int32_t *a) -> aclError { return ACL_SUCCESS; };
     inst.originfunc_ = func;
     int32_t devId;
     ASSERT_EQ(inst.Call(&devId), ACL_SUCCESS);
-    FuncSelector::Instance()->Set(ToolType::NONE);
+    FuncSelector::Instance().Set(ToolType::NONE);
     ProfConfig::Instance().profConfig_.isSimulator = false;
 }
 
@@ -53,16 +53,16 @@ TEST_F(HijackedFuncOfAclrtGetDeviceImplTest, call_interface_faild_origin_func_is
     int32_t devId;
     instance.originfunc_ = nullptr;
     ASSERT_EQ(instance.Call(&devId), ACL_ERROR_INTERNAL_ERROR);
-    FuncSelector::Instance()->Set(ToolType::NONE);
+    FuncSelector::Instance().Set(ToolType::NONE);
 }
 
 TEST_F(HijackedFuncOfAclrtGetDeviceImplTest, call_not_prof_expect_return_success)
 {
     HijackedFuncOfAclrtGetDeviceImpl inst;
-    FuncSelector::Instance()->Set(ToolType::TEST);
+    FuncSelector::Instance().Set(ToolType::TEST);
     auto func = [](int32_t *a) -> aclError { return ACL_SUCCESS; };
     inst.originfunc_ = func;
     int32_t devId;
     ASSERT_EQ(inst.Call(&devId), ACL_SUCCESS);
-    FuncSelector::Instance()->Set(ToolType::NONE);
+    FuncSelector::Instance().Set(ToolType::NONE);
 }

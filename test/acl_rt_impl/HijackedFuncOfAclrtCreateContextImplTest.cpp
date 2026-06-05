@@ -37,13 +37,13 @@ class HijackedFuncOfAclrtCreateContextImplTest : public ContextMockHelper {
 TEST_F(HijackedFuncOfAclrtCreateContextImplTest, call_interface_suc_when_replace_to_0)
 {
     HijackedFuncOfAclrtCreateContextImpl inst;
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = true;
     int32_t deviceId;
     auto func = [](aclrtContext *context, int32_t deviceId) -> aclError { return ACL_SUCCESS; };
     inst.originfunc_ = func;
     ASSERT_EQ(inst.Call(nullptr, deviceId), ACL_SUCCESS);
-    FuncSelector::Instance()->Set(ToolType::NONE);
+    FuncSelector::Instance().Set(ToolType::NONE);
     ProfConfig::Instance().profConfig_.isSimulator = false;
 }
 
@@ -53,5 +53,5 @@ TEST_F(HijackedFuncOfAclrtCreateContextImplTest, call_interface_faild_origin_fun
     int32_t deviceId;
     instance.originfunc_ = nullptr;
     ASSERT_EQ(instance.Call(nullptr, deviceId), ACL_ERROR_INTERNAL_ERROR);
-    FuncSelector::Instance()->Set(ToolType::NONE);
+    FuncSelector::Instance().Set(ToolType::NONE);
 }

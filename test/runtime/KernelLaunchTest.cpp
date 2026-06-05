@@ -138,7 +138,7 @@ TEST(rtKernelLaunch, call_function_msprof_simulator_init)
     MOCKER(&write).stubs().will(returnValue(-1));
     MOCKER(&LocalProcess::Notify).stubs().will(returnValue(0));
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     std::string r = "";
     MOCKER(&ProfConfig::GetOutputPathFromRemote).stubs().will(returnValue(r));
     ProfConfig::Instance().profConfig_.isSimulator = true;
@@ -162,7 +162,7 @@ TEST(rtKernelLaunch, call_function_msprof_onboard_init)
     MOCKER(&write).stubs().will(returnValue(-1));
     MOCKER(&LocalProcess::Notify).stubs().will(returnValue(0));
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     std::string r = "";
     MOCKER(&ProfConfig::GetOutputPathFromRemote).stubs().will(returnValue(r));
     ProfConfig::Instance().profConfig_.isSimulator = false;
@@ -186,7 +186,7 @@ TEST(rtKernelLaunch, call_function_msprof_onboard_init_when_timeline_enable_expe
     MOCKER(&write).stubs().will(returnValue(-1));
     MOCKER(&LocalProcess::Notify).stubs().will(returnValue(0));
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     std::string r = "";
     MOCKER(&ProfConfig::GetOutputPathFromRemote).stubs().will(returnValue(r));
     ProfConfig::Instance().profConfig_.isSimulator = false;
@@ -208,7 +208,7 @@ TEST(rtKernelLaunch, call_function_msprof_onboard_init_when_timeline_enable_expe
 
 TEST(rtKernelLaunch, call_trackit_and_init_prof)
 {
-    FuncSelector::Instance()->Set(ToolType::TEST);
+    FuncSelector::Instance().Set(ToolType::TEST);
     std::string r = "";
     MOCKER(&ProfConfig::GetOutputPathFromRemote).stubs().will(returnValue(r));
     ProfConfig::Instance().profConfig_.isSimulator = false;
@@ -307,7 +307,7 @@ TEST(rtKernelLaunch, call_function_when_get_get_last_event_success_expect_report
 
 TEST(rtKernelLaunch, prof_gen_bbfile_dbifile_operandfile_fail)
 {
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     MOCKER(&ProfDataCollect::IsBBCountNeedGen).stubs().will(returnValue(true));
     MOCKER(&ProfDataCollect::IsMemoryChartNeedGen).stubs().will(returnValue(true));
     MOCKER(&ProfDataCollect::IsOperandRecordNeedGen).stubs().will(returnValue(true));
@@ -327,7 +327,7 @@ TEST(rtKernelLaunch, prof_gen_bbfile_dbifile_operandfile_fail)
 
 TEST(rtKernelLaunch, prof_gen_bbfile_dbifile_operandfile_success)
 {
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     MOCKER(&ProfDataCollect::IsBBCountNeedGen).stubs().will(returnValue(true));
     MOCKER(&ProfDataCollect::IsMemoryChartNeedGen).stubs().will(returnValue(true));
     MOCKER(&ProfDataCollect::IsOperandRecordNeedGen).stubs().will(returnValue(true));
@@ -349,7 +349,7 @@ TEST(rtKernelLaunch, prof_gen_bbfile_dbifile_operandfile_success)
 
 TEST(rtKernelLaunch, sanitizer_pre_and_expect_post_success)
 {
-    FuncSelector::Instance()->Set(ToolType::SANITIZER);
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
     MOCKER(&RunDBITask, bool(*)(const StubFunc**)).stubs().will(returnValue(true));
     uint8_t* testBuffer = new uint8_t[512];
     MOCKER(&InitMemory, uint8_t*(*)(uint64_t)).stubs().will(returnValue(testBuffer));

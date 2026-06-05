@@ -34,7 +34,7 @@ TEST(HijackedFuncOfIpcCloseMemory, normal_calling)
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(&LocalDevice::Notify).stubs().will(returnValue(0));
     HijackedFuncOfIpcCloseMemory instance;
-    FuncSelector::Instance()->Set(ToolType::SANITIZER);
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
     const void *ptr = reinterpret_cast<void*>(0x12005810000);
     ASSERT_EQ(instance.Call(ptr), RT_ERROR_RESERVED);
 
@@ -51,7 +51,7 @@ TEST(HijackedFuncOfIpcCloseMemory, origin_bad_calling)
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(&LocalDevice::Notify).stubs().will(returnValue(0));
     HijackedFuncOfIpcCloseMemory instance;
-    FuncSelector::Instance()->Set(ToolType::SANITIZER);
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
     const void *ptr = reinterpret_cast<void*>(0x12005810000);
     ASSERT_EQ(instance.Call(ptr), RT_ERROR_RESERVED);
 
@@ -73,7 +73,7 @@ TEST(HijackedFuncOfIpcCloseMemory, origin_calling_with_unmatch_response)
         .stubs()
         .will(invoke(MockHelper::WaitMockFuncF));
     HijackedFuncOfIpcCloseMemory instance;
-    FuncSelector::Instance()->Set(ToolType::SANITIZER);
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
     const void *ptr = reinterpret_cast<void*>(0x12005810000);
     ASSERT_EQ(instance.Call(ptr), RT_ERROR_RESERVED);
 

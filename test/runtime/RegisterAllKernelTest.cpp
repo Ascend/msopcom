@@ -97,7 +97,7 @@ TEST(rtRegisterAllKernel, call_function_with_fuck_hdl_input_expect_return)
 
 TEST(rtRegisterAllKernel, call_function_with_save_core_file)
 {
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     char fuckData[8] = {0};
     rtDevBinary_t a = {.magic = 0x1, .version = 0x1, .data = fuckData, .length = 8};
     rtDevBinary_t *bin = &a;

@@ -36,19 +36,19 @@ class HijackedFuncOfAclrtGetSocNameImplTest : public ContextMockHelper {
 TEST_F(HijackedFuncOfAclrtGetSocNameImplTest, prof_simulator_get_soc_version_success)
 {
     HijackedFuncOfAclrtGetSocNameImpl inst;
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = true;
     ProfConfig::Instance().socVersion_ = "Ascend910B1";
     std::string version = inst.Call();
     ASSERT_EQ(version, "Ascend910B1");
-    FuncSelector::Instance()->Set(ToolType::NONE);
+    FuncSelector::Instance().Set(ToolType::NONE);
     ProfConfig::Instance().profConfig_.isSimulator = false;
 }
 
 TEST_F(HijackedFuncOfAclrtGetSocNameImplTest, sanitizer_get_func_soc_version_success)
 {
     HijackedFuncOfAclrtGetSocNameImpl inst;
-    FuncSelector::Instance()->Set(ToolType::SANITIZER);
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
     auto func = []() -> const char* {
         return "Ascend910B1";
     };

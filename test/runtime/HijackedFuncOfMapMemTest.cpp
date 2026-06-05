@@ -33,7 +33,7 @@
 TEST(HijackedFuncOfMapMem, post)
 {
     HijackedFuncOfMapMem instance;
-    FuncSelector::Instance()->Set(ToolType::SANITIZER);
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
 
     instance.Post(RT_ERROR_NONE);
 }

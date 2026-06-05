@@ -18,12 +18,6 @@
 #include "FuncSelector.h"
 #include "utils/InjectLogger.h"
 
-FuncSelector* FuncSelector::Instance()
-{
-    static FuncSelector instance;
-    return &instance;
-}
-
 void FuncSelector::Set(ToolType toolType)
 {
     this->type_ = toolType;
@@ -53,10 +47,10 @@ bool FuncSelector::Match(ToolType toolType) const
 
 bool IsOpProf()
 {
-    return FuncSelector::Instance()->Match(ToolType::PROF);
+    return FuncSelector::Instance().Match(ToolType::PROF);
 }
 
 bool IsSanitizer()
 {
-    return FuncSelector::Instance()->Match(ToolType::SANITIZER);
+    return FuncSelector::Instance().Match(ToolType::SANITIZER);
 }

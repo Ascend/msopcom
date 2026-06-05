@@ -23,7 +23,7 @@
 TEST(HijackedFuncOfHcclCommInitClusterConfigInfo, get_hccl_comm_normal_when_type_is_prof)
 {
     KernelContext::Instance().SetHcclComm(nullptr);
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     HijackedFuncOfHcclCommInitClusterInfoConfig instance;
     char clusterInfo;
     HcclCommConfig config;
@@ -36,7 +36,7 @@ TEST(HijackedFuncOfHcclCommInitClusterConfigInfo, get_hccl_comm_normal_when_type
 TEST(HijackedFuncOfHcclCommInitClusterInfoConfig, get_hccl_comm_null_when_type_is_not_prof)
 {
     KernelContext::Instance().SetHcclComm(nullptr);
-    FuncSelector::Instance()->Set(ToolType::TEST);
+    FuncSelector::Instance().Set(ToolType::TEST);
     HijackedFuncOfHcclCommInitClusterInfoConfig instance;
     char clusterInfo;
     HcclCommConfig config;

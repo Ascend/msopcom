@@ -47,7 +47,7 @@ TEST(HijackedFuncOfMsprofNotifySetDeviceTest, aicpu_module_init_call_handle_one_
     ProfInjectHelper::Instance().handleMap_ = {{AICPU_MODULE_ID, handle}};
     uint32_t deviceId = 0;
     ProfInjectHelper::Instance().aicpuHandleCallMap_ = {{deviceId, false}};
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
 
     HijackedFuncOfMsprofNotifySetDevice instance;
     instance.Pre(0, deviceId, true);
@@ -68,7 +68,7 @@ TEST(HijackedFuncOfMsprofNotifySetDeviceTest, aicpu_module_already_init_do_not_c
     ProfInjectHelper::Instance().handleMap_ = {{AICPU_MODULE_ID, handle}};
     uint32_t deviceId = 0;
     ProfInjectHelper::Instance().aicpuHandleCallMap_ = {{deviceId, true}};
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
 
     HijackedFuncOfMsprofNotifySetDevice instance;
     instance.Pre(0, deviceId, true);
@@ -88,7 +88,7 @@ TEST(HijackedFuncOfMsprofNotifySetDeviceTest, aicpu_module_not_in_handle_map_do_
     ProfInjectHelper::Instance().handleMap_ = {};
     uint32_t deviceId = 0;
     ProfInjectHelper::Instance().aicpuHandleCallMap_ = {{deviceId, false}};
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
 
     HijackedFuncOfMsprofNotifySetDevice instance;
     instance.Pre(0, deviceId, true);
@@ -109,7 +109,7 @@ TEST(HijackedFuncOfMsprofNotifySetDeviceTest, is_open_is_false_do_not_call_handl
     ProfInjectHelper::Instance().handleMap_ = {{AICPU_MODULE_ID, handle}};
     uint32_t deviceId = 0;
     ProfInjectHelper::Instance().aicpuHandleCallMap_ = {{deviceId, false}};
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
 
     HijackedFuncOfMsprofNotifySetDevice instance;
     instance.Pre(0, deviceId, false);
@@ -130,7 +130,7 @@ TEST(HijackedFuncOfMsprofNotifySetDeviceTest, not_opprof_do_not_call_handle)
     ProfInjectHelper::Instance().handleMap_ = {{AICPU_MODULE_ID, handle}};
     uint32_t deviceId = 0;
     ProfInjectHelper::Instance().aicpuHandleCallMap_ = {{deviceId, false}};
-    FuncSelector::Instance()->Set(ToolType::NONE);
+    FuncSelector::Instance().Set(ToolType::NONE);
 
     HijackedFuncOfMsprofNotifySetDevice instance;
     instance.Pre(0, deviceId, true);

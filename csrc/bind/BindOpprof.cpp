@@ -165,7 +165,7 @@ void RegisterAscendHal()
 
 void __attribute__ ((constructor)) HijackedCtor()
 {
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
 
     RegisterRuntime();
     RuntimeOriginCtor();

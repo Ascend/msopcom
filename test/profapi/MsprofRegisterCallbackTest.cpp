@@ -42,7 +42,7 @@ int32_t CallbackHandle(uint32_t type, void *data, uint32_t len)
 TEST(HijackedFuncOfMsprofRegisterCallbackTest, aicore_module_call_handle_one_time)
 {
     g_callbackTime = 0;
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
 
     HijackedFuncOfMsprofRegisterCallback instance;
     uint32_t module = 61;
@@ -61,7 +61,7 @@ TEST(HijackedFuncOfMsprofRegisterCallbackTest, aicore_module_call_handle_one_tim
 TEST(HijackedFuncOfMsprofRegisterCallbackTest, other_module_do_not_call_handle)
 {
     g_callbackTime = 0;
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
 
     HijackedFuncOfMsprofRegisterCallback instance;
     uint32_t module = 0;
@@ -80,7 +80,7 @@ TEST(HijackedFuncOfMsprofRegisterCallbackTest, other_module_do_not_call_handle)
 TEST(HijackedFuncOfMsprofRegisterCallbackTest, not_opprof_do_not_call_handle)
 {
     g_callbackTime = 0;
-    FuncSelector::Instance()->Set(ToolType::NONE);
+    FuncSelector::Instance().Set(ToolType::NONE);
 
     HijackedFuncOfMsprofRegisterCallback instance;
     uint32_t module = 1;

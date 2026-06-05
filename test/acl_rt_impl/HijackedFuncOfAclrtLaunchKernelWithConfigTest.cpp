@@ -38,7 +38,7 @@ TEST_F(HijackedFuncOfAclrtLaunchKernelWithConfigTest, mock_valid_hijacked_input_
 {
     const std::string soc = "Ascend910B4";
     using namespace func_injection::register_function;
-    FuncSelector::Instance()->Set(ToolType::SANITIZER);
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
     aclrtStream stream = &placeholder_;
     HijackedFuncOfAclrtLaunchKernelWithConfigImpl inst;
     MOCKER(&FunctionRegister::Get).stubs().will(returnValue(stream));
@@ -56,14 +56,14 @@ TEST_F(HijackedFuncOfAclrtLaunchKernelWithConfigTest, mock_valid_hijacked_input_
 
 TEST_F(HijackedFuncOfAclrtLaunchKernelWithConfigTest, input_nullptr_then_test_call_expect_no_core_dump)
 {
-    FuncSelector::Instance()->Set(ToolType::SANITIZER);
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
     HijackedFuncOfAclrtLaunchKernelWithConfigImpl inst;
     ASSERT_EQ(inst.Call(nullptr, 3, nullptr, nullptr, nullptr, nullptr), ACL_SUCCESS);
 }
 
 TEST_F(HijackedFuncOfAclrtLaunchKernelWithConfigTest, call_function_msprof_simulator_init)
 {
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     std::string r;
     MOCKER(&ProfConfig::GetOutputPathFromRemote).stubs().will(returnValue(r));
     ProfConfig::Instance().profConfig_.isSimulator = true;
@@ -79,7 +79,7 @@ TEST_F(HijackedFuncOfAclrtLaunchKernelWithConfigTest, call_function_msprof_simul
 
 TEST_F(HijackedFuncOfAclrtLaunchKernelWithConfigTest, prof_gen_bbfile_and_dbifile_fail)
 {
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = false;
     MOCKER(&ProfDataCollect::IsBBCountNeedGen).stubs().will(returnValue(true));
     MOCKER(&ProfDataCollect::IsMemoryChartNeedGen).stubs().will(returnValue(true));
@@ -96,7 +96,7 @@ TEST_F(HijackedFuncOfAclrtLaunchKernelWithConfigTest, prof_gen_bbfile_and_dbifil
 
 TEST_F(HijackedFuncOfAclrtLaunchKernelWithConfigTest, test_operand_record_expand_args_failed)
 {
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = false;
     MOCKER(&ProfDataCollect::IsOperandRecordNeedGen).stubs().will(returnValue(true));
     MOCKER(&RunDBITask, FuncContextSP(*)(const LaunchContextSP &)).stubs().will(returnValue(false));

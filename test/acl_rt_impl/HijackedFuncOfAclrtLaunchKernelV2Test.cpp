@@ -36,7 +36,7 @@ class HijackedFuncOfAclrtLaunchKernelV2Test : public ContextMockHelper {
 
 TEST_F(HijackedFuncOfAclrtLaunchKernelV2Test, mock_valid_hijacked_input_then_test_call_expect_ok)
 {
-    FuncSelector::Instance()->Set(ToolType::SANITIZER);
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
     aclrtStream stream = &placeholder_;
     aclrtLaunchKernelCfg cfg = {nullptr, 0};
     HijackedFuncOfAclrtLaunchKernelV2Impl inst;
@@ -46,7 +46,7 @@ TEST_F(HijackedFuncOfAclrtLaunchKernelV2Test, mock_valid_hijacked_input_then_tes
 
 TEST_F(HijackedFuncOfAclrtLaunchKernelV2Test, input_nullptr_then_test_call_expect_no_core_dump)
 {
-    FuncSelector::Instance()->Set(ToolType::SANITIZER);
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
     HijackedFuncOfAclrtLaunchKernelV2Impl inst;
     testing::internal::CaptureStdout();
     ASSERT_EQ(inst.Call(nullptr, 3, nullptr, 0, nullptr, 0), ACL_SUCCESS);
@@ -56,7 +56,7 @@ TEST_F(HijackedFuncOfAclrtLaunchKernelV2Test, input_nullptr_then_test_call_expec
 
 TEST_F(HijackedFuncOfAclrtLaunchKernelV2Test, call_function_msprof_simulator_init)
 {
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     std::string r;
     MOCKER(&ProfConfig::GetOutputPathFromRemote).stubs().will(returnValue(r));
     ProfConfig::Instance().profConfig_.isSimulator = true;
@@ -72,7 +72,7 @@ TEST_F(HijackedFuncOfAclrtLaunchKernelV2Test, call_function_msprof_simulator_ini
 
 TEST_F(HijackedFuncOfAclrtLaunchKernelV2Test, prof_gen_bbfile_and_dbifile_fail)
 {
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = false;
     MOCKER(&ProfDataCollect::IsBBCountNeedGen).stubs().will(returnValue(true));
     MOCKER(&ProfDataCollect::IsMemoryChartNeedGen).stubs().will(returnValue(true));
@@ -91,7 +91,7 @@ TEST_F(HijackedFuncOfAclrtLaunchKernelV2Test, prof_gen_bbfile_and_dbifile_fail)
 
 TEST_F(HijackedFuncOfAclrtLaunchKernelV2Test, test_operand_record_expand_args_failed)
 {
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = false;
     MOCKER(&ProfDataCollect::IsOperandRecordNeedGen).stubs().will(returnValue(true));
     MOCKER(&RunDBITask, FuncContextSP(*)(const LaunchContextSP &)).stubs().will(returnValue(false));

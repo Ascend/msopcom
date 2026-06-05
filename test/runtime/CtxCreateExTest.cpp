@@ -14,7 +14,7 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
- 
+
 #include <gtest/gtest.h>
 
 #define private public
@@ -40,7 +40,7 @@ TEST(rtCtxCreateEx, call_pre_function_with_valid_device_id_expect_return)
 
 TEST(rtCtxCreateEx, prof_simulator_devid_return_zero)
 {
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = true;
     auto func = [](void **, uint32_t, int32_t) ->
         rtError_t { return RT_ERROR_NONE; };
@@ -52,6 +52,6 @@ TEST(rtCtxCreateEx, prof_simulator_devid_return_zero)
     ProfConfig::Instance().profConfig_.isSimulator = false;
     EXPECT_EQ(instance.Call(nullptr, 0, 1), RT_ERROR_NONE);
 
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     EXPECT_EQ(instance.Call(nullptr, 0, 1), RT_ERROR_NONE);
 }

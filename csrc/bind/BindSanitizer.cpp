@@ -82,7 +82,7 @@ void HijackedAscendclImplCtor()
 
 void __attribute__ ((constructor)) HijackedCtor()
 {
-    FuncSelector::Instance()->Set(ToolType::SANITIZER);
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
     REGISTER_LIBRARY("runtime");
     REGISTER_LIBRARY("ascend_dump");
     REGISTER_FUNCTION("runtime", rtSetDevice);
@@ -453,19 +453,19 @@ void MstxGetToolId(uint64_t *id)
     *id = MSTX_TOOL_MSSANITIZER_ID;
 }
 }
- 
+
 template<typename FuncIdEnum>
 using InjectionMap = std::vector<std::pair<FuncIdEnum, MstxFuncPointer>>;
- 
+
 // 各模块的映射表
 static const InjectionMap<MstxImplCoreFuncId> CoreInjections = {
     {MstxImplCoreFuncId::MSTX_API_CORE_GET_TOOL_ID, reinterpret_cast<MstxFuncPointer>(MstxGetToolId)}
 };
- 
+
 static const InjectionMap<MstxImplCoreDomainFuncId> DomainInjections = {
     {MstxImplCoreDomainFuncId::MSTX_API_CORE2_DOMAIN_CREATE_A, reinterpret_cast<MstxFuncPointer>(MstxDomainCreateA)}
 };
- 
+
 static const InjectionMap<MstxImplCoreMemFuncId> MemInjections = {
     {MstxImplCoreMemFuncId::MSTX_API_CORE_MEMHEAP_REGISTER,
         reinterpret_cast<MstxFuncPointer>(MstxMemHeapRegister)},
@@ -478,7 +478,7 @@ static const InjectionMap<MstxImplCoreMemFuncId> MemInjections = {
     {MstxImplCoreMemFuncId::MSTX_API_CORE_MEM_PERMISSIONS_ASSIGN,
         reinterpret_cast<MstxFuncPointer>(MstxMemPermissionsAssign)},
 };
- 
+
 template<typename FuncIdEnum>
 static bool InitInjectionGeneric(const MstxFuncModule &module,
     const InjectionMap<FuncIdEnum> &funcMap, MstxGetModuleFuncTableFunc getFuncTable)
@@ -497,7 +497,7 @@ static bool InitInjectionGeneric(const MstxFuncModule &module,
     }
     return injectResult;
 }
- 
+
 extern "C" __attribute__((visibility("default"))) int InitInjectionMstx(MstxGetModuleFuncTableFunc getFuncTable)
 {
     if (getFuncTable == nullptr) {

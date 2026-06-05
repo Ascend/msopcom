@@ -33,13 +33,13 @@ TEST(rtGetAiCoreCount, call_function_not_in_prof_logical)
     MOCKER(&LocalProcess::Notify).stubs().will(returnValue(1));
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(&LocalProcess::Wait).stubs().will(returnValue(-1));
-    FuncSelector::Instance()->Set(ToolType::TEST);
+    FuncSelector::Instance().Set(ToolType::TEST);
     HijackedFuncOfGetAiCoreCount instance;
     uint32_t aiCoreCnt = 1;
     instance.Call(&aiCoreCnt);
     EXPECT_EQ(aiCoreCnt, 1);
 
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = false;
     instance.Call(&aiCoreCnt);
     EXPECT_EQ(aiCoreCnt, 1);
@@ -59,7 +59,7 @@ TEST(rtGetAiCoreCount, call_function_in_prof_logical)
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(&LocalProcess::Wait).stubs().will(returnValue(-1));
     ProfConfig::Instance().socVersion_ = "Ascend310P1";
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = true;
     HijackedFuncOfGetAiCoreCount instance;
     uint32_t aiCoreCnt = 1;

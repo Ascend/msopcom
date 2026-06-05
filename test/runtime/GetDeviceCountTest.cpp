@@ -14,7 +14,7 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
- 
+
 #include <gtest/gtest.h>
 #define private public
 #define protected public
@@ -56,7 +56,7 @@ TEST(rtGetDeviceCount, get_device_count_when_prof_success)
     MOCKER(&LocalProcess::Notify).stubs().will(returnValue(0));
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     HijackedFuncOfGetDeviceCount instance;
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = true;
     int32_t cnt;
     auto ret = instance.Call(&cnt);

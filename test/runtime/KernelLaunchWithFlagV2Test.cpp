@@ -14,7 +14,7 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
- 
+
 #include <gtest/gtest.h>
 #define private public
 #define protected public
@@ -70,7 +70,7 @@ TEST(rtKernelLaunchWithFlagV2, call_pre_func_without_coverage_expect_return)
     instance.Pre(stubFunc, blockDim, argsInfo, smDesc, stm, flags, cfgInfo);
     GlobalMockObject::verify();
 }
- 
+
 TEST(rtKernelLaunchWithFlagV2, call_post_func_and_error_in_rtmalloc_expect_return)
 {
     const void *stubFunc = nullptr;
@@ -106,7 +106,7 @@ TEST(rtKernelLaunchWithFlagV2, call_post_func_and_error_in_rtmemset_expect_retur
     ASSERT_EQ(ret, RT_ERROR_NONE);
     GlobalMockObject::verify();
 }
- 
+
 TEST(rtKernelLaunchWithFlagV2, call_function_with_null_input_expect_return)
 {
     const void *stubFunc = nullptr;
@@ -186,7 +186,7 @@ TEST(rtKernelLaunchWithFlagV2, call_function_msprof_simulator_init)
     MOCKER(&write).stubs().will(returnValue(-1));
     MOCKER(&LocalProcess::Notify).stubs().will(returnValue(0));
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     std::string r = "";
     MOCKER(&ProfConfig::GetOutputPathFromRemote).stubs().will(returnValue(r));
     ProfConfig::Instance().profConfig_.isSimulator = true;
@@ -209,7 +209,7 @@ TEST(rtKernelLaunchWithFlagV2, call_function_msprof_simulator_init_when_timeline
     MOCKER(&write).stubs().will(returnValue(-1));
     MOCKER(&LocalProcess::Notify).stubs().will(returnValue(0));
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     std::string r = "";
     MOCKER(&ProfConfig::GetOutputPathFromRemote).stubs().will(returnValue(r));
     HijackedFuncOfKernelLaunchWithFlagV2 instance;
@@ -243,7 +243,7 @@ TEST(rtKernelLaunchWithFlagV2, call_trackit_and_init_prof)
 
 TEST(rtKernelLaunchWithFlagV2, prof_gen_bbfile_and_dbifile_fail)
 {
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = false;
     MOCKER(&ProfDataCollect::IsBBCountNeedGen).stubs().will(returnValue(true));
     MOCKER(&ProfDataCollect::IsMemoryChartNeedGen).stubs().will(returnValue(true));
@@ -265,7 +265,7 @@ TEST(rtKernelLaunchWithFlagV2, prof_gen_bbfile_and_dbifile_fail)
 
 TEST(rtKernelLaunchWithFlagV2, prof_gen_bbfile_and_dbifile_success)
 {
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = false;
     MOCKER(&ProfDataCollect::IsBBCountNeedGen).stubs().will(returnValue(true));
     MOCKER(&ProfDataCollect::IsMemoryChartNeedGen).stubs().will(returnValue(true));
@@ -294,7 +294,7 @@ rtError_t RtPlaceholder(const void *, unsigned int, rtArgsEx_t *,
 
 TEST(rtKernelLaunchWithFlagV2, prof_gen_bbfile_and_dbifile_success1)
 {
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = false;
     MOCKER(&RunDBITask, bool(*)(const StubFunc**)).stubs().will(returnValue(true));
     uint8_t* testBuffer = new uint8_t[512];
@@ -312,7 +312,7 @@ TEST(rtKernelLaunchWithFlagV2, prof_gen_bbfile_and_dbifile_success1)
 
 TEST(rtKernelLaunchWithFlagV2, sanitizer_pre_and_expect_post_success)
 {
-    FuncSelector::Instance()->Set(ToolType::SANITIZER);
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
     MOCKER(&RunDBITask, bool(*)(void**, const uint64_t)).stubs().will(returnValue(true));
     uint8_t* testBuffer = new uint8_t[512];
     MOCKER(&InitMemory, uint8_t*(*)(uint64_t)).stubs().will(returnValue(testBuffer));

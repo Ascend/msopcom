@@ -33,13 +33,13 @@ using namespace std;
 TEST(HalGetSocVersion, test_call_function_without_originfunc)
 {
     HijackedFuncOfHalGetSocVersion inst;
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = true;
     ProfConfig::Instance().socVersion_ = "Ascend910B1";
     uint32_t devId = 0;
     char version[2048]{};
     inst.Call(devId, version, 2048);
     ASSERT_EQ(std::string(version), "Ascend910B1");
-    FuncSelector::Instance()->Set(ToolType::NONE);
+    FuncSelector::Instance().Set(ToolType::NONE);
     ProfConfig::Instance().profConfig_.isSimulator = false;
 }

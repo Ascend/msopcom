@@ -40,7 +40,7 @@ TEST_F(HijackedFuncOfAclrtIpcMemGetExportKey, post_not_sanitizer_expect_return_s
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(&LocalDevice::Notify).stubs().will(returnValue(0));
     HijackedFuncOfAclrtIpcMemGetExportKeyImpl instance;
-    FuncSelector::Instance()->Set(ToolType::TEST);
+    FuncSelector::Instance().Set(ToolType::TEST);
 
     ASSERT_EQ(instance.Post(ACL_ERROR_NONE), ACL_ERROR_NONE);
 }
@@ -50,7 +50,7 @@ TEST_F(HijackedFuncOfAclrtIpcMemGetExportKey, post_key_nullptr_expect_return_suc
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(&LocalDevice::Notify).stubs().will(returnValue(0));
     HijackedFuncOfAclrtIpcMemGetExportKeyImpl instance;
-    FuncSelector::Instance()->Set(ToolType::SANITIZER);
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
 
     ASSERT_EQ(instance.Post(ACL_ERROR_NONE), ACL_ERROR_NONE);
 }
@@ -60,7 +60,7 @@ TEST_F(HijackedFuncOfAclrtIpcMemGetExportKey, origin_func_call_success_expect_re
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(&LocalDevice::Notify).stubs().will(returnValue(0));
     HijackedFuncOfAclrtIpcMemGetExportKeyImpl instance;
-    FuncSelector::Instance()->Set(ToolType::SANITIZER);
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
 
     void *ptr = reinterpret_cast<void*>(0x12005810000);
     uint64_t size = 1024;
@@ -81,7 +81,7 @@ TEST_F(HijackedFuncOfAclrtIpcMemGetExportKey, origin_func_call_failed_expect_ret
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(&LocalDevice::Notify).stubs().will(returnValue(0));
     HijackedFuncOfAclrtIpcMemGetExportKeyImpl instance;
-    FuncSelector::Instance()->Set(ToolType::SANITIZER);
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
 
     void *ptr = reinterpret_cast<void*>(0x12005810000);
     uint64_t size = 1024;

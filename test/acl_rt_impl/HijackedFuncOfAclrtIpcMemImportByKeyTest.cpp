@@ -40,7 +40,7 @@ TEST_F(HijackedFuncOfAclrtIpcMemImportByKey, post_not_sanitizer_expect_return_re
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(&LocalDevice::Notify).stubs().will(returnValue(0));
     HijackedFuncOfAclrtIpcMemImportByKeyImpl instance;
-    FuncSelector::Instance()->Set(ToolType::TEST);
+    FuncSelector::Instance().Set(ToolType::TEST);
 
     ASSERT_EQ(instance.Post(ACL_ERROR_NONE), ACL_ERROR_NONE);
 }
@@ -50,7 +50,7 @@ TEST_F(HijackedFuncOfAclrtIpcMemImportByKey, post_key_nullptr_expect_return_ret)
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(&LocalDevice::Notify).stubs().will(returnValue(0));
     HijackedFuncOfAclrtIpcMemImportByKeyImpl instance;
-    FuncSelector::Instance()->Set(ToolType::SANITIZER);
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
 
     ASSERT_EQ(instance.Post(ACL_ERROR_NONE), ACL_ERROR_NONE);
 }
@@ -60,7 +60,7 @@ TEST_F(HijackedFuncOfAclrtIpcMemImportByKey, post_devptr_nullptr_expect_return_r
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(&LocalDevice::Notify).stubs().will(returnValue(0));
     HijackedFuncOfAclrtIpcMemImportByKeyImpl instance;
-    FuncSelector::Instance()->Set(ToolType::SANITIZER);
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
     instance.key_ = "IPC_MEM_NAME_01234";
     ASSERT_EQ(instance.Post(ACL_ERROR_NONE), ACL_ERROR_NONE);
 }
@@ -70,7 +70,7 @@ TEST_F(HijackedFuncOfAclrtIpcMemImportByKey, origin_func_call_success_expect_ret
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(&LocalDevice::Notify).stubs().will(returnValue(0));
     HijackedFuncOfAclrtIpcMemImportByKeyImpl instance;
-    FuncSelector::Instance()->Set(ToolType::SANITIZER);
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
 
     void *ptr{};
     const char *key = "IPC_MEM_NAME_01234";
@@ -89,7 +89,7 @@ TEST_F(HijackedFuncOfAclrtIpcMemImportByKey, origin_func_call_failed_expect_retu
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(&LocalDevice::Notify).stubs().will(returnValue(0));
     HijackedFuncOfAclrtIpcMemImportByKeyImpl instance;
-    FuncSelector::Instance()->Set(ToolType::SANITIZER);
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
 
     void *ptr{};
     const char *key = "IPC_MEM_NAME_01234";

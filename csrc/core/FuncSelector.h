@@ -18,6 +18,8 @@
 #ifndef __CORE_FUNC_SELECTOR_H__
 #define __CORE_FUNC_SELECTOR_H__
 
+#include "utils/Singleton.h"
+
 enum class ToolType {
     NONE,
     PROF,
@@ -27,9 +29,9 @@ enum class ToolType {
 
 // FuncSelector类本身针对不同的工具，支持使能不同的分支
 // 通过与Bind下的文件绑定，实现特定的注入函数的选择
-class FuncSelector {
+class FuncSelector : public Singleton<FuncSelector, false> {
+    friend class Singleton<FuncSelector, false>;
 public:
-    static FuncSelector* Instance();
     void Set(ToolType toolType);
     // For Test
     bool Reset(ToolType toolType);

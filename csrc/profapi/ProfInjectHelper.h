@@ -18,14 +18,14 @@
 #define __PROF_INJECT_HELPER_H__
 #include <map>
 #include "include/thirdparty/prof.h"
+#include "utils/Singleton.h"
 
-class ProfInjectHelper {
+class ProfInjectHelper : public Singleton<ProfInjectHelper, false> {
+    friend class Singleton<ProfInjectHelper, false>;
 public:
-    static ProfInjectHelper &Instance() {
-        static ProfInjectHelper inst;
-        return inst;
-    }
     std::map<uint32_t, ProfCommandHandle> handleMap_;
     std::map<int32_t, bool> aicpuHandleCallMap_;
+private:
+    ProfInjectHelper() = default;
 };
 #endif // __PROF_INJECT_HELPER_H__

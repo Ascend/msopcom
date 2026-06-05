@@ -14,7 +14,7 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
- 
+
 #include <gtest/gtest.h>
 #include <cstdlib>
 #include <vector>
@@ -39,7 +39,7 @@ public:
     void TearDown() override
     {
         GlobalMockObject::verify();
-        FuncSelector::Instance()->Reset(ToolType::TEST);
+        FuncSelector::Instance().Reset(ToolType::TEST);
         unsetenv(DEVICE_TO_SIMULATOR);
     }
 };
@@ -54,7 +54,7 @@ TEST_F(BinaryLoadFromDataTest, fake_input_and_mock_prof_then_test_call_expect_ok
     MOCKER_CPP(&ProfConfig::IsSimulator).stubs().will(returnValue(true));
     MOCKER_CPP(&ProfDataCollect::SaveObject, bool(*)(const RegisterContextSP &)).stubs().will(returnValue(true));
 
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     setenv(DEVICE_TO_SIMULATOR, "true", 1);
     std::vector<char> elfData(100, 1);
     const void *data = static_cast<const void *>(elfData.data());
@@ -66,6 +66,6 @@ TEST_F(BinaryLoadFromDataTest, fake_input_and_mock_prof_then_test_call_expect_ok
 TEST_F(BinaryLoadFromDataTest, input_nullptr_and_mock_prof_then_test_call_expect_ok)
 {
     HijackedFuncOfAclrtBinaryLoadFromDataImpl inst;
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ASSERT_EQ(inst.Call(nullptr, 0, nullptr, nullptr), ACL_SUCCESS);
 }

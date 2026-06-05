@@ -37,7 +37,7 @@
  */
 TEST(MsprofReportAdditionalInfoCallbackImpl, write_aicore_timestamp_bin_success)
 {
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     MOCKER(rtGetDeviceOrigin).stubs().will(returnValue(1));
     std::string path = "./output";
     ASSERT_TRUE(MkdirRecusively(path));
@@ -62,7 +62,7 @@ TEST(MsprofReportAdditionalInfoCallbackImpl, write_aicore_timestamp_bin_success)
  */
 TEST(MsprofReportAdditionalInfoCallbackImpl, output_path_empty_do_not_write_bim)
 {
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     MOCKER(rtGetDeviceOrigin).stubs().will(returnValue(1));
     MsprofAdditionalInfo tempdata;
     VOID_PTR data = &tempdata;
@@ -79,7 +79,7 @@ TEST(MsprofReportAdditionalInfoCallbackImpl, output_path_empty_do_not_write_bim)
  */
 TEST(MsprofReportAdditionalInfoCallbackImpl, not_opprof_do_not_write_bin)
 {
-    FuncSelector::Instance()->Set(ToolType::NONE);
+    FuncSelector::Instance().Set(ToolType::NONE);
     MOCKER(rtGetDeviceOrigin).stubs().will(returnValue(1));
 
     MsprofAdditionalInfo tempdata;

@@ -30,7 +30,7 @@
 TEST(HijackedFuncOfGetDeviceInfoTest, prof_simulator_get_device_info_success)
 {
     HijackedFuncOfGetDeviceInfo instance;
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = true;
     uint32_t deviceId = 0;
     int32_t moduleType = 0;
@@ -47,14 +47,14 @@ TEST(HijackedFuncOfGetDeviceInfoTest, prof_simulator_get_device_info_success)
     ASSERT_EQ(value, 36);
     ASSERT_EQ(instance.Call(deviceId, static_cast<int32_t>(tagRtDeviceModuleType::RT_MODULE_TYPE_VECTOR_CORE), infoType, &value), RT_ERROR_NONE);
     ASSERT_EQ(value, 72);
-    FuncSelector::Instance()->Set(ToolType::NONE);
+    FuncSelector::Instance().Set(ToolType::NONE);
     ProfConfig::Instance().profConfig_.isSimulator = false;
 }
 
 TEST(HijackedFuncOfGetDeviceInfoTest, isNotSimulator)
 {
     HijackedFuncOfGetDeviceInfo instance;
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = false;
     uint32_t deviceId = 0;
     int32_t moduleType = 0;
@@ -62,13 +62,13 @@ TEST(HijackedFuncOfGetDeviceInfoTest, isNotSimulator)
     int64_t *val = nullptr;
 
     ASSERT_EQ(instance.Call(deviceId, moduleType, infoType, val), RT_ERROR_RESERVED);
-    FuncSelector::Instance()->Set(ToolType::NONE);
+    FuncSelector::Instance().Set(ToolType::NONE);
 }
 
 TEST(HijackedFuncOfGetDeviceInfoTest, isSimulator_with_originfunc)
 {
     HijackedFuncOfGetDeviceInfo instance;
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = true;
     uint32_t deviceId = 0;
     int32_t moduleType = 0;
@@ -78,5 +78,5 @@ TEST(HijackedFuncOfGetDeviceInfoTest, isSimulator_with_originfunc)
             rtError_t { return RT_ERROR_NONE; };
     instance.originfunc_ = func;
     ASSERT_EQ(instance.Call(deviceId, moduleType, infoType, val), RT_ERROR_NONE);
-    FuncSelector::Instance()->Set(ToolType::NONE);
+    FuncSelector::Instance().Set(ToolType::NONE);
 }

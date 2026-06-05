@@ -14,7 +14,7 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
- 
+
 #include <gtest/gtest.h>
 #include <dlfcn.h>
 #define private public
@@ -44,7 +44,7 @@ TEST(rtGetDevice, call_pre_function_when_prof_success)
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(&LocalProcess::Notify).stubs().will(returnValue(0));
     HijackedFuncOfGetDevice instance;
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = true;
     int32_t cnt;
     auto ret = instance.Call(&cnt);
@@ -57,7 +57,7 @@ TEST(rtGetDevice, call_function_normal)
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(&LocalProcess::Notify).stubs().will(returnValue(0));
     HijackedFuncOfGetDevice instance;
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = true;
     int32_t cnt;
     auto func = [](int32_t *a) -> rtError_t { return RT_ERROR_NONE; };
@@ -65,16 +65,16 @@ TEST(rtGetDevice, call_function_normal)
     auto ret = instance.Call(&cnt);
     ASSERT_EQ(ret, RT_ERROR_NONE);
 
-    FuncSelector::Instance()->Set(ToolType::SANITIZER);
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
     ret = instance.Call(&cnt);
     ASSERT_EQ(ret, RT_ERROR_NONE);
 
-    FuncSelector::Instance()->Set(ToolType::SANITIZER);
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
     ProfConfig::Instance().profConfig_.isSimulator = false;
     ret = instance.Call(&cnt);
     ASSERT_EQ(ret, RT_ERROR_NONE);
 
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = false;
     ret = instance.Call(&cnt);
     ASSERT_EQ(ret, RT_ERROR_NONE);

@@ -14,7 +14,7 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
- 
+
 #include <gtest/gtest.h>
 #include <cstdlib>
 #include "mockcpp/mockcpp.hpp"
@@ -38,7 +38,7 @@ public:
     void TearDown() override
     {
         GlobalMockObject::verify();
-        FuncSelector::Instance()->Reset(ToolType::TEST);
+        FuncSelector::Instance().Reset(ToolType::TEST);
         unsetenv(DEVICE_TO_SIMULATOR);
     }
 };
@@ -52,7 +52,7 @@ TEST_F(BinaryLoadTest, fake_input_and_mock_prof_then_test_binary_load_expect_ok)
     MOCKER_CPP(&ProfConfig::IsSimulator).stubs().will(returnValue(true));
     MOCKER_CPP(&ProfDataCollect::SaveObject, bool(*)(const RegisterContextSP &)).stubs().will(returnValue(true));
 
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     setenv(DEVICE_TO_SIMULATOR, "true", 1);
     uint32_t binary;
     aclrtBinary bin = &binary;
@@ -63,7 +63,7 @@ TEST_F(BinaryLoadTest, fake_input_and_mock_prof_then_test_binary_load_expect_ok)
 TEST_F(BinaryLoadTest, input_nullptr_and_mock_prof_then_test_binary_load_expect_ok)
 {
     HijackedFuncOfAclrtBinaryLoadImpl inst;
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ASSERT_EQ(inst.Call(nullptr, nullptr), ACL_SUCCESS);
 }
 
@@ -75,7 +75,7 @@ TEST_F(BinaryLoadTest, fake_input_and_mock_prof_then_test_create_binary_call_exp
     MOCKER_CPP(&ProfConfig::IsSimulator).stubs().will(returnValue(true));
     MOCKER_CPP(&ProfDataCollect::SaveObject, bool(*)(const RegisterContextSP &)).stubs().will(returnValue(true));
 
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     setenv(DEVICE_TO_SIMULATOR, "true", 1);
     uint32_t binary;
     const void *data = &binary;
@@ -86,6 +86,6 @@ TEST_F(BinaryLoadTest, fake_input_and_mock_prof_then_test_create_binary_call_exp
 TEST_F(BinaryLoadTest, input_nullptr_and_mock_prof_then_test_create_binary_call_expect_ok)
 {
     HijackedFuncOfAclrtCreateBinaryImpl inst;
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ASSERT_NE(inst.Call(nullptr, 0), nullptr);
 }

@@ -14,7 +14,7 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
- 
+
 #include <gtest/gtest.h>
 #define private public
 #include "runtime/inject_helpers/ProfConfig.h"
@@ -65,7 +65,7 @@ TEST(rtKernelLaunchWithHandleV2, call_pre_func_without_coverage_expect_return)
     instance.Pre(hdl, tilingKey, blockDim, &argsInfo, smDesc, stm, cfgInfo);
     GlobalMockObject::verify();
 }
- 
+
 TEST(rtKernelLaunchWithHandleV2, call_post_func_and_error_in_rtmalloc_expect_return)
 {
     void *hdl = nullptr;
@@ -101,7 +101,7 @@ TEST(rtKernelLaunchWithHandleV2, call_post_func_and_error_in_rtmemset_expect_ret
     ASSERT_EQ(ret, RT_ERROR_NONE);
     GlobalMockObject::verify();
 }
- 
+
 TEST(rtKernelLaunchWithHandleV2, call_function_with_null_input_expect_return)
 {
     void *hdl = nullptr;
@@ -111,7 +111,7 @@ TEST(rtKernelLaunchWithHandleV2, call_function_with_null_input_expect_return)
     rtSmDesc_t *smDesc = nullptr;
     rtStream_t stm = nullptr;
     const rtTaskCfgInfo_t *cfgInfo = nullptr;
- 
+
     MOCKER(&func_injection::FunctionLoader::Get).stubs().will(returnValue((void*)nullptr));
     HijackedFuncOfKernelLaunchWithHandleV2 instance;
     auto ret = instance.Call(hdl, tilingKey, blockDim, argsInfo, smDesc, stm, cfgInfo);
@@ -186,7 +186,7 @@ TEST(rtKernelLaunchWithHandleV2, call_post_func_and_expand_args_expect_return)
 
 TEST(rtKernelLaunchWithHandleV2, call_function_msprof_simulator_init)
 {
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     MOCKER(&write).stubs().will(returnValue(-1));
     MOCKER(&LocalProcess::Notify).stubs().will(returnValue(0));
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
@@ -209,7 +209,7 @@ TEST(rtKernelLaunchWithHandleV2, call_function_msprof_simulator_init)
 
 TEST(rtKernelLaunchWithHandleV2, call_function_msprof_onboard_init)
 {
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     MOCKER(&write).stubs().will(returnValue(-1));
     MOCKER(&LocalProcess::Notify).stubs().will(returnValue(0));
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
@@ -246,7 +246,7 @@ TEST(rtKernelLaunchWithHandleV2, call_trackit_and_init_prof)
 
 TEST(rtKernelLaunchWithHandleV2, prof_gen_bbfile_and_dbifile_fail)
 {
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = false;
     MOCKER(&ProfDataCollect::IsBBCountNeedGen).stubs().will(returnValue(true));
     MOCKER(&ProfDataCollect::IsMemoryChartNeedGen).stubs().will(returnValue(true));
@@ -262,7 +262,7 @@ TEST(rtKernelLaunchWithHandleV2, prof_gen_bbfile_and_dbifile_fail)
 
 TEST(rtKernelLaunchWithHandleV2, prof_gen_bbfile_and_dbifile_success)
 {
-    FuncSelector::Instance()->Set(ToolType::PROF);
+    FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = false;
     MOCKER(&ProfDataCollect::IsBBCountNeedGen).stubs().will(returnValue(true));
     MOCKER(&ProfDataCollect::IsMemoryChartNeedGen).stubs().will(returnValue(true));
@@ -279,7 +279,7 @@ TEST(rtKernelLaunchWithHandleV2, prof_gen_bbfile_and_dbifile_success)
 
 TEST(rtKernelLaunchWithHandleV2, sanitizer_pre_and_expect_post_success)
 {
-    FuncSelector::Instance()->Set(ToolType::SANITIZER);
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
     MOCKER(&RunDBITask, bool(*)(void**, const uint64_t)).stubs().will(returnValue(true));
     uint8_t* testBuffer = new uint8_t[512];
     MOCKER(&InitMemory, uint8_t*(*)(uint64_t)).stubs().will(returnValue(testBuffer));
