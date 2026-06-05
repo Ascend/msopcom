@@ -36,6 +36,7 @@
 #include "runtime/inject_helpers/MemoryDataCollect.h"
 #include "runtime/inject_helpers/BBCountDumper.h"
 #include "runtime/inject_helpers/DBITask.h"
+#include "runtime/inject_helpers/DbiRecordTaskHelper.h"
 #include "runtime/inject_helpers/LaunchArgs.h"
 #include "runtime/inject_helpers/MemGuard.h"
 #include "runtime/inject_helpers/SyncStreamWithInterrupt.h"
@@ -295,51 +296,33 @@ void HijackedFuncOfAclrtLaunchKernelImpl::SanitizerPost()
     }
 }
 
+void HijackedFuncOfAclrtLaunchKernelImpl::RunDbiRecordTask(ProfDBIType mode, const char *failedLog)
+{
+    if (!DbiRecordTaskHelper::IsNeedGen(profObj_.get(), mode)) {
+        return;
+    }
+    aclrtSynchronizeStreamImplOrigin(stream_);
+    uint64_t memSize = DbiRecordTaskHelper::GetDbiRecordMemSize(mode, blockDim_);
+    if (!PrepareDbiTask(mode, memSize) || originfunc_ == nullptr) {
+        return;
+    }
+    originfunc_(funcHandle_, blockDim_, argsData_, argsSize_, stream_);
+    aclError ret = aclrtSynchronizeStreamImplOrigin(stream_);
+    if (ret == ACL_SUCCESS) {
+        DbiRecordTaskHelper::CollectData(profObj_.get(), mode, memSize_, memInfo_);
+        return;
+    }
+    WARN_LOG("%s", failedLog);
+}
+
 void HijackedFuncOfAclrtLaunchKernelImpl::ProfPost()
 {
     if (profObj_->IsBBCountNeedGen()) {
         aclrtSynchronizeStreamImplOrigin(stream_);
         profObj_->GenBBcountFile(regId_, memSize_, memInfo_);
     }
-    if (profObj_->IsMemoryChartNeedGen()) {
-        aclrtSynchronizeStreamImplOrigin(stream_);
-        uint64_t memSize = BLOCK_MEM_SIZE * GetCoreNumForDbi(blockDim_);
-        if (PrepareDbiTask(ProfDBIType::MEMORY_CHART, memSize) && originfunc_ != nullptr) {
-            originfunc_(funcHandle_, blockDim_, argsData_, argsSize_, stream_);
-            aclError ret = aclrtSynchronizeStreamImplOrigin(stream_);
-            if (ret == ACL_SUCCESS) {
-                profObj_->GenDBIData(memSize_, memInfo_);
-            } else {
-                WARN_LOG("Run dbi func failed");
-            }
-        }
-    }
-    if (profObj_->IsOperandRecordNeedGen()) {
-        aclrtSynchronizeStreamImplOrigin(stream_);
-        uint64_t sizePerAllType = static_cast<uint32_t>(OperandType::END) * sizeof(OperandRecord) + SIMT_THREAD_GAP;
-        uint64_t memSize = sizeof(OperandHeader) + (sizePerAllType * (MAX_THREAD_NUM + 1) + BLOCK_GAP) *  GetCoreNumForDbi(blockDim_);
-        if (PrepareDbiTask(ProfDBIType::OPERAND_RECORD, memSize) && originfunc_ != nullptr) {
-            originfunc_(funcHandle_, blockDim_, argsData_, argsSize_, stream_);
-            aclError ret = aclrtSynchronizeStreamImplOrigin(stream_);
-            if (ret == ACL_SUCCESS) {
-                profObj_->GenRecordData(memSize_, memInfo_, OPERAND_RECORD);
-            } else {
-                WARN_LOG("Run operand record func failed");
-            }
-        }
-    }
-    if (profObj_->IsWarpTimelineNeedGen()) {
-        aclrtSynchronizeStreamImplOrigin(stream_);
-        uint64_t memSize = GetWarpTimelineMemSize(blockDim_);
-        if (PrepareDbiTask(ProfDBIType::WARP_TIMELINE, memSize) && originfunc_ != nullptr) {
-            originfunc_(funcHandle_, blockDim_, argsData_, argsSize_, stream_);
-            aclError ret = aclrtSynchronizeStreamImplOrigin(stream_);
-            if (ret == ACL_SUCCESS) {
-                profObj_->GenRecordData(memSize_, memInfo_, WARP_TIMELINE);
-            } else {
-                WARN_LOG("Run warp timeline func failed");
-            }
-        }
+    for (const auto &task : DbiRecordTaskHelper::DBI_RECORD_TASKS) {
+        RunDbiRecordTask(task.mode, task.aclFailedLog);
     }
     profObj_->PostProcess();
 }

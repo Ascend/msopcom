@@ -86,12 +86,6 @@ uint64_t GetCoreNumForDbi(uint64_t blockDim)
     return blockDim * 3;
 }
 
-uint64_t GetWarpTimelineMemSize(uint64_t blockDim)
-{
-    constexpr uint64_t blockSize = sizeof(WarpHeader) + WARP_NUM_PER_BLOCK * sizeof(WarpRecord) + BLOCK_GAP;
-    return blockSize * GetCoreNumForDbi(blockDim);
-}
-
 bool ProfConfig::IsEnableLogTrans() const
 {
     return isCaLogTrans_;

@@ -35,6 +35,7 @@
 #include "runtime/inject_helpers/DeviceContext.h"
 #include "runtime/inject_helpers/KernelReplacement.h"
 #include "runtime/inject_helpers/DBITask.h"
+#include "runtime/inject_helpers/DbiRecordTaskHelper.h"
 #include "runtime/inject_helpers/MemoryDataCollect.h"
 #include "runtime/inject_helpers/InstrReport.h"
 #include "runtime/inject_helpers/ProfConfig.h"
@@ -164,6 +165,25 @@ void HijackedFuncOfKernelLaunchWithHandleV2::ProfPre(const std::function<bool(vo
     }
 }
 
+void HijackedFuncOfKernelLaunchWithHandleV2::RunDbiRecordTask(ProfDBIType mode)
+{
+    if (!DbiRecordTaskHelper::IsNeedGen(profObj_.get(), mode)) {
+        return;
+    }
+    rtStreamSynchronizeOrigin(stm_);
+    uint64_t memSize = DbiRecordTaskHelper::GetDbiRecordMemSize(mode, blockDim_);
+    if (!PrepareDbiTask(mode, memSize) || originfunc_ == nullptr) {
+        return;
+    }
+    originfunc_(hdl_, tilingKey_, blockDim_, &newArgsInfo_, smDesc_, stm_, cfgInfo_);
+    rtError_t launchRet = rtStreamSynchronizeOrigin(stm_);
+    if (launchRet != RT_ERROR_NONE) {
+        WARN_LOG("%s, ret is %d.", DbiRecordTaskHelper::GetRtFailedLogPrefix(mode), launchRet);
+        return;
+    }
+    DbiRecordTaskHelper::CollectData(profObj_.get(), mode, memSize_, memInfo_);
+}
+
 void HijackedFuncOfKernelLaunchWithHandleV2::ProfPost()
 {
     if (profObj_->IsBBCountNeedGen()) {
@@ -174,46 +194,8 @@ void HijackedFuncOfKernelLaunchWithHandleV2::ProfPost()
             profObj_->GenBBcountFile(regId_, this->memSize_, this->memInfo_);
         }
     }
-    if (profObj_->IsMemoryChartNeedGen()) {
-        rtStreamSynchronizeOrigin(stm_);
-        auto blockDim = GetCoreNumForDbi(blockDim_);
-        uint64_t memSize = BLOCK_MEM_SIZE * blockDim;
-        if (PrepareDbiTask(ProfDBIType::MEMORY_CHART, memSize) && originfunc_ != nullptr) {
-            originfunc_(hdl_, tilingKey_, blockDim_, &newArgsInfo_, smDesc_, stm_, cfgInfo_);
-            rtError_t memchartLaunchRet = rtStreamSynchronizeOrigin(this->stm_);
-            if (memchartLaunchRet != RT_ERROR_NONE) {
-                WARN_LOG("Memory chart kernel launch failed, ret is %d.", memchartLaunchRet);
-            } else {
-                profObj_->GenDBIData(memSize_, memInfo_);
-            }
-        }
-    }
-    if (profObj_->IsOperandRecordNeedGen()) {
-        rtStreamSynchronizeOrigin(stm_);
-        uint64_t sizePerAllType = static_cast<uint32_t>(OperandType::END) * sizeof(OperandRecord) + SIMT_THREAD_GAP;
-        uint64_t memSize = sizeof(OperandHeader) + (sizePerAllType * (MAX_THREAD_NUM + 1) + BLOCK_GAP) * GetCoreNumForDbi(blockDim_);
-        if (PrepareDbiTask(ProfDBIType::OPERAND_RECORD, memSize) && originfunc_ != nullptr) {
-            originfunc_(hdl_, tilingKey_, blockDim_, &newArgsInfo_, smDesc_, stm_, cfgInfo_);
-            rtError_t opRecordLaunchRet = rtStreamSynchronizeOrigin(this->stm_);
-            if (opRecordLaunchRet != RT_ERROR_NONE) {
-                WARN_LOG("Operand record kernel launch failed, ret is %d.", opRecordLaunchRet);
-            } else {
-                profObj_->GenRecordData(memSize_, memInfo_, OPERAND_RECORD);
-            }
-        }
-    }
-    if (profObj_->IsWarpTimelineNeedGen()) {
-        rtStreamSynchronizeOrigin(stm_);
-        uint64_t memSize = GetWarpTimelineMemSize(blockDim_);
-        if (PrepareDbiTask(ProfDBIType::WARP_TIMELINE, memSize) && originfunc_ != nullptr) {
-            originfunc_(hdl_, tilingKey_, blockDim_, &newArgsInfo_, smDesc_, stm_, cfgInfo_);
-            rtError_t warpTimelineLaunchRet = rtStreamSynchronizeOrigin(this->stm_);
-            if (warpTimelineLaunchRet != RT_ERROR_NONE) {
-                WARN_LOG("Warp timeline kernel launch failed, ret is %d.", warpTimelineLaunchRet);
-            } else {
-                profObj_->GenRecordData(memSize_, memInfo_, WARP_TIMELINE);
-            }
-        }
+    for (const auto &task : DbiRecordTaskHelper::DBI_RECORD_TASKS) {
+        RunDbiRecordTask(task.mode);
     }
     profObj_->PostProcess();
 }

@@ -86,6 +86,7 @@ private:
     void SanitizerPre();
     bool PrepareDbiTask(ProfDBIType mode, uint64_t memSize);
     void ProfPost();
+    void RunDbiRecordTask(ProfDBIType mode);
     void SanitizerPost() const;
     void ProfPreForInstrProf(const std::function<bool(void)> &func, const std::function<void(const std::string &)> &bbCountTask, rtStream_t stm);
 private:
@@ -134,6 +135,7 @@ private:
     void SanitizerPre();
 
     void ProfPost();
+    void RunDbiRecordTask(ProfDBIType mode);
     void SanitizerPost();
 private:
     void *hdl_{nullptr};
@@ -189,6 +191,7 @@ private:
     void SanitizerPre();
 
     void ProfPost();
+    void RunDbiRecordTask(ProfDBIType mode);
     void SanitizerPost();
 
 private:

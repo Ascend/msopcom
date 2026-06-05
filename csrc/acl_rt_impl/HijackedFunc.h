@@ -492,6 +492,7 @@ private:
     void ProfPreForInstrProf(const std::function<bool(void)> &func,
         const std::function<void(const std::string &)> &bbCountTask, rtStream_t stream);
     bool PrepareDbiTask(ProfDBIType mode, uint64_t memSize);
+    void RunDbiRecordTask(ProfDBIType mode, const char *failedLog);
     void SanitizerPre();
     void SanitizerPost();
 
@@ -533,6 +534,7 @@ private:
     void ProfPreForInstrProf(const std::function<bool(void)> &func,
         const std::function<void(const std::string &)> &bbCountTask, rtStream_t stream);
     bool PrepareDbiTask(ProfDBIType mode, uint64_t memSize);
+    void RunDbiRecordTask(ProfDBIType mode, const char *failedLog);
     void SanitizerPre();
     void SanitizerPost();
 
@@ -576,6 +578,7 @@ private:
         const std::function<void(const std::string &)> &bbCountTask, rtStream_t stream);
     bool PrepareDbiTask(ProfDBIType mode, uint64_t memSize);
     void ProfPost();
+    void RunDbiRecordTask(ProfDBIType mode, const char *failedLog);
     void SanitizerPre();
     void SanitizerPost();
 
@@ -626,6 +629,7 @@ private:
     void ProfPreForInstrProf(const std::function<bool(void)> &func,
         const std::function<void(const std::string &)> &bbCountTask, rtStream_t stream);
     bool PrepareDbiTask(ProfDBIType mode, uint64_t memSize);
+    void RunDbiRecordTask(ProfDBIType mode, const char *failedLog);
 
     void SanitizerPre();
     void SanitizerPost();
