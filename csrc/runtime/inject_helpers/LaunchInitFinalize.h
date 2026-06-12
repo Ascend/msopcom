@@ -74,7 +74,7 @@ private:
     bool BlockHeadD2H(size_t blockIdx);
     bool SimdRecordD2H();
     bool SimtErrorD2H();
-    bool ShadowMemoryD2H();
+    void UpdateShadowMemoryOffset();
     bool SimtEntryD2H();
     void ReportBlockInfo();
 

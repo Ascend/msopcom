@@ -174,108 +174,6 @@ void SendKernelBlock(const std::string &body, int curBlkIdx, int totalBlkIdx) {
     }
 }
 
-uint8_t CountOneBits(uint64_t number) {
-    uint8_t count = 0;
-    while (number != 0) {
-        number &= number - 1;
-        ++count;
-    }
-    return count;
-}
-
-/// 把threadId按三维展开为(x,y,z)
-inline void DecomposeThreadId(uint16_t threadId, RecordBlockHead const &head, SimtThreadLocation &threadLoc) {
-    uint16_t threadXDim = head.blockInfo.threadXDim;
-    uint16_t threadYDim = head.blockInfo.threadYDim;
-    if (threadXDim == 0 || threadYDim == 0) {
-        ERROR_LOG("threadXDim or threadYDim equal 0 error in blockId:%d", head.blockInfo.blockId);
-        return;
-    }
-    threadLoc.idX = threadId % threadXDim;
-    threadLoc.idY = (threadId % (threadXDim * threadYDim)) / threadXDim;
-    threadLoc.idZ = threadId / (threadXDim * threadYDim);
-}
-
-inline bool IsReadStatus(MemoryByteStatus memStatus) {
-    return (memStatus == MemoryByteStatus::GLOBAL_READ) || (memStatus == MemoryByteStatus::READ);
-}
-
-void MergeSmRecord(
-    std::vector<ShadowMemoryRecord> &records, uint64_t status, uint64_t addr, RecordBlockHead const &head) {
-    ShadowMemoryRecord record{};
-    record.addr = addr;
-    record.size = 1;
-    MemoryByteStatus memStatus =
-        static_cast<MemoryByteStatus>((status >> MEMORY_STATUS_START_BIT) & MEMORY_STATUS_MASK);
-    OnlineMemoryType memType = static_cast<OnlineMemoryType>((status >> MEMORY_TYPE_START_BIT) & MEMORY_TYPE_MASK);
-    record.space = memType == OnlineMemoryType::GM ? AddressSpace::GM : AddressSpace::UB;
-    record.accessType = IsReadStatus(memStatus) ? AccessType::READ : AccessType::WRITE;
-    uint16_t threadId = status & THREAD_ID_MASK;
-    DecomposeThreadId(threadId, head, record.threadLoc);
-    record.location.pc = (status >> PC_START_BIT) & PC_MASK;
-    record.location.blockId = head.blockInfo.blockId;
-    if (records.size() == 0) {
-        records.emplace_back(record);
-        return;
-    }
-    auto &back = records.back();
-    if (back.location == record.location && back.accessType == record.accessType && back.space == record.space &&
-        back.threadLoc == record.threadLoc) {
-        if (back.addr + back.size == record.addr) {
-            back.size += record.size;
-            return;
-        }
-    }
-    records.emplace_back(record);
-}
-
-inline void ParseSmL2Table(uint64_t *l2TblPtr, size_t l0Idx, size_t l1Idx, RecordBlockHead const &head,
-    std::vector<ShadowMemoryRecord> &records) {
-    uint8_t l1OneBits = CountOneBits(ONLINE_LOCAL_MEM_MASK);
-    uint8_t l2OneBits = CountOneBits(ONLINE_ONE_SM_STAND_FOR_BYTE - 1);
-    for (size_t l2Idx = 0; l2Idx < ONLINE_ONE_SM_STAND_FOR_BYTE; ++l2Idx) {
-        uint64_t status = l2TblPtr[l2Idx];
-        MemoryByteStatus memStatus =
-            static_cast<MemoryByteStatus>((status >> MEMORY_STATUS_START_BIT) & MEMORY_STATUS_MASK);
-        OnlineMemoryType memType = static_cast<OnlineMemoryType>((status >> MEMORY_TYPE_START_BIT) & MEMORY_TYPE_MASK);
-        if ((memStatus != MemoryByteStatus::DEFAULT) &&
-            (memType == OnlineMemoryType::GM || memType == OnlineMemoryType::UB)) {
-            uint64_t addr = (l0Idx << l1OneBits) | (l1Idx << l2OneBits) | l2Idx;
-            MergeSmRecord(records, status, addr, head);
-        }
-    }
-}
-
-inline void ParseSmL1Table(uint8_t *memInfoHost, uint64_t smBaseAddr, RecordBlockHead const &head, size_t l0Idx,
-    std::vector<ShadowMemoryRecord> &records) {
-    uint64_t l1TblNum = (ONLINE_LOCAL_MEM_MASK + ONLINE_ONE_SM_STAND_FOR_BYTE - 1U) / ONLINE_ONE_SM_STAND_FOR_BYTE;
-    auto l0TblPtr = reinterpret_cast<uint64_t *>(memInfoHost + sizeof(ShadowMemoryHeapHead));
-    uint64_t l1TblOffset = l0TblPtr[l0Idx] - smBaseAddr;
-    auto l1TblPtr = reinterpret_cast<uint64_t *>(memInfoHost + l1TblOffset);
-    for (size_t l1Idx = 0; l1Idx < l1TblNum; ++l1Idx) {
-        if ((l1TblPtr[l1Idx] == 0x0) || (l1TblPtr[l1Idx] == static_cast<uint64_t>(OnlineSmAddrStatus::UNALLOCATABLE)) ||
-            (l1TblPtr[l1Idx] == static_cast<uint64_t>(OnlineSmAddrStatus::LOCKED_BY_OTHER_THREADS))) {
-            continue;
-        }
-        uint64_t l2TblOffset = l1TblPtr[l1Idx] - smBaseAddr;
-        auto l2TblPtr = reinterpret_cast<uint64_t *>(memInfoHost + l2TblOffset);
-        ParseSmL2Table(l2TblPtr, l0Idx, l1Idx, head, records);
-    }
-}
-
-inline void ParseSmTable(
-    uint8_t *memInfoHost, uint64_t smBaseAddr, RecordBlockHead const &head, std::vector<ShadowMemoryRecord> &records) {
-    uint64_t l0TblNum = (ONLINE_GLOBAL_MEM_MASK + ONLINE_LOCAL_MEM_MASK - 1U) / ONLINE_LOCAL_MEM_MASK;
-    auto l0TblPtr = reinterpret_cast<uint64_t *>(memInfoHost + sizeof(ShadowMemoryHeapHead));
-    for (size_t l0Idx = 0; l0Idx < l0TblNum; ++l0Idx) {
-        if ((l0TblPtr[l0Idx] == 0x0) || (l0TblPtr[l0Idx] == static_cast<uint64_t>(OnlineSmAddrStatus::UNALLOCATABLE)) ||
-            (l0TblPtr[l0Idx] == static_cast<uint64_t>(OnlineSmAddrStatus::LOCKED_BY_OTHER_THREADS))) {
-            continue;
-        }
-        ParseSmL1Table(memInfoHost, smBaseAddr, head, l0Idx, records);
-    }
-}
-
 void ReportParaBase(RecordBlockHead const &head, ParaBaseRegister &paraBase, bool &isReportParaBase) {
     const auto &paraBaseInfo = head.paraBase;
     if (!isReportParaBase && paraBaseInfo.addr != ILLEGAL_ADDR && paraBaseInfo.size != 0) {
@@ -750,36 +648,8 @@ bool SanitizerLaunchFinalize::SimtErrorD2H() {
     return true;
 }
 
-bool SanitizerLaunchFinalize::ShadowMemoryD2H() {
-    if (aclrtMemcpyImplOrigin(memInfoHost_, blockRemainSize_,
-            memInfoBackUp_ + globalHead_->offsetInfo.shadowMemoryInfo.offset,
-            globalHead_->offsetInfo.shadowMemoryInfo.size, ACL_MEMCPY_DEVICE_TO_HOST) != ACL_ERROR_NONE) {
-        ERROR_LOG("finalize memcpy shadow memory error");
-        return false;
-    }
-    uint64_t smBaseAddr = reinterpret_cast<uint64_t>(memInfoBackUp_) + globalHead_->offsetInfo.shadowMemoryInfo.offset;
-    std::vector<ShadowMemoryRecord> records;
-    ParseSmTable(memInfoHost_, smBaseAddr, *blockHead_, records);
-
-    ShadowMemoryRecordHead shadowMemoryHead{};
-    shadowMemoryHead.recordCount = records.size();
-    if (aclrtMemcpyImplOrigin(memInfoHost_, blockRemainSize_, &shadowMemoryHead, sizeof(shadowMemoryHead),
-            ACL_MEMCPY_HOST_TO_HOST) != ACL_ERROR_NONE) {
-        ERROR_LOG("finalize memcpy shadow memory record head error");
-        return false;
-    }
-    if (records.size() == 0U) {
-        UpdateOffsetStatus(sizeof(shadowMemoryHead));
-        return true;
-    }
-    if (aclrtMemcpyImplOrigin(memInfoHost_ + sizeof(shadowMemoryHead), blockRemainSize_ - sizeof(shadowMemoryHead),
-            records.data(), records.size() * sizeof(ShadowMemoryRecord), ACL_MEMCPY_HOST_TO_HOST) != ACL_ERROR_NONE) {
-        ERROR_LOG("finalize memcpy shadow memory record error");
-        return false;
-    }
-    uint64_t smTotalSize = sizeof(shadowMemoryHead) + records.size() * sizeof(ShadowMemoryRecord);
-    UpdateOffsetStatus(smTotalSize);
-    return true;
+void SanitizerLaunchFinalize::UpdateShadowMemoryOffset() {
+    UpdateOffsetStatus(0, globalHead_->offsetInfo.shadowMemoryInfo.size);
 }
 
 bool SanitizerLaunchFinalize::SimtEntryD2H() {
@@ -830,17 +700,12 @@ void SanitizerLaunchFinalize::ReportBlockInfo() {
                 break;
             }
 
-            // 5. copy shadowMemory
-            if (!ShadowMemoryD2H()) {
-                break;
-            }
-
-            // 6. copy simt entry to host
+            // 5. copy simt entry to host
             if (!SimtEntryD2H()) {
                 break;
             }
         }
-        // 7. 偏移memInfo到下一个核的开头，并还原指针和变量位置
+        // 6. 偏移memInfo到下一个核的开头，并还原指针和变量位置
         auto body = Serialize(sendMemorySize_);
         body.append(static_cast<char *>(static_cast<void *>(memInfoHostBackUp_)), sendMemorySize_);
         SendKernelBlock(body, blockIdx, totalBlockDim);
