@@ -71,7 +71,7 @@ inline bool ValidateElfHeaderSafety(const Elf64_Ehdr &elfHeader, std::size_t max
         static_cast<size_t>(elfHeader.e_shnum - 1) * static_cast<size_t>(elfHeader.e_shentsize)) {
         return false;
     }
-    
+
     return true;
 }
 
@@ -107,9 +107,9 @@ template <typename T>
 bool ReadArrayFromBuffer(const std::vector<char> &buffer, std::size_t offset, std::size_t count, std::vector<T> &values)
 {
     static_assert(std::is_standard_layout<T>::value, "T is not standard layout.");
-    if (buffer.size() < offset + count * sizeof(T)) {
-        ERROR_LOG("Read out of bound, data [0, %zu), read [%zu, %zu).", buffer.size(), offset,
-                  offset + count * sizeof(T));
+    if (count > SIZE_MAX / sizeof(T) || buffer.size() < offset + count * sizeof(T)) {
+        ERROR_LOG("Read out of bound or overflow, data [0, %zu), read [%zu, %zu).", buffer.size(), offset,
+            offset + count * sizeof(T));
         return false;
     }
     values.resize(count);
@@ -190,7 +190,7 @@ bool ElfLoader::FromBuffer(const std::vector<char> &buffer)
         ERROR_LOG("read name section header failed when load elf from buffer");
         return false;
     }
-    
+
     std::vector<char> nameBuffer;
     if (!elf::ReadArrayFromBuffer<char>(buffer, nameSecHeader.sh_offset, nameSecHeader.sh_size, nameBuffer)) {
         ERROR_LOG("read header names failed when load elf from buffer");
@@ -206,7 +206,12 @@ bool ElfLoader::FromBuffer(const std::vector<char> &buffer)
             ERROR_LOG("read elf section header failed when load elf from buffer");
             return false;
         }
-        
+
+        if (sectionHeader.sh_name >= nameBuffer.size() || nameBuffer.data()[nameBuffer.size() - 1] != '\0') {
+            ERROR_LOG(
+                "section name offset %u out of bounds or nameBuffer not null-terminated.", sectionHeader.sh_name);
+            return false;
+        }
         std::string sectionName = std::string{nameBuffer.data() + sectionHeader.sh_name};
         sections_[sectionName] = sectionHeader;
     }

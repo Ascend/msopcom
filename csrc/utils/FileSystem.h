@@ -31,7 +31,7 @@ constexpr mode_t DIR_DEFAULT_MOD = 0750;
 constexpr char const *PATH_SEP = "/";
 constexpr uint64_t MAX_MEM_BYTE_SIZE = 32212254720; // 30G for file and memory malloc
 const mode_t SAVE_DATA_FILE_AUTHORITY = 0640;
-constexpr int DIR_NAME_LENGTH_LIMIT = 2048;
+constexpr int DIR_NAME_LENGTH_LIMIT = 4096;
 constexpr int FILE_NAME_LENGTH_LIMIT = 255;
 
 enum class PATH_TYPE {
@@ -52,7 +52,7 @@ inline bool IsExecutable(const std::string &checkPath)
     struct stat fileStat{};
     return (stat(checkPath.c_str(), &fileStat) == 0) && (fileStat.st_mode & S_IXUSR) != 0;
 }
- 
+
 inline std::string JoinPath(const std::vector<std::string> &pathVectorList)
 {
     return Join(pathVectorList.begin(), pathVectorList.end(), PATH_SEP);

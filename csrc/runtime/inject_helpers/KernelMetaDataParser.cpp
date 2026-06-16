@@ -61,6 +61,10 @@ bool IsSupportDfxPointPtr(DfxPointerType type)
 bool KernelMetaDataParser::Parse()
 {
     auto shSize = metaData_.size();
+    if (shSize == 0) {
+        WARN_LOG("Parse meta data failed, empty metadata");
+        return false;
+    }
     uint32_t index {0U};
     while (index < shSize - 1) {
         // 2个字节的小端表示当前type类型，当前仅仅处理4和6，4表示meta dfx数据需要解析，6表示当前算子为tik算子，解析atomic时需要特殊处理
@@ -212,4 +216,3 @@ void KernelMetaDataParser::ParseKernelArgs(uint32_t &index)
         paramsIdx++;
     }
 }
-

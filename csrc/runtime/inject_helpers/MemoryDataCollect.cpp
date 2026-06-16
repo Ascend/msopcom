@@ -69,10 +69,10 @@ bool IsSameMemInfoSrc(MemInfoSrc lhs, MemInfoSrc rhs)
 
 inline bool IsAddrInRange(uint64_t addr, uint64_t size, uint64_t thresholdAddr, uint64_t thresholdSize)
 {
-    if (addr >= thresholdAddr && thresholdSize >= size && addr + size <= thresholdAddr + thresholdSize) {
-        return true;
+    if (addr > UINT64_MAX - size || thresholdAddr > UINT64_MAX - thresholdSize) {
+        return false;
     }
-    return false;
+    return addr >= thresholdAddr && addr + size <= thresholdAddr + thresholdSize;
 }
 
 inline bool hasExtra(std::set<KernelContext::AddrInfo> &addrsVec)

@@ -263,6 +263,10 @@ bool CustomDBI::SetConfig(const Config& config)
             config.archName.c_str());
         return false;
     }
+    if (!CheckInputFileValid(pluginPath, "so")) {
+        DEBUG_LOG("Invalid dbi config, plugin path check failed");
+        return false;
+    }
     handle_ = dlopen(pluginPath.c_str(), RTLD_LAZY);
     if (handle_ == nullptr) {
         DEBUG_LOG("Invalid dbi config, dlopen %s failed", pluginPath.c_str());

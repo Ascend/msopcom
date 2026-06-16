@@ -97,7 +97,7 @@ bool MkdirRecusively(std::string const &path, mode_t mode)
     if (IsDir(path)) {
         return true;
     }
- 
+
     std::string current;
     for (auto it = dirs.cbegin(); it != dirs.cend(); ++it) {
         if (it == dirs.cbegin()) {
@@ -391,7 +391,7 @@ bool CheckWriteFilePathValid(std::string &path)
 // Get the absolute path of so form  LD_LIBRARY_PATH
 std::string GetSoFromEnvVar(const std::string &soName)
 {
-    char const *ldEnv = getenv("LD_LIBRARY_PATH");
+    char const *ldEnv = secure_getenv("LD_LIBRARY_PATH");
     if (ldEnv == nullptr) {
         return "";
     }

@@ -125,6 +125,7 @@ bool DomainSocketServer::Accept(ClientId &id)
     }
     if (getuid() != cred.uid || getgid() != cred.gid) {
         WARN_LOG("client SO_PEERCRED check permission failed, recv id: uid=%d, gid=%d", cred.uid, cred.gid);
+        close(cfd);
         return false;
     }
 

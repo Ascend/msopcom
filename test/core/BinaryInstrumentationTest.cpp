@@ -116,6 +116,10 @@ TEST(CustomDBI, input_valid_lib_path_then_set_plugin_path_expect_success)
         MOCKER(&dlsym).stubs().will(returnValue(res));
         CustomDBI dbi;
         BinaryInstrumentation::Config config{"./libmem_trace.so", "dav-c220"};
+        FILE *fp = fopen(config.pluginPath.c_str(), "w");
+        if (fp != nullptr) {
+            fclose(fp);
+        }
         bool ret = dbi.SetConfig(config);
         EXPECT_TRUE(ret);
         remove(config.pluginPath.c_str());
@@ -138,6 +142,10 @@ TEST(CustomDBI, input_valid_lib_path_then_convert_expect_success)
         // this need be destructor to call dlopen before mock verify
         CustomDBI dbi;
         BinaryInstrumentation::Config config{"./libmem_trace.so", ".ascend910B"};
+        FILE *fp = fopen(config.pluginPath.c_str(), "w");
+        if (fp != nullptr) {
+            fclose(fp);
+        }
         bool ret = dbi.SetConfig(config);
         ret = dbi.Convert("new_kernel.o", "old_kernel.o");
         EXPECT_TRUE(ret);
@@ -161,6 +169,10 @@ TEST(CustomDBI, input_valid_lib_path_then_convert_expect_fail)
         // this need be destructor to call dlopen before mock verify
         CustomDBI dbi;
         BinaryInstrumentation::Config config{"./libmem_trace.so", ".ascend910B"};
+        FILE *fp2 = fopen(config.pluginPath.c_str(), "w");
+        if (fp2 != nullptr) {
+            fclose(fp2);
+        }
         bool ret = dbi.SetConfig(config);
         ret = dbi.Convert("new_kernel.o", "old_kernel.o", "1");
         EXPECT_TRUE(ret);
