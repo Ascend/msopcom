@@ -107,7 +107,7 @@ void RegisterAscendCl()
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtBinaryLoadFromDataImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtCreateBinaryImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtBinaryLoadImpl);
-    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtRegisterCpuFuncImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtGetFuncBySymbolImpl);
 }
 
 // 上板注册libruntime.so，仿真注册libruntime_camodel.so
@@ -151,6 +151,7 @@ void RegisterRuntime()
     REGISTER_FUNCTION(soName, rtKernelLaunchWithHandle);
     REGISTER_FUNCTION(soName, rtDeviceResetEx);
     REGISTER_FUNCTION(soName, rtDeviceStatusQuery);
+    REGISTER_FUNCTION(soName, rtRegisterFuncSymbol);
     if (isSimulator) {
         GET_FUNCTION(soName, "rtSetDevice");
     }
@@ -388,6 +389,17 @@ rtError_t rtDeviceStatusQuery(const uint32_t devId, rtDeviceStatus *deviceStatus
     return instance.Call(devId, deviceStatus);
 }
 
+rtError_t rtRegisterFuncSymbol(void *binHandle, const void *symbol, const char *kernelName, void *reserve)
+{
+    PRINT_ENTER_INSTRUMENTOR;
+    HijackedFuncOfRegisterFuncSymbol instance;
+    if (HijackedLayerManager::Instance().ParentInCallStack(__func__)) {
+        return instance.OriginCall(binHandle, symbol, kernelName, reserve);
+    }
+    return instance.Call(binHandle, symbol, kernelName, reserve);
+}
+
+
 rtError_t rtCtxCreateV2(void **createCtx, uint32_t flags, int32_t devId, rtDeviceMode deviceMode)
 {
     PRINT_ENTER_INSTRUMENTOR;
@@ -584,6 +596,13 @@ aclError aclrtRegisterCpuFuncImpl(const aclrtBinHandle binHandle, const char *fu
     PRINT_ENTER_INSTRUMENTOR;
     HijackedFuncOfAclrtRegisterCpuFuncImpl instance;
     return instance.Call(binHandle, funcName, kernelName, funcHandle);
+}
+
+aclError aclrtGetFuncBySymbolImpl(const void *symbol, aclrtFuncHandle *funcHandle)
+{
+    PRINT_ENTER_INSTRUMENTOR;
+    HijackedFuncOfAclrtGetFuncBySymbolImpl instance;
+    return instance.Call(symbol, funcHandle);
 }
 
 aclError aclrtKernelArgsAppendImpl(aclrtArgsHandle argsHandle, void *param, size_t paramSize,

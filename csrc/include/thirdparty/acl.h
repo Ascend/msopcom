@@ -286,7 +286,7 @@ aclError aclrtGetFunctionAttributeImpl(aclrtFuncHandle funcHandle, aclrtFuncAttr
 aclError aclrtLaunchCallbackImpl(aclrtCallback fn, void *userData, aclrtCallbackBlockType blockType, aclrtStream stream);
 aclError aclrtProcessReportImpl(int32_t timeout);
 aclError aclrtSubscribeReportImpl(uint64_t threadId, aclrtStream stream);
-
+aclError aclrtGetFuncBySymbolImpl(const void *symbol, aclrtFuncHandle *funcHandle);
 #ifdef __cplusplus
 } // extern "C"
 #endif

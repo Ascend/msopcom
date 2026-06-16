@@ -78,6 +78,7 @@ void HijackedAscendclImplCtor()
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtBinaryLoadImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtGetFunctionAttributeImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtRegisterCpuFuncImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtGetFuncBySymbolImpl);
 }
 
 void __attribute__ ((constructor)) HijackedCtor()
@@ -109,6 +110,7 @@ void __attribute__ ((constructor)) HijackedCtor()
     REGISTER_FUNCTION("runtime", rtGetL2CacheOffset);
     REGISTER_FUNCTION("runtime", rtCtxGetOverflowAddr);
     REGISTER_FUNCTION("runtime", rtDeviceSetLimit);
+    REGISTER_FUNCTION("runtime", rtRegisterFuncSymbol);
     REGISTER_FUNCTION("ascend_dump", AdumpGetDFXInfoAddrForDynamic);
     RuntimeOriginCtor();
     AscendclOriginCtor();
@@ -269,6 +271,15 @@ rtError_t rtSetExceptionExtInfo(const rtArgsSizeInfo_t *const sizeInfo)
     PRINT_ENTER_INSTRUMENTOR;
     HijackedFuncOfSetExceptionExtInfo instance;
     return instance.Call(sizeInfo);
+}
+
+rtError_t rtRegisterFuncSymbol(void *binHandle, const void *symbol, const char *kernelName, void *reserve) {
+    PRINT_ENTER_INSTRUMENTOR;
+    HijackedFuncOfRegisterFuncSymbol instance;
+    if (HijackedLayerManager::Instance().ParentInCallStack(__func__)) {
+        return instance.OriginCall(binHandle, symbol, kernelName, reserve);
+    }
+    return instance.Call(binHandle, symbol, kernelName, reserve);
 }
 
 void *AdumpGetDFXInfoAddrForDynamic(uint32_t space, uint64_t &atomicIndex)
@@ -729,6 +740,11 @@ aclError aclrtBinaryGetFunctionImpl(const aclrtBinHandle binHandle, const char *
 {
     HijackedFuncOfAclrtBinaryGetFunctionImpl instance;
     return instance.Call(binHandle, kernelName, funcHandle);
+}
+
+aclError aclrtGetFuncBySymbolImpl(const void *symbol, aclrtFuncHandle *funcHandle) {
+    HijackedFuncOfAclrtGetFuncBySymbolImpl instance;
+    return instance.Call(symbol, funcHandle);
 }
 
 aclError aclrtBinaryGetFunctionByEntryImpl(aclrtBinHandle binHandle, uint64_t funcEntry,

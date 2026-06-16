@@ -71,4 +71,6 @@ RTS_API rtError_t rtModelBindStreamOrigin(rtModel_t mdl, rtStream_t stm, uint32_
 RTS_API rtError_t rtGetL2CacheOffsetOrigin(uint32_t deviceId, uint64_t *offset);
 RTS_API rtError_t rtDeviceResetForceOrigin(int32_t devId);
 RTS_API rtError_t rtDeviceSetLimitOrigin(int32_t devId, rtLimitType_t type, uint32_t val);
+RTS_API rtError_t rtRegisterFuncSymbolOrigin(
+    void *binHandle, const void *symbol, const char *kernelName, void *reserve);
 #endif // __RUNTIME_ORIGIN_H__

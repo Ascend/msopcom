@@ -352,6 +352,18 @@ private:
     aclrtBinHandle binHandle_{nullptr};
 };
 
+class HijackedFuncOfAclrtGetFuncBySymbolImpl : public decltype(AscendclImpHijackedType(&aclrtGetFuncBySymbolImpl)) {
+public:
+    explicit HijackedFuncOfAclrtGetFuncBySymbolImpl();
+
+    void Pre(const void *symbol, aclrtFuncHandle *funcHandle) override;
+
+    aclError Post(aclError ret) override;
+private:
+    const void * symbol_{nullptr};
+    aclrtFuncHandle *funcHandle_{nullptr};
+};
+
 class HijackedFuncOfAclrtKernelArgsInitImpl : public decltype(AscendclImpHijackedType(&aclrtKernelArgsInitImpl)) {
 public:
     explicit HijackedFuncOfAclrtKernelArgsInitImpl();

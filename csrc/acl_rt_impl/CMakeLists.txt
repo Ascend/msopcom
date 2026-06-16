@@ -50,6 +50,7 @@ file(GLOB INJECTION_SRC
     HijackedFuncOfAclrtLaunchKernelWithHostArgsImpl.cpp
     HijackedFuncOfAclrtMallocWithCfgImpl.cpp
     HijackedFuncOfAclrtKernelArgsInitByUserMemImpl.cpp
+    HijackedFuncOfAclrtGetFuncBySymbolImpl.cpp
 )
 
 list(SORT INJECTION_SRC)

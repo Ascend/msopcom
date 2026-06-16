@@ -59,6 +59,7 @@ void RuntimeOriginCtor()
     REGISTER_FUNCTION(soName, rtModelBindStream);
     REGISTER_FUNCTION(soName, rtGetL2CacheOffset);
     REGISTER_FUNCTION(soName, rtDeviceResetForce);
+    REGISTER_FUNCTION(soName, rtRegisterFuncSymbol);
 }
 
 rtError_t rtFreeOrigin(void *devPtr)
@@ -252,4 +253,9 @@ RTS_API rtError_t rtDeviceResetForceOrigin(int32_t devId)
 RTS_API rtError_t rtDeviceSetLimitOrigin(int32_t devId, rtLimitType_t type, uint32_t val)
 {
     LOAD_FUNCTION_BODY(RuntimeLibName(), rtDeviceSetLimit, devId, type, val);
+}
+
+RTS_API rtError_t rtRegisterFuncSymbolOrigin(
+    void *binHandle, const void *symbol, const char *kernelName, void *reserve) {
+    LOAD_FUNCTION_BODY(RuntimeLibName(), rtRegisterFuncSymbol, binHandle, symbol, kernelName, reserve);
 }
