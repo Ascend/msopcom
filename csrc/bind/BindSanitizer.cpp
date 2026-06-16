@@ -724,6 +724,11 @@ aclError aclrtBinaryLoadFromDataImpl(const void *data, size_t length,
                                      const aclrtBinaryLoadOptions *options, aclrtBinHandle *binHandle)
 {
     PRINT_ENTER_INSTRUMENTOR;
+    if (!g_isCtorDone) {
+        // aclrtBinaryLoadFromDataImpl may be called before HijackedCtor initialized
+        DEBUG_LOG("HijackedCtor invoked in aclrtBinaryLoadFromDataImpl");
+        HijackedCtor();
+    }
     HijackedFuncOfAclrtBinaryLoadFromDataImpl instance;
     return instance.Call(data, length, options, binHandle);
 }
