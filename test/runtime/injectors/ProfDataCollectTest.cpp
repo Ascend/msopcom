@@ -659,6 +659,22 @@ TEST_F(ProfDataCollectTest, test_is_instr_timeline_need_gen_true)
     ProfConfig::Instance().Reset();
 }
 
+TEST_F(ProfDataCollectTest, test_need_run_origin_when_warp_timeline_has_no_simt) {
+    ProfConfig::Instance().Reset();
+    ProfConfig::Instance().isAppReplay_ = true;
+    ProfConfig::Instance().profConfig_.dbiFlag = DBI_FLAG_WARP_TIMELINE;
+    std::string path = "./tmp/warp_timeline_no_simt";
+    MOCKER(&ProfConfig::GetOutputPathFromRemote).stubs().will(returnValue(path));
+    MOCKER(&KernelContext::HasSimtSymbol).stubs().will(returnValue(false));
+    MOCKER(&KernelContext::GetMC2Flag).stubs().will(returnValue(false));
+    MOCKER(&KernelContext::GetLcclFlag).stubs().will(returnValue(false));
+
+    ProfDataCollect profDataCollect;
+    ASSERT_FALSE(profDataCollect.IsWarpTimelineNeedGen());
+    ASSERT_TRUE(profDataCollect.IsNeedRunOriginLaunch());
+    ProfConfig::Instance().Reset();
+}
+
 TEST_F(ProfDataCollectTest, prof_success_but_l2cache_init_failed)
 {
     ProfConfig::Instance().isAppReplay_ = false;

@@ -1645,13 +1645,17 @@ bool ProfDataCollect::IsWarpTimelineNeedGen() {
 }
 
 bool ProfDataCollect::IsNeedRunOriginLaunch() {
+    const auto &config = ProfConfig::Instance().GetConfig();
     // application模式下只有bbcount桩才需要调用origin，其他模式都不需要，因为bbcount桩需要依赖Call这次运行。
     // 所有通算融合算子都不需要调用origin
     if (KernelContext::Instance().GetMC2Flag() || KernelContext::Instance().GetLcclFlag()) {
         return false;
     }
-    return !IsNeedProf() ||
-        !(ProfConfig::Instance().GetConfig().dbiFlag != DBI_FLAG_BB_COUNT && ProfConfig::Instance().IsAppReplay());
+    if (ProfConfig::Instance().IsAppReplay() && config.dbiFlag == DBI_FLAG_WARP_TIMELINE && !dataCollect_->hasSimt_) {
+        DEBUG_LOG("Skip warp timeline collection because kernel has no simt symbol.");
+        return true;
+    }
+    return !IsNeedProf() || !(config.dbiFlag != DBI_FLAG_BB_COUNT && ProfConfig::Instance().IsAppReplay());
 }
 
 void ProfDataCollect::GenDBIData(uint64_t memSize, uint8_t *memInfo) const {
