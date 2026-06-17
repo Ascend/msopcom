@@ -25,6 +25,7 @@
 #include "runtime/inject_helpers/RegisterContext.h"
 #include "LaunchContext.h"
 #include "acl_rt_impl/AscendclImplOrigin.h"
+#include "include/opprof/DbiDefs.h"
 /*
  * 性能数据采集，包括：
  * 1. 包括数据性能采集的所有方法，
@@ -62,8 +63,7 @@ public:
     bool IsNeedDumpContext();
     bool IsOperandRecordNeedGen();
     bool IsPCSamplingNeedGen();
-    bool IsPipeTimelineNeedGen();
-    bool IsInstrTimelineNeedGen();
+    bool IsTimelineNeedGen(ProfDBIType &type);
     bool IsWarpTimelineNeedGen();
     bool RangeReplay(const rtStream_t &stream, const aclmdlRI &modelRI);
     static std::string GetAicoreOutputPath(int32_t device);

@@ -174,4 +174,9 @@ inline std::string Strip(std::string str, std::string const &cs = " ")
     return l == std::string::npos || r == std::string::npos ? "" : str.substr(l, r - l + 1);
 }
 
+inline void ToLower(std::string &s) {
+    for (auto& c : s) {
+        c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+    }
+}
 #endif // __USTRING_H__

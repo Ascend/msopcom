@@ -93,10 +93,7 @@ public:
         return socVersion_;
     }
 
-    std::string GetInstrTimelinePipe() const
-    {
-        return std::string(profConfig_.instrTimelinePipe);
-    }
+    std::string GetInstrTimelinePipe() const;
 
     std::string GetOutputPathFromRemote(const std::string &kernelName, int32_t deviceId);
 

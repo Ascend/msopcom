@@ -1631,12 +1631,13 @@ bool ProfDataCollect::IsOperandRecordNeedGen() {
 
 bool ProfDataCollect::IsPCSamplingNeedGen() { return (ProfConfig::Instance().IsPCSamplingEnabled() && IsNeedProf()); }
 
-bool ProfDataCollect::IsPipeTimelineNeedGen() {
-    return (ProfConfig::Instance().IsPipeTimelineEnabled() && IsNeedProf());
-}
-
-bool ProfDataCollect::IsInstrTimelineNeedGen() {
-    return (ProfConfig::Instance().IsInstrTimelineEnabled() && IsNeedProf());
+bool ProfDataCollect::IsTimelineNeedGen(ProfDBIType &type) {
+    if (!IsNeedProf()) {
+        return false;
+    }
+    return ProfConfig::Instance().IsInstrTimelineEnabled() ? (type = ProfDBIType::INSTR_PROF_DFX, true)
+        : ProfConfig::Instance().IsPipeTimelineEnabled()   ? (type = ProfDBIType::INSTR_PROF_END, true)
+                                                           : false;
 }
 
 bool ProfDataCollect::IsWarpTimelineNeedGen() {

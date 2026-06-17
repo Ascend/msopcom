@@ -147,3 +147,19 @@ TEST(Ustring, check_remove_suffix)
     EXPECT_EQ(noSuffix1, "mat_mul_mix_aiC");
     EXPECT_EQ(noSuffix2, "mat_mul_mix_aiV");
 }
+
+/**
+ * | 用例集 | UstringTest
+ * |测试函数| ToLower()
+ * | 用例名 | test_to_lower_correct
+ * |用例描述| 测试转大写字母字符串正确
+ */
+TEST(Ustring, test_to_lower_correct)
+{
+    std::string str = "HeLLo WoRLd";
+    ToLower(str);
+    EXPECT_EQ(str, "hello world");
+    str = "ABC123_XYZ";
+    ToLower(str);
+    EXPECT_EQ(str, "abc123_xyz");
+}

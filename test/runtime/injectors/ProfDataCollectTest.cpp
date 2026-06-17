@@ -594,68 +594,73 @@ TEST_F(ProfDataCollectTest, test_is_pcsampling_need_gen_true)
 }
 
 /**
-/* | 用例集 | ProfDataCollectTest
-/* |测试函数| ProfDataCollect::IsPipeTimelineNeedGen()
-/* | 用例名 | test_is_pipe_timeline_need_gen_false
-/* |用例描述| pipetimeline未使能或不需要prof时返回false
-*/
-TEST_F(ProfDataCollectTest, test_is_pipe_timeline_need_gen_false)
+ * | 用例集 | ProfDataCollectTest
+ * |测试函数| ProfDataCollect::IsTimelineNeedGen()
+ * | 用例名 | test_is_timeline_need_gen_false
+ * |用例描述| timeline未使能或不需要prof时返回false
+ */
+TEST_F(ProfDataCollectTest, test_is_timeline_need_gen_false)
 {
     ProfDataCollect p;
+    ProfDBIType type;
     ProfConfig::Instance().profConfig_.dbiFlag = 0;
-    ASSERT_FALSE(p.IsPipeTimelineNeedGen());
-    ProfConfig::Instance().profConfig_.dbiFlag = DBI_FLAG_INSTR_PROF_END;
+    ASSERT_FALSE(p.IsTimelineNeedGen(type));
     MOCKER(&ProfDataCollect::IsNeedProf).stubs().will(returnValue(false));
-    ASSERT_FALSE(p.IsPipeTimelineNeedGen());
-
+    ProfConfig::Instance().profConfig_.dbiFlag = DBI_FLAG_INSTR_PROF_END;
+    ASSERT_FALSE(p.IsTimelineNeedGen(type));
+    ProfConfig::Instance().profConfig_.dbiFlag = DBI_FLAG_INSTR_PROF_DFX;
+    ASSERT_FALSE(p.IsTimelineNeedGen(type));
     ProfConfig::Instance().Reset();
 }
 
 /**
-/* | 用例集 | ProfDataCollectTest
-/* |测试函数| ProfDataCollect::IsPipeTimelineNeedGen()
-/* | 用例名 | test_is_pipe_timeline_need_gen_true
-/* |用例描述| pipetimeline使能且需要prof时返回true
-*/
-TEST_F(ProfDataCollectTest, test_is_pipe_timeline_need_gen_true)
+ * | 用例集 | ProfDataCollectTest
+ * |测试函数| ProfDataCollect::IsTimelineNeedGen()
+ * | 用例名 | test_is_timeline_need_gen_pipe_timeline_true
+ * |用例描述| pipetimeline使能且需要prof时返回true并设置正确类型
+ */
+TEST_F(ProfDataCollectTest, test_is_timeline_need_gen_pipe_timeline_true)
 {
     ProfDataCollect p;
+    ProfDBIType type;
     ProfConfig::Instance().profConfig_.dbiFlag = DBI_FLAG_INSTR_PROF_END;
     MOCKER(&ProfDataCollect::IsNeedProf).stubs().will(returnValue(true));
-    ASSERT_TRUE(p.IsPipeTimelineNeedGen());
-
+    ASSERT_TRUE(p.IsTimelineNeedGen(type));
+    ASSERT_EQ(type, ProfDBIType::INSTR_PROF_END);
     ProfConfig::Instance().Reset();
 }
 
 /**
-/* | 用例集 | ProfDataCollectTest
-/* |测试函数| ProfDataCollect::IsInstrTimelineNeedGen()
-/* | 用例名 | test_is_instr_timeline_need_gen_false
-/* |用例描述| instrtimeline未使能或不需要prof时返回false
-*/
-TEST_F(ProfDataCollectTest, test_is_instr_timeline_need_gen_false)
+ * | 用例集 | ProfDataCollectTest
+ * |测试函数| ProfDataCollect::IsTimelineNeedGen()
+ * | 用例名 | test_is_timeline_need_gen_instr_timeline_true
+ * |用例描述| instrtimeline使能且需要prof时返回true并设置正确类型
+ */
+TEST_F(ProfDataCollectTest, test_is_timeline_need_gen_instr_timeline_true)
 {
     ProfDataCollect p;
-    ProfConfig::Instance().profConfig_.dbiFlag = 0;
-    ASSERT_FALSE(p.IsInstrTimelineNeedGen());
-    ProfConfig::Instance().profConfig_.dbiFlag = DBI_FLAG_INSTR_PROF_DFX;
-    MOCKER(&ProfDataCollect::IsNeedProf).stubs().will(returnValue(false));
-    ASSERT_FALSE(p.IsInstrTimelineNeedGen());
-    ProfConfig::Instance().Reset();
-}
-
-/**
-/* | 用例集 | ProfDataCollectTest
-/* |测试函数| ProfDataCollect::IsInstrTimelineNeedGen()
-/* | 用例名 | test_is_instr_timeline_need_gen_true
-/* |用例描述| instrtimeline使能且需要prof时返回true
-*/
-TEST_F(ProfDataCollectTest, test_is_instr_timeline_need_gen_true)
-{
-    ProfDataCollect p;
+    ProfDBIType type;
     ProfConfig::Instance().profConfig_.dbiFlag = DBI_FLAG_INSTR_PROF_DFX;
     MOCKER(&ProfDataCollect::IsNeedProf).stubs().will(returnValue(true));
-    ASSERT_TRUE(p.IsInstrTimelineNeedGen());
+    ASSERT_TRUE(p.IsTimelineNeedGen(type));
+    ASSERT_EQ(type, ProfDBIType::INSTR_PROF_DFX);
+    ProfConfig::Instance().Reset();
+}
+
+/**
+ * | 用例集 | ProfDataCollectTest
+ * |测试函数| ProfDataCollect::IsTimelineNeedGen()
+ * | 用例名 | test_is_timeline_need_gen_instr_priority
+ * |用例描述| instrtimeline优先级高于pipetimeline
+ */
+TEST_F(ProfDataCollectTest, test_is_timeline_need_gen_instr_priority)
+{
+    ProfDataCollect p;
+    ProfDBIType type;
+    ProfConfig::Instance().profConfig_.dbiFlag = DBI_FLAG_INSTR_PROF_DFX | DBI_FLAG_INSTR_PROF_END;
+    MOCKER(&ProfDataCollect::IsNeedProf).stubs().will(returnValue(true));
+    ASSERT_TRUE(p.IsTimelineNeedGen(type));
+    ASSERT_EQ(type, ProfDBIType::INSTR_PROF_DFX);
     ProfConfig::Instance().Reset();
 }
 

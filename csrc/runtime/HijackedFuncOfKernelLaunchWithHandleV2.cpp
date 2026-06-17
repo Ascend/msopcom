@@ -103,9 +103,9 @@ bool HijackedFuncOfKernelLaunchWithHandleV2::PrepareDbiTask(ProfDBIType mode, ui
     KernelMatcher::Config matchConfig;
     std::string path = GetEnv(DEVICE_PROF_DUMP_PATH_ENV);
     std::string pluginPath = ProfConfig::Instance().GetPluginPath(mode);
-    std::vector<std::string> extraArgs = (mode == ProfDBIType::INSTR_PROF_START) ? std::vector<std::string>{START_STUB_COMPILER_ARGS} :
-        std::vector<std::string>();
-    std::string tuneLogPath = (mode == ProfDBIType::INSTR_PROF_DFX) ? JoinPath({ProfDataCollect::GetAicoreOutputPath(devId_), "dfx_tune.log"}) : "";
+    std::vector<std::string> extraArgs;
+    std::string tuneLogPath;
+    DbiRecordTaskHelper::AppendExtraInfo(mode, ProfDataCollect::GetAicoreOutputPath(devId_), tuneLogPath, extraArgs);
     DBITaskConfig::Instance().Init(BIType::CUSTOMIZE, pluginPath, matchConfig, path, tuneLogPath, extraArgs);
     memSize_ = memSize;
     memInfo_ = InitMemory(memSize_);
@@ -143,8 +143,9 @@ void HijackedFuncOfKernelLaunchWithHandleV2::ProfPreForInstrProf(const std::func
             profObj_->GenRecordData(memSize_, memInfo_, PCOFFSET_RECORD);
         }
     }
-    if (profObj_->IsPipeTimelineNeedGen()) {
-        if (PrepareDbiTask(ProfDBIType::INSTR_PROF_END, INSTR_PROF_MEMSIZE)) {
+    ProfDBIType timelineType;
+    if (profObj_->IsTimelineNeedGen(timelineType)) {
+        if (PrepareDbiTask(timelineType, INSTR_PROF_MEMSIZE)) {
             profObj_->InstrProfData(stm, funcStub);
         }
     }

@@ -145,6 +145,19 @@ void ProfConfig::NotifyStopTransLog()
     }
 }
 
+std::string ProfConfig::GetInstrTimelinePipe() const
+{
+    // 已在prof侧经过校验，为空时所有pipe需传入编译器
+    auto instrTimelinePipe = std::string(profConfig_.instrTimelinePipe);
+    if (instrTimelinePipe.empty()) {
+        return "cube,fixp,vector,mte1,mte2,mte3";
+    }
+    std::vector<std::string> pipes;
+    SplitString(instrTimelinePipe, '|', pipes);
+    for (auto& pipe : pipes) { ToLower(pipe); }
+    return Join(pipes.begin(), pipes.end(), ",");
+}
+
 std::string ProfConfig::GetOutputPathFromRemote(const std::string &kernelName, int32_t deviceId)
 {
     if (kernelName.empty()) {
@@ -260,7 +273,7 @@ std::string ProfConfig::GetPluginPath(ProfDBIType pluginType) const
         {ProfDBIType::MEMORY_CHART, "libprofplugin_memorychart.so"},
         {ProfDBIType::OPERAND_RECORD, "libprofplugin_operandrecord.so"},
         {ProfDBIType::INSTR_PROF_END, "libprofplugin_instrprofend.so"},
-        {ProfDBIType::INSTR_PROF_DFX, "libprofplugin_instrprofdfx.so"},
+        {ProfDBIType::INSTR_PROF_DFX, "libprofplugin_instrprofend.so"}, // 指令级流水也需使用END桩
         {ProfDBIType::INSTR_PROF_START, "libprofplugin_instrprofstart.so"},
         {ProfDBIType::WARP_TIMELINE, "libprofplugin_warptimeline.so"},
     };

@@ -111,6 +111,17 @@ inline const char *GetRtFailedLogPrefix(ProfDBIType mode)
     }
 }
 
+inline void AppendExtraInfo(const ProfDBIType &mode, const std::string &outputPath, std::string &tuneLogPath, std::vector<std::string> &extraArgs)
+{
+    if (mode == ProfDBIType::INSTR_PROF_START) {
+        extraArgs = std::vector<std::string>{START_STUB_COMPILER_ARGS};
+    } else if (mode == ProfDBIType::INSTR_PROF_DFX) {
+        std::string instrPipeArg = "--dfx-region-instr-pipe=" + ProfConfig::Instance().GetInstrTimelinePipe();
+        std::string regionIdMapArg = "--dfx-region-id-map=" + JoinPath({outputPath, "dfx_region_map.txt"});
+        extraArgs = std::vector<std::string>{instrPipeArg, regionIdMapArg};
+        tuneLogPath = JoinPath({outputPath, "dfx_tune.log"});
+    }
+}
 } // namespace DbiRecordTaskHelper
 
 #endif // MSOPPROF_RUNTIME_INJECT_HELPERS_DBI_RECORD_TASK_HELPER_H

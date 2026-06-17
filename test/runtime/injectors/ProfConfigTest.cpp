@@ -20,6 +20,7 @@
 #undef private
 #include <string>
 #include <vector>
+#include <cstring>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <gtest/gtest.h>
@@ -143,4 +144,23 @@ TEST(ProfConfigTest, get_block_for_dbi_expect_return_correct_value)
     EXPECT_EQ(GetCoreNumForDbi(65), MAX_BLOCK);
     EXPECT_EQ(GetCoreNumForDbi(30), 90);
     GlobalMockObject::verify();
+}
+
+/**
+ * | 用例集 | ProfConfigTest
+ * |测试函数| ProfConfig::GetInstrTimelinePipe()
+ * | 用例名 | test_get_instr_timeline_pipe_expect_lower
+ * |用例描述| instrTimelinePipe格式转换正确
+ */
+TEST(ProfConfigTest, test_get_instr_timeline_pipe_expect_lower)
+{
+    // 测试为空
+    ProfConfig::Instance().profConfig_.instrTimelinePipe[0] = '\0';
+    EXPECT_EQ(ProfConfig::Instance().GetInstrTimelinePipe(), "cube,fixp,vector,mte1,mte2,mte3");
+    // 单个pipe转换
+    strcpy(ProfConfig::Instance().profConfig_.instrTimelinePipe, "CUBE");
+    EXPECT_EQ(ProfConfig::Instance().GetInstrTimelinePipe(), "cube");
+    // 多个pipe转换
+    strcpy(ProfConfig::Instance().profConfig_.instrTimelinePipe, "CUBE|fixp|Vector");
+    EXPECT_EQ(ProfConfig::Instance().GetInstrTimelinePipe(), "cube,fixp,vector");
 }

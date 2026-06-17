@@ -115,6 +115,7 @@ private:
                                  std::string const &probeFile,
                                  std::string const &orderingFile,
                                  std::string const &kernelWithProbeFile) const;
+    void FinalizeOutput(const std::string &output) const;
 
     PluginInitFunc initFunc_{nullptr};
     void *handle_{nullptr};

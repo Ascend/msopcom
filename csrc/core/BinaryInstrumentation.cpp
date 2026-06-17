@@ -239,11 +239,8 @@ bool CustomDBI::Convert(const std::string& newKernelFile, const std::string& old
     if (!tilingKey.empty()) {
         args.push_back("--tiling-key=" + tilingKey);
     }
-
-    auto writeTuneLog = std::shared_ptr<void>(nullptr, [&](void*) {
-        if (!config_.tuneLogPath.empty()) {
-            WriteStringToFile(config_.tuneLogPath, output);
-        }
+    auto finalize = std::shared_ptr<void>(nullptr, [&](void*) {
+        FinalizeOutput(output);
     });
     if (!PipeCall(args, output)) {
         WARN_LOG("Generate kernel from tune failed.");
@@ -251,6 +248,24 @@ bool CustomDBI::Convert(const std::string& newKernelFile, const std::string& old
         return false;
     }
     return Chmod(newKernelFile, SAVE_DATA_FILE_AUTHORITY);
+}
+
+void CustomDBI::FinalizeOutput(const std::string &output) const
+{
+    // 保存输出日志，修改输出件的权限
+    if (!config_.tuneLogPath.empty()) {
+        WriteStringToFile(config_.tuneLogPath, output);
+    }
+    for (const auto &arg : config_.extraArgs) {
+        const std::string prefix = "--dfx-region-id-map=";
+        if (arg.find(prefix) == 0) {
+            std::string dfxMapPath = arg.substr(prefix.length());
+            if (IsExist(dfxMapPath)) {
+                Chmod(dfxMapPath, SAVE_DATA_FILE_AUTHORITY);
+            }
+            break;
+        }
+    }
 }
 
 bool CustomDBI::SetConfig(const Config& config)
