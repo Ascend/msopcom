@@ -498,6 +498,8 @@ enum class InstrType {
     SIMT_CALL,
     SIMT_START,
     SIMT_END,
+    MSTX_STUB_CALLI,
+    MSTX_STUB_CALL,
 
     MAX
 };
