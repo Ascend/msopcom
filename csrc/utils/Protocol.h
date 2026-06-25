@@ -87,6 +87,9 @@ constexpr uint64_t SHADOW_MEM_MIN_BYTE_SIZE = 12 * 1024 * 1024;
 // 非法的地址信息
 constexpr uint64_t ILLEGAL_ADDR = 0xFFFFFFFFFFFFFFFFULL;
 
+// SIMT_CALL桩函数对应的pc数组长度
+constexpr uint16_t SIMT_CALL_PC_ARR_SIZE = 2;
+
 namespace OnlineShadowMemory {
 // gm建模地址范围0 ~ 0xFFFF FFFF FFFF (48 bits)
 constexpr uint64_t ONLINE_GLOBAL_MEM_MASK = 0xFFFFFFFFFFFFULL;
@@ -282,6 +285,7 @@ struct KernelInfo {
 
 /// 该结构体主要包含当前block包含的信息，保存在每个核的头部
 struct BlockInfo {
+    uint64_t simtCallPcArr[SIMT_CALL_PC_ARR_SIZE];    // simtCall桩函数对应的pc缓存数组
     uint64_t simtSyncThreadCount{};                   // 当前核上simt单元多少个线程已经运行了sync_thread指令
     uint64_t simtEndThreadCount{};                    // 当前核上simt单元多少个线程已经运行了simt_end指令
     uint64_t simtEndLastThread{}; // 通过累加判断当前核上的simt是否运行到最后一个线程
@@ -437,11 +441,22 @@ struct SimtThreadLocation {
     uint16_t idX;
     uint16_t idY;
     uint16_t idZ;
-    bool operator==(const SimtThreadLocation &rhs) const
+    uint64_t mainScalarPc;
+
+    bool operator == (const SimtThreadLocation &rhs) const
     {
-        return this->idX == rhs.idX &&
+        return this->mainScalarPc == rhs.mainScalarPc &&
+               this->idX == rhs.idX &&
                this->idY == rhs.idY &&
                this->idZ == rhs.idZ;
+    }
+
+    bool operator < (const SimtThreadLocation& rhs) const
+    {
+        if (mainScalarPc != rhs.mainScalarPc) return mainScalarPc < rhs.mainScalarPc;
+        if (idZ != rhs.idZ) return idZ < rhs.idZ;
+        if (idY != rhs.idY) return idY < rhs.idY;
+        return idX < rhs.idX;
     }
 };
 
