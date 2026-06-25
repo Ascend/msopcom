@@ -36,14 +36,8 @@
 namespace {
 
 /// 函数返回值表示是否缓存当前传入的addr
-bool ProcessMc2CtxAddr(uint32_t index, uint64_t addr,
-    std::function<void(const KernelContext::AddrInfo &addrInfo)> func)
-{
+bool ProcessMc2CtxAddr(uint64_t addr, std::function<void(const KernelContext::AddrInfo &addrInfo)> func) {
     auto &context = KernelContext::Instance();
-    // 如果当前算子不是mc2算子或者是mc2但index位置不是mc2_context，则缓存当前addr
-    if (!context.GetMc2CtxFlag() || index != MC2_CONTEXT_PARAMS_INDEX) {
-        return true;
-    }
     // 当前index为mc2_context，则解析共享内存地址；
     std::vector<KernelContext::AddrInfo> mc2CtxAddrs = context.ParseMc2CtxAddrs(addr);
     for (auto const &addrInfo : mc2CtxAddrs) {
@@ -299,7 +293,9 @@ void ReportOpMallocInfo(const rtArgsEx_t *const argsInfo, KernelContext::OpMemIn
         it.addr = *(buff + opMemInfo.skipNum + index);
         it.paramsNo -= opMemInfo.skipNum + KernelContext::Instance().GetMc2CtxFlag();
         KernelContext::Instance().ParseSecondPtrAddrs(*argsInfo, opMemInfo, index);
-        if (ProcessMc2CtxAddr(index, it.addr, updateAddrInfos)) {
+        // 如果当前算子不是mc2算子或者是mc2但index位置不是mc2_context，则缓存当前addr
+        if (!KernelContext::Instance().GetMc2CtxFlag() || index != MC2_CONTEXT_PARAMS_INDEX ||
+            ProcessMc2CtxAddr(it.addr, updateAddrInfos)) {
             updateAddrInfos(it);
         }
         index++;
@@ -376,7 +372,9 @@ void ReportOpMallocInfo(const AclrtLaunchArgsInfo &launchArgs, OpMemInfo &opMemI
     for (auto &it : opMemInfo.inputParamsAddrInfos) {
         it.addr = *(buff + opMemInfo.skipNum + index);
         ArgsManager::Instance().ParseSecondPtrAddrs(launchArgs, opMemInfo, index);
-        if (ProcessMc2CtxAddr(index, it.addr, updateAddrInfos)) { updateAddrInfos(it); }
+        if (!opMemInfo.hasMc2Ctx || index != MC2_CONTEXT_PARAMS_INDEX || ProcessMc2CtxAddr(it.addr, updateAddrInfos)) {
+            updateAddrInfos(it);
+        }
         index++;
     }
 
