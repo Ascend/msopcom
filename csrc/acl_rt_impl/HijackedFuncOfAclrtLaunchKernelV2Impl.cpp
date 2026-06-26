@@ -71,6 +71,9 @@ bool HijackedFuncOfAclrtLaunchKernelV2Impl::InitParam(aclrtFuncHandle funcHandle
         skipSanitizer_ = false;
     };
     refreshParamFunc_();
+    if (FuncManager::Instance().GetContext(funcHandle) == nullptr) {
+        CreateFuncContext(funcHandle);
+    }
     argsCtx_ = ArgsManager::Instance().CreateContext(const_cast<void *>(argsData), argsSize, true);
     launchCtx_ = LaunchManager::Local().CreateContext(funcHandle, numBlocks, stream, cfg, argsCtx_);
     if (launchCtx_ == nullptr) {

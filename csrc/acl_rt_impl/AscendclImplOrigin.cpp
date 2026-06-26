@@ -78,6 +78,18 @@ void AscendclImplOriginCtor()
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtLaunchCallbackImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtProcessReportImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtSubscribeReportImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtGetFunctionNameImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtFunctionGetBinaryImpl);
+}
+
+aclError aclrtFunctionGetBinaryImplOrigin(const aclrtFuncHandle funcHandle, aclrtBinHandle *binHandle)
+{
+    LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtFunctionGetBinaryImpl, funcHandle, binHandle);
+}
+
+aclError aclrtGetFunctionNameImplOrigin(aclrtFuncHandle funcHandle, uint32_t maxLen, char *name)
+{
+    LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtGetFunctionNameImpl, funcHandle, maxLen, name);
 }
 
 aclError aclrtSetDeviceImplOrigin(int32_t deviceId)

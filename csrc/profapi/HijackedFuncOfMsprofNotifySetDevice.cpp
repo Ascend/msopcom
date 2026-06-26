@@ -35,7 +35,7 @@ void HijackedFuncOfMsprofNotifySetDevice::Pre(uint32_t chipId, uint32_t deviceId
             MsprofCommandHandle msprofCommandHandle{};
             msprofCommandHandle.type = MsprofCommandHandleType::PROF_COMMANDHANDLE_TYPE_START;
             msprofCommandHandle.profSwitchHi = PROF_DEV_AICPU_CHANNEL;
-            msprofCommandHandle.profSwitch = PROF_TASK_TIME_L1_MASK;
+            msprofCommandHandle.profSwitch = PROF_TASK_TIME_L1_MASK | PROF_OP_TIMESTAMP;
             msprofCommandHandle.devNums = 1;
             msprofCommandHandle.devIdList[0] = deviceId;
             msprofCommandHandle.modelId = 0;

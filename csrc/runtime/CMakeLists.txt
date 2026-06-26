@@ -40,7 +40,6 @@ file(GLOB INJECTION_SRC
     HijackedFuncOfModelBindStream.cpp
     HijackedFuncOfGetL2CacheOffset.cpp
     HijackedFuncOfCtxGetOverflowAddr.cpp
-    HijackedFuncOfRegisterFuncSymbol.cpp
 )
 
 add_subdirectory(inject_helpers)

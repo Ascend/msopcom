@@ -295,16 +295,6 @@ private:
     int32_t devId_{0};
 };
 
-class HijackedFuncOfRegisterFuncSymbol: public decltype(HijackedFuncHelper(&rtRegisterFuncSymbol)) {
-public:
-    explicit HijackedFuncOfRegisterFuncSymbol();
-    rtError_t Call(void *binHandle, const void *symbol, const char *kernelName, void *reserve) override;
-
-private:
-    int32_t devId_{0};
-};
-
-
 class HijackedFuncOfGetSocVersion : public decltype(HijackedFuncHelper(&rtGetSocVersion)) {
 public:
     explicit HijackedFuncOfGetSocVersion();

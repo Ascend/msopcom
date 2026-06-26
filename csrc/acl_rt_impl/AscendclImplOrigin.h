@@ -78,3 +78,5 @@ aclError aclrtLaunchCallbackImplOrigin(
     aclrtCallback fn, void *userData, aclrtCallbackBlockType blockType, aclrtStream stream);
 aclError aclrtProcessReportImplOrigin(int32_t timeout);
 aclError aclrtSubscribeReportImplOrigin(uint64_t threadId, aclrtStream stream);
+aclError aclrtGetFunctionNameImplOrigin(aclrtFuncHandle funcHandle, uint32_t maxLen, char *name);
+aclError aclrtFunctionGetBinaryImplOrigin(const aclrtFuncHandle funcHandle, aclrtBinHandle *binHandle);

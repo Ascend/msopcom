@@ -78,6 +78,9 @@ bool HijackedFuncOfAclrtLaunchKernelWithHostArgsImpl::InitParam(
         skipSanitizer_ = false;
     };
     refreshParamFunc_();
+    if (FuncManager::Instance().GetContext(funcHandle) == nullptr) {
+        CreateFuncContext(funcHandle);
+    }
     auto funcCtx = FuncManager::Instance().GetContext(funcHandle);
     if (funcCtx && funcCtx->GetRegisterContext()->GetMagic() == RT_DEV_BINARY_MAGIC_ELF_AICPU) {
         return false;

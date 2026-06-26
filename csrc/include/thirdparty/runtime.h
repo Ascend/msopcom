@@ -645,8 +645,6 @@ RTS_API rtError_t rtCtxGetOverflowAddr(void **overflowAddr);
 
 RTS_API rtError_t rtDeviceSetLimit(int32_t devId, rtLimitType_t type, uint32_t val);
 
-RTS_API rtError_t rtRegisterFuncSymbol(void *binHandle, const void *symbol, const char *kernelName, void *reserve);
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif

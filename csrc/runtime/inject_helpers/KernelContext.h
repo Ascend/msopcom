@@ -430,7 +430,6 @@ public:
 
     void SetSimtUbDynamicSize(uint32_t simtUbDynamicSize) { simtUbDynamicSize_ = simtUbDynamicSize; }
     uint32_t GetSimtUbDynamicSize() const { return simtUbDynamicSize_; }
-    std::map<const void *, std::pair<void *, std::string>> &GetHandleMap() { return handleMap_; }
 
 private:
     // 根据 stubFunc 查询 pcStart 地址
@@ -452,7 +451,6 @@ private:
     }
 
     std::vector<void *> tempHostMemory_;
-    std::map<const void *, std::pair<void *, std::string>> handleMap_{};
     std::vector<RegisterEvent> registerEvents_;
     // record each stubFunc
     std::unordered_map<const StubFunc*, StubFuncInfo> stubInfo_;
