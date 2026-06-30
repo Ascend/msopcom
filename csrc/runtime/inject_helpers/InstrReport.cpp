@@ -161,6 +161,7 @@ inline bool InitGlobalHead(RecordGlobalHead &head, uint64_t blockDim, KernelType
     head.checkParms.initcheck = cliConfig.initCheck;
     head.checkParms.synccheck = cliConfig.syncCheck;
     head.checkParms.registerCheck = cliConfig.registerCheck;
+    head.checkParms.dcciCheck = cliConfig.checkDcci;
     head.kernelInfo.kernelType = kernelType;
     head.kernelInfo.kernelParamNum = KernelContext::Instance().GetKernelParamNum();
     head.supportSimt = SupportSimt(deviceType);
@@ -194,7 +195,7 @@ inline bool InitGlobalHead(RecordGlobalHead &head, uint64_t blockDim, KernelType
             (1 - SIMT_CACHE_SIZE_RATIO - SHADOW_MEM_CACHE_SIZE_RATIO));
         head.simtInfo.offset = AlignDownSize<CACHE_LINE_SIZE>(simtOffset) + GetRecordHeadSize(hostMemoryNum);
         DEBUG_LOG("simtInfo.offset=%lu", head.simtInfo.offset);
-    
+
         if (shadowMemoryByteSize < SHADOW_MEM_MIN_BYTE_SIZE) {
             WARN_LOG("overlapping detection between threads is disabled. "
                 "cache-size:%u is too small, need cache-size >= %lu",
@@ -709,7 +710,7 @@ bool InitRecordHeaders(RecordGlobalHead &recordGlobalHead, uint8_t *memInfo, uin
 }
 
 } // namespace [Dummy]
- 
+
 std::string GetArchName(KernelType kernelType, const std::string &socVersion)
 {
     if (socVersion.find("Ascend910B") != std::string::npos ||
