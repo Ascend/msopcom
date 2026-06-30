@@ -58,7 +58,7 @@ TEST_F(LauncherTest, run_success)
     MOCKER_CPP(&aclrtSetDevice).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER_CPP(&aclrtCreateStream).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER_CPP(&Launcher::RegisterKernel).stubs().will(returnValue(true));
-    MOCKER_CPP(&Launcher::InitDatas).stubs().will(returnValue(true));
+    MOCKER_CPP(&Launcher::InitData).stubs().will(returnValue(true));
     MOCKER_CPP(&aclrtBinaryLoadFromFile).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER_CPP(&aclrtBinaryGetFunction).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER_CPP(&aclrtKernelArgsInit).stubs().will(returnValue(ACL_SUCCESS));
@@ -85,7 +85,7 @@ TEST_F(LauncherTest, run_fail_due_to_init_data_fail)
     MOCKER_CPP(&aclrtSetDevice).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER_CPP(&aclrtCreateStream).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER_CPP(&Launcher::RegisterKernel).stubs().will(returnValue(true));
-    MOCKER_CPP(&Launcher::InitDatas).stubs().will(returnValue(false));
+    MOCKER_CPP(&Launcher::InitData).stubs().will(returnValue(false));
 
     ASSERT_EQ(runner.Run(config), false);
 }
@@ -98,7 +98,7 @@ TEST_F(LauncherTest, run_fail_due_to_kernel_launch_fail)
     MOCKER_CPP(&aclrtSetDevice).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER_CPP(&aclrtCreateStream).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER_CPP(&Launcher::RegisterKernel).stubs().will(returnValue(true));
-    MOCKER_CPP(&Launcher::InitDatas).stubs().will(returnValue(true));
+    MOCKER_CPP(&Launcher::InitData).stubs().will(returnValue(true));
     MOCKER_CPP(&aclrtKernelArgsAppend).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER_CPP(&aclrtKernelArgsFinalize).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER_CPP(&aclrtLaunchKernelWithConfig).stubs().will(returnValue(ACL_ERROR_BAD_ALLOC));
@@ -114,7 +114,7 @@ TEST_F(LauncherTest, run_fail_due_to_sync_stream_fail)
     MOCKER_CPP(&aclrtSetDevice).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER_CPP(&aclrtCreateStream).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER_CPP(&Launcher::RegisterKernel).stubs().will(returnValue(true));
-    MOCKER_CPP(&Launcher::InitDatas).stubs().will(returnValue(true));
+    MOCKER_CPP(&Launcher::InitData).stubs().will(returnValue(true));
     MOCKER_CPP(&Launcher::LaunchKernel).stubs().will(returnValue(true));
     MOCKER_CPP(&aclrtSynchronizeStream).stubs().will(returnValue(ACL_ERROR_BAD_ALLOC));
 
@@ -128,7 +128,7 @@ TEST_F(LauncherTest, run_fail_due_to_save_output_fail)
     MOCKER_CPP(&aclrtSetDevice).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER_CPP(&aclrtCreateStream).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER_CPP(&Launcher::RegisterKernel).stubs().will(returnValue(true));
-    MOCKER_CPP(&Launcher::InitDatas).stubs().will(returnValue(true));
+    MOCKER_CPP(&Launcher::InitData).stubs().will(returnValue(true));
     MOCKER_CPP(&aclrtLaunchKernelWithConfig).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER_CPP(&aclrtSynchronizeStream).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER_CPP(&Launcher::SaveOutputs).stubs().will(returnValue(false));
@@ -370,6 +370,8 @@ TEST_F(LauncherTest, save_output_success)
     KernelConfig::Param param;
     param.dataSize = 64U;
     std::string outputDataPath = "./output";
+    RemoveAll(outputDataPath);
+    ASSERT_TRUE(MkdirRecusively(outputDataPath));
     runner.hostOutputPtrs_.emplace_back(nullptr);
     runner.outputs_.emplace_back(param);
     runner.devOutputPtrs_.emplace_back(nullptr);
@@ -377,6 +379,7 @@ TEST_F(LauncherTest, save_output_success)
     MOCKER_CPP(MkdirRecusively).stubs().will(returnValue(true));
     MOCKER_CPP(WriteBinary).stubs().will(returnValue(param.dataSize));
     ASSERT_EQ(runner.SaveOutputs(outputDataPath), true);
+    RemoveAll(outputDataPath);
 }
 
 TEST_F(LauncherTest, save_output_fail_due_to_rt_memcpy_fail)
@@ -385,6 +388,8 @@ TEST_F(LauncherTest, save_output_fail_due_to_rt_memcpy_fail)
     KernelConfig::Param param;
     param.dataSize = 64U;
     std::string outputDataPath = "./output";
+    RemoveAll(outputDataPath);
+    ASSERT_TRUE(MkdirRecusively(outputDataPath));
     runner.hostOutputPtrs_.emplace_back(nullptr);
     runner.outputs_.emplace_back(param);
     runner.devOutputPtrs_.emplace_back(nullptr);
@@ -419,6 +424,7 @@ TEST_F(LauncherTest, save_output_fail_due_to_write_binary_fail)
     MOCKER_CPP(&MkdirRecusively).stubs().will(returnValue(true));
     MOCKER_CPP(&WriteBinary).stubs().will(returnValue(0U));
     ASSERT_EQ(runner.SaveOutputs(outputDataPath), false);
+    RemoveAll(outputDataPath);
 }
 
 TEST_F(LauncherTest, init_data_success_output)
@@ -429,5 +435,5 @@ TEST_F(LauncherTest, init_data_success_output)
     config.params.emplace_back(param);
     config.params[0].type = "output";
     MOCKER_CPP(&Launcher::InitOutput).stubs().will(returnValue(true));
-    ASSERT_EQ(runner.InitDatas(config), true);
+    ASSERT_EQ(runner.InitData(config), true);
 }

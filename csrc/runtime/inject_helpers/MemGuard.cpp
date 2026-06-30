@@ -207,9 +207,13 @@ size_t MemoryGuard::GetTotalSize(size_t userSize)
 
     std::lock_guard<std::mutex> lock(mutex_);
 
-    size_t total_size = frontSize_ + userSize + backSize_;
-
-    return total_size;
+    // 安全加法：检查溢出
+    size_t guard_total = frontSize_ + backSize_;
+    if (userSize > SIZE_MAX - guard_total) {
+        ERROR_LOG("GetTotalSize: integer overflow detected. userSize=%zu, guard=%zu", userSize, guard_total);
+        return SIZE_MAX;
+    }
+    return guard_total + userSize;
 }
 
 void MemoryGuard::MallocProc(void **devPtr, size_t userSize)

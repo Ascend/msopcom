@@ -28,9 +28,7 @@
 HijackedFuncOfIpcDestroyMemoryName::HijackedFuncOfIpcDestroyMemoryName()
     : HijackedFuncType(RuntimeLibName(), "rtIpcDestroyMemoryName") {}
 
-
-rtError_t HijackedFuncOfIpcDestroyMemoryName::Call(const char *name)
-{
+rtError_t HijackedFuncOfIpcDestroyMemoryName::Call(const char *name) {
     uint64_t validLen = GetValidLength(name, KERNEL_NAME_MAX);
     std::string validName(name, validLen);
     DEBUG_LOG("enter HijackedFuncOfIpcDestroyMemoryName name: %s", validName.c_str());

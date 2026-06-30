@@ -75,9 +75,7 @@ TEST(KernelRunner, run_success)
     MOCKER_CPP(&KernelRunner::RegisterKernel)
         .stubs()
         .will(returnValue(true));
-    MOCKER_CPP(&KernelRunner::InitDatas)
-        .stubs()
-        .will(returnValue(true));
+    MOCKER_CPP(&KernelRunner::InitData).stubs().will(returnValue(true));
     MOCKER_CPP(&RuntimeApi::RtKernelLaunch)
         .stubs()
         .will(returnValue(RT_ERROR_NONE));
@@ -158,9 +156,7 @@ TEST(KernelRunner, run_fail_due_to_init_data_fail)
     MOCKER_CPP(&KernelRunner::RegisterKernel)
         .stubs()
         .will(returnValue(true));
-    MOCKER_CPP(&KernelRunner::InitDatas)
-        .stubs()
-        .will(returnValue(false));
+    MOCKER_CPP(&KernelRunner::InitData).stubs().will(returnValue(false));
 
     ASSERT_EQ(runner.Run(config), false);
     GlobalMockObject::verify();
@@ -186,9 +182,7 @@ TEST(KernelRunner, run_fail_due_to_kernel_launch_fail)
     MOCKER_CPP(&KernelRunner::RegisterKernel)
         .stubs()
         .will(returnValue(true));
-    MOCKER_CPP(&KernelRunner::InitDatas)
-        .stubs()
-        .will(returnValue(true));
+    MOCKER_CPP(&KernelRunner::InitData).stubs().will(returnValue(true));
     MOCKER_CPP(&RuntimeApi::RtKernelLaunch)
         .stubs()
         .will(returnValue(RT_ERROR_INVALID_VALUE));
@@ -217,9 +211,7 @@ TEST(KernelRunner, run_fail_due_to_sync_stream_fail)
     MOCKER_CPP(&KernelRunner::RegisterKernel)
         .stubs()
         .will(returnValue(true));
-    MOCKER_CPP(&KernelRunner::InitDatas)
-        .stubs()
-        .will(returnValue(true));
+    MOCKER_CPP(&KernelRunner::InitData).stubs().will(returnValue(true));
     MOCKER_CPP(&RuntimeApi::RtKernelLaunch)
         .stubs()
         .will(returnValue(RT_ERROR_NONE));
@@ -251,9 +243,7 @@ TEST(KernelRunner, run_fail_due_to_save_output_fail)
     MOCKER_CPP(&KernelRunner::RegisterKernel)
         .stubs()
         .will(returnValue(true));
-    MOCKER_CPP(&KernelRunner::InitDatas)
-        .stubs()
-        .will(returnValue(true));
+    MOCKER_CPP(&KernelRunner::InitData).stubs().will(returnValue(true));
     MOCKER_CPP(&RuntimeApi::RtKernelLaunch)
         .stubs()
         .will(returnValue(RT_ERROR_NONE));
@@ -757,39 +747,39 @@ TEST(KernelRunner, init_data_fail_due_to_all_func_fail)
     MOCKER_CPP(&KernelRunner::InitInput)
         .stubs()
         .will(returnValue(false));
-    ASSERT_EQ(runner.InitDatas(config), false);
+    ASSERT_EQ(runner.InitData(config), false);
 
     config.params[0].type = "output";
     MOCKER_CPP(&KernelRunner::InitOutput)
         .stubs()
         .will(returnValue(false));
-    ASSERT_EQ(runner.InitDatas(config), false);
+    ASSERT_EQ(runner.InitData(config), false);
 
     config.params[0].type = "tiling";
     MOCKER_CPP(&KernelRunner::InitTiling)
         .stubs()
         .will(returnValue(false));
-    ASSERT_EQ(runner.InitDatas(config), false);
+    ASSERT_EQ(runner.InitData(config), false);
 
     config.params[0].type = "workspace";
     MOCKER_CPP(&KernelRunner::InitWorkspace)
         .stubs()
         .will(returnValue(false));
-    ASSERT_EQ(runner.InitDatas(config), false);
+    ASSERT_EQ(runner.InitData(config), false);
 
     config.params[0].type = "fftsAddr";
     config.hasTilingKey = true;
     MOCKER_CPP(&KernelRunner::InitFftsAddr, bool(KernelRunner::*)())
         .stubs()
         .will(returnValue(false));
-    ASSERT_EQ(runner.InitDatas(config), false);
+    ASSERT_EQ(runner.InitData(config), false);
 
     config.params[0].type = "fftsAddr";
     config.hasTilingKey = false;
     MOCKER_CPP(&KernelRunner::InitFftsAddr, bool(KernelRunner::*)(const KernelConfig::Param &))
         .stubs()
         .will(returnValue(false));
-    ASSERT_EQ(runner.InitDatas(config), false);
+    ASSERT_EQ(runner.InitData(config), false);
 
     GlobalMockObject::verify();
 }
@@ -805,7 +795,7 @@ TEST(KernelRunner, init_data_success_output)
     MOCKER_CPP(&KernelRunner::InitOutput)
         .stubs()
         .will(returnValue(true));
-    ASSERT_EQ(runner.InitDatas(config), true);
+    ASSERT_EQ(runner.InitData(config), true);
 
     GlobalMockObject::verify();
 }

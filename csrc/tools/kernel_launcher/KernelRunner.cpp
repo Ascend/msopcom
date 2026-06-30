@@ -51,8 +51,8 @@ bool KernelRunner::Run(const KernelConfig& kernelConfig)
         return false;
     }
 
-    // read file, operate memory of inputs, outputs, tiling datas
-    if (!InitDatas(kernelConfig)) {
+    // read file, operate memory of inputs, outputs, tiling data
+    if (!InitData(kernelConfig)) {
         return false;
     }
     // execute kernel function and get output result
@@ -263,7 +263,7 @@ bool KernelRunner::SaveOutputs(const string &outputDir)
     return true;
 }
 
-bool KernelRunner::InitDatas(const KernelConfig& kernelConfig)
+bool KernelRunner::InitData(const KernelConfig& kernelConfig)
 {
     auto params = kernelConfig.params;
     for (const auto& param: params) {

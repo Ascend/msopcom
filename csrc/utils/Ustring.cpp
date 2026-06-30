@@ -82,6 +82,9 @@ std::vector<char *> ToRawCArgv(std::vector<std::string> const &argv)
 
 uint64_t GetValidLength(const char *str, uint64_t maxLen)
 {
+    if (str == nullptr) {
+        return 0;
+    }
     auto end = std::find(str, str + maxLen, '\0');
     auto count = static_cast<uint64_t>(std::distance(str, end));
     return std::min(count, maxLen - 1);
