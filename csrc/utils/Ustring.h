@@ -88,6 +88,12 @@ inline bool StringToNum(const std::string& str, Type &number)
     if (!IsDigit(str)) {
         return false;
     }
+    // 对无符号类型拒绝负数输入
+    if (std::is_unsigned<Type>::value) {
+        if (!str.empty() &&str[0] == '-') {
+            return false;
+        }
+    }
     std::istringstream iss(str);
     Type num;
     iss >> num;

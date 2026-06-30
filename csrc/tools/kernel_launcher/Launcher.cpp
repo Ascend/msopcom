@@ -20,6 +20,8 @@
 #include <algorithm>
 #include <cmath>
 #include <map>
+#include "utils/FileSystem.h"
+#include "utils/Path.h"
 namespace {
 bool CheckResult(aclError result, const std::string &apiName)
 {
@@ -88,8 +90,8 @@ bool Launcher::Run(const KernelConfig& kernelConfig)
         return false;
     }
 
-    // read file, operate memory of inputs, outputs, tiling datas
-    if (!InitDatas(kernelConfig)) {
+    // read file, operate memory of inputs, outputs, tiling data
+    if (!InitData(kernelConfig)) {
         return false;
     }
     // execute kernel function and get output result
@@ -200,17 +202,34 @@ bool Launcher::InitTiling(const Param &tiling)
 
 bool Launcher::SaveOutputs(const std::string &outputDir)
 {
+    if (!MkdirRecusively(outputDir)) {
+        WARN_LOG("Failed to create directory %s", outputDir.c_str());
+        return false;
+    }
+
+    const std::string resolveOutputDir = Realpath(outputDir);
+    if (resolveOutputDir.empty()) {
+        ERROR_LOG("Failed to resolve output directory %s", outputDir.c_str());
+        return false;
+    }
+
     size_t outputSize = std::min({hostOutputPtrs_.size(), outputs_.size(), devOutputPtrs_.size()});
     for (size_t i = 0; i < outputSize; i++) {
-        auto out = outputs_[i];
-        size_t dataSize = out.dataSize;
-        ACL_CHECK_MESSAGE_AND_RETURN(aclrtMemcpy(hostOutputPtrs_[i], dataSize, devOutputPtrs_[i], dataSize,
-                                                 aclrtMemcpyKind::ACL_MEMCPY_DEVICE_TO_HOST), "aclrtMemcpy");
-        if (!MkdirRecusively(outputDir)) {
-            WARN_LOG("Failed to create directory %s", outputDir.c_str());
+        const auto &out = outputs_[i];
+        std::string filePath = resolveOutputDir + "/" + out.name + ".bin";
+
+        std::string canonicalPath = Path(filePath).PathCanonicalize().ToString();
+        if (canonicalPath.rfind(resolveOutputDir, 0) != 0 ||
+            (canonicalPath.length() > resolveOutputDir.length() && canonicalPath[resolveOutputDir.length()] != '/')) {
+            ERROR_LOG("Output path %s escapes output directory %s", canonicalPath.c_str(), resolveOutputDir.c_str());
             return false;
         }
-        std::string filePath = outputDir + "/" + out.name + ".bin";
+
+        size_t dataSize = out.dataSize;
+        ACL_CHECK_MESSAGE_AND_RETURN(aclrtMemcpy(hostOutputPtrs_[i], dataSize, devOutputPtrs_[i], dataSize,
+                                         aclrtMemcpyKind::ACL_MEMCPY_DEVICE_TO_HOST),
+            "aclrtMemcpy");
+
         if (WriteBinary(filePath, static_cast<const char *>(hostOutputPtrs_[i]), dataSize) != dataSize) {
             return false;
         }
@@ -218,7 +237,7 @@ bool Launcher::SaveOutputs(const std::string &outputDir)
     return true;
 }
 
-bool Launcher::InitDatas(const KernelConfig& kernelConfig)
+bool Launcher::InitData(const KernelConfig& kernelConfig)
 {
     auto params = kernelConfig.params;
     for (const auto& param: params) {

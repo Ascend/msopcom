@@ -54,6 +54,8 @@ add_dependencies(core_test_obj injection_test_obj)
 add_dependencies(core_test_obj core_obj)
 add_dependencies(core_test_obj gtest)
 add_dependencies(core_test_obj kernel_launcher_obj)
+add_dependencies(core_test_obj mockcpp)
+add_dependencies(injection_test_obj mockcpp)
 
 target_link_libraries(
     injectionTest PRIVATE

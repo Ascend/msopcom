@@ -22,6 +22,7 @@
 #include "utils/FileSystem.h"
 #include "utils/InjectLogger.h"
 #include "utils/Ustring.h"
+#include "utils/Path.h"
 
 namespace {
 constexpr char const *BIN_PATH = "bin_path";
@@ -260,7 +261,30 @@ bool KernelConfigParser::SetWorkspaceSize(const std::string &arg)
 
 bool KernelConfigParser::SetOutputDir(const std::string &arg)
 {
-    kernelConfig_.outputDir = arg;
+    // 1.规范化绝对路径
+    std::string canonicalPath = Path(arg).PathCanonicalize().ToString();
+    if (canonicalPath.empty()) {
+        ERROR_LOG("output_dir: cannot resolve path: %s", arg.c_str());
+        return false;
+    }
+    // 2.获取当前工作目录作为基目录
+    std::string currentPath;
+    if (!GetCurrentPath(currentPath)) {
+        ERROR_LOG("output_dir: cannot get current working dir.");
+        return false;
+    }
+    // 3.验证路径在当前工作目录下（或指定的安全基目录下）
+    if (canonicalPath.rfind(currentPath, 0) != 0 ||
+        (canonicalPath.length() > currentPath.length() && canonicalPath[currentPath.length()] != '/')) {
+        ERROR_LOG("output_dir: path %s is outside allowed directory %s", canonicalPath.c_str(), currentPath.c_str());
+        return false;
+    }
+    // 4.检查路径长度
+    if (!PathLenCheckValid(canonicalPath)) {
+        ERROR_LOG("output_dir: path too long: %s", canonicalPath.c_str());
+        return false;
+    }
+    kernelConfig_.outputDir = canonicalPath;
     return true;
 }
 
@@ -275,6 +299,11 @@ bool KernelConfigParser::SetOutputName(const std::string &arg)
     std::vector<std::string> nameVec;
     SplitString(arg, ';', nameVec);
     for (uint32_t i = 0; i < nameVec.size(); i++) {
+        // 添加路径分隔符和特殊字符检查
+        if (!CheckInputStringValid(nameVec[i], FILE_NAME_LENGTH_LIMIT)) {
+            ERROR_LOG("output_name: %s is invalid. (contains illegal characters)", nameVec[i].c_str());
+            return false;
+        }
         Param param;
         param.type = "output";
         param.name = nameVec[i];

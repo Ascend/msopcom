@@ -49,7 +49,7 @@ private:
 
     bool SaveOutputs(const std::string &outputDir);
 
-    bool InitDatas(const KernelConfig& kernelConfig);
+    bool InitData(const KernelConfig &kernelConfig);
 
     RuntimeApi rtAPI_{};
     rtStream_t rtStream_;

@@ -46,7 +46,7 @@ private:
 
     bool SaveOutputs(const std::string &outputDir);
 
-    bool InitDatas(const KernelConfig& kernelConfig);
+    bool InitData(const KernelConfig& kernelConfig);
 
     void GenJson(const KernelConfig& kernelConfig);
 
