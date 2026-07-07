@@ -158,6 +158,26 @@ std::vector<std::string> Elf::ReadStringTable(const std::string &name) const
     return result;
 }
 
+std::vector<char> Elf::ReadAllRawData(const std::string &name) const {
+    auto range = allSections_.equal_range(name);
+    if (range.first == range.second) {
+        ERROR_LOG("No section %s found.", name.c_str());
+        return {};
+    }
+    std::vector<char> result;
+    for (auto it = range.first; it != range.second; ++it) {
+        auto &header = it->second;
+        if (header.sh_size > buffer_.size() || header.sh_offset > buffer_.size() - header.sh_size) {
+            ERROR_LOG("Section %s has invalid data: sh_size(%zu), available buffer(%zu)", name.c_str(), header.sh_size,
+                buffer_.size() - header.sh_offset);
+            return {};
+        }
+        result.insert(
+            result.end(), buffer_.begin() + header.sh_offset, buffer_.begin() + header.sh_offset + header.sh_size);
+    }
+    return result;
+}
+
 bool ElfLoader::LoadHeader(const std::vector<char> &buffer, Elf64_Ehdr &header)
 {
     return elf::ReadValueFromBuffer<Elf64_Ehdr>(buffer, 0, header);
@@ -214,6 +234,7 @@ bool ElfLoader::FromBuffer(const std::vector<char> &buffer)
         }
         std::string sectionName = std::string{nameBuffer.data() + sectionHeader.sh_name};
         sections_[sectionName] = sectionHeader;
+        allSections_.emplace(sectionName, sectionHeader);
     }
     return true;
 }

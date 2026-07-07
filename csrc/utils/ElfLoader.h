@@ -49,17 +49,28 @@ public:
      */
     std::vector<std::string> ReadStringTable(const std::string &name) const;
 
+    /**
+     * @brief 从 Elf 对象内读取某个 section 的全部原始数据（包括同名 section）
+     * @desc 当 ELF 中存在多个同名的 section 时（如多个 .ascend.meta.*），
+     * 将所有同名 section 的数据拼接后返回。
+     * @param name section 名称
+     * @return 所有同名 section 拼接后的原始数据
+     */
+    std::vector<char> ReadAllRawData(const std::string &name) const;
+
     auto GetSectionHeaders(void) const -> std::map<std::string, Elf64_Shdr> const &
     {
         return this->sections_;
     }
 
 private:
-    Elf(std::map<std::string, Elf64_Shdr> sections, std::vector<char> buffer)
-        : buffer_(std::move(buffer)), sections_(std::move(sections)) { }
+    Elf(std::map<std::string, Elf64_Shdr> sections, std::multimap<std::string, Elf64_Shdr> allSections,
+        std::vector<char> buffer)
+        : buffer_(std::move(buffer)), sections_(std::move(sections)), allSections_(std::move(allSections)) {}
 
     std::vector<char> buffer_;
     std::map<std::string, Elf64_Shdr> sections_;
+    std::multimap<std::string, Elf64_Shdr> allSections_; // 包含所有同名section（不覆盖）
 };
 
 /**
@@ -74,7 +85,7 @@ public:
      */
     bool FromBuffer(const std::vector<char> &buffer);
 
-    Elf Load() const { return Elf{sections_, buffer_}; }
+    Elf Load() const { return Elf{sections_, allSections_, buffer_}; }
 
     static bool LoadHeader(const std::vector<char> &buffer, Elf64_Ehdr &header);
 
@@ -82,4 +93,5 @@ private:
     Elf64_Ehdr header_{};
     std::vector<char> buffer_;
     std::map<std::string, Elf64_Shdr> sections_;
+    std::multimap<std::string, Elf64_Shdr> allSections_; // 包含所有同名section（不覆盖）
 };

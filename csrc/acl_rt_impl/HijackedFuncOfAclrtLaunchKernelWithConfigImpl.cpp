@@ -115,7 +115,7 @@ bool HijackedFuncOfAclrtLaunchKernelWithConfigImpl::PrepareDbiTask(ProfDBIType m
         !newArgsCtx_->ExpandArgs(&memInfo_, sizeof(uintptr_t), DBITaskConfig::Instance().argsSize_)) {
         WARN_LOG("Stub run failed, because of ExpandArgs failed, dbi mode is %d", static_cast<uint32_t>(mode));
         return false;
- 	}
+    }
     auto argsHandleCtx = std::static_pointer_cast<ArgsHandleContext>(newArgsCtx_);
     argsHandle_ = argsHandleCtx->GenerateArgsHandle();
     auto newFuncCtx = RunDBITask(launchCtx_);
@@ -236,6 +236,7 @@ void HijackedFuncOfAclrtLaunchKernelWithConfigImpl::SanitizerPre()
         return;
     }
     if (isSink_) { return; }
+
     ReportKernelSummary(launchCtx_);
     ReportKernelBinary(launchCtx_->GetFuncContext()->GetRegisterContext());
     memInfo_ = __sanitizer_init(blockDim_);
@@ -258,7 +259,6 @@ void HijackedFuncOfAclrtLaunchKernelWithConfigImpl::SanitizerPre()
         launchCtx_->SetDBIFuncCtx(funcCtx_);
         funcHandle_ = funcCtx_->GetFuncHandle();
     }
-
     MemoryGuard::Instance().FillAllMemGuard();
 }
 
