@@ -115,7 +115,7 @@ bool GetSymInfoFromBinary(const char *data, uint64_t length, vector<string> &ker
     if (!GetObjdumpOutput(binaryData, output)) {
         return false;
     }
- 
+
     vector<string> lines;
     SplitString(output, '\n', lines);
     constexpr size_t kernelNameCol = 5;
@@ -228,27 +228,27 @@ KernelType MagicToKernelType(uint32_t magic)
 
 uint64_t GetMetaSection(const rtDevBinary_t &binary, const string &kernelName, vector<uint8_t> &metaData)
 {
-    std::map<std::string, Elf64_Shdr> headers;
-    if (!GetSectionHeaders(binary, headers)) {
-        WARN_LOG("Get section headers failed");
+    if (binary.data == nullptr || binary.length == 0) {
+        WARN_LOG("Get meta section failed: binary data is null or empty");
         return 0;
     }
-    auto dfxIter = headers.find(".ascend.meta." + kernelName);
-    if (dfxIter == headers.end()) {
+    auto binData = static_cast<const char *>(binary.data);
+    std::vector<char> buffer(binData, binData + binary.length);
+    ElfLoader loader;
+    if (!loader.FromBuffer(buffer)) {
+        WARN_LOG("Get meta section failed: unable to load ELF from binary buffer");
+        return 0;
+    }
+    Elf elf = loader.Load();
+    std::string sectionName = ".ascend.meta." + kernelName;
+    const auto &headers = elf.GetSectionHeaders();
+    if (headers.find(sectionName) == headers.end()) {
         DEBUG_LOG("Cannot find meta data in binary file");
         return 0;
     }
-    Elf64_Off shOffset = dfxIter->second.sh_offset;
-    Elf64_Xword	shSize = dfxIter->second.sh_size;
-    if (shOffset + shSize > binary.length) {
-        WARN_LOG("Meta data length error");
-        return 0;
-    }
-
-    const uint8_t* charData = static_cast<const uint8_t*>(binary.data) + shOffset;
-    std::vector<uint8_t> data(charData, charData + shSize);
-    metaData.swap(data);
-    return shSize;
+    std::vector<char> rawData = elf.ReadAllRawData(sectionName);
+    metaData.assign(rawData.begin(), rawData.end());
+    return metaData.size();
 }
 
 bool GetSimtSymbolFromBinary(const char *data, uint64_t length)
@@ -361,7 +361,7 @@ string RegisterContext::GetKernelName(uint64_t tilingKey) const
 {
     string nameSuffix = "_" + to_string(tilingKey);
     vector<string> suffixNames = {nameSuffix, nameSuffix + MIX_AIC_TAIL, nameSuffix + MIX_AIV_TAIL};
- 
+
     for (const std::string &name : kernelSymbolNames_) {
         for (const std::string &suffix: suffixNames) {
             if (EndsWith(name, suffix)) {
@@ -473,7 +473,4 @@ bool RegisterContext::KernelSymbolNameIsMix(const std::string &kernelName) const
     return false;
 }
 
-bool RegisterContext::HasSimtSymbol() const
-{
-    return hasSimt_;
-}
+bool RegisterContext::HasSimtSymbol() const { return hasSimt_; }

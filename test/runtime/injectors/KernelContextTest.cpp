@@ -21,6 +21,7 @@
 #undef private
 
 #include <elf.h>
+#include <cstring>
 #include <string>
 #include <vector>
 #include <sys/stat.h>
@@ -815,35 +816,74 @@ TEST_F(KernelContextTest, get_tik_atomic_index)
     ASSERT_EQ(KernelContext::Instance().GetOpMemInfo().inputParamsAddrInfos.size(), 0);
 }
 
-TEST_F(KernelContextTest, get_meta_section)
-{
-    using GetSectionHeadersFunc = bool(*)(rtDevBinary_t const &, std::map<std::string, Elf64_Shdr> &);
-    GetSectionHeadersFunc getSectionHeaders = &GetSectionHeaders;
-    MOCKER(getSectionHeaders).stubs().will(returnValue(true));
+TEST_F(KernelContextTest, get_meta_section) {
     std::vector<uint8_t> metaData;
-    rtDevBinary_t binary;
+    rtDevBinary_t binary{};
     ASSERT_EQ(GetMetaSection(binary, "abc", metaData), 0);
+}
+
+// 构造包含 .ascend.meta.<kernelName> section 的最小合法 ELF
+static std::vector<uint8_t> CreateElfWithMetaSection(const std::string &kernelName, Elf64_Xword dataSize) {
+    std::string nameTable;
+    nameTable.push_back('\0');
+    nameTable += ".shstrtab";
+    nameTable.push_back('\0');
+    nameTable += ".ascend.meta.";
+    nameTable += kernelName;
+    nameTable.push_back('\0');
+    // name offsets: null=0, .shstrtab=1, .ascend.meta.xxx=11
+    Elf64_Word metaNameOff = static_cast<Elf64_Word>(1 + strlen(".shstrtab") + 1);
+
+    Elf64_Ehdr header{};
+    header.e_ident[EI_MAG0] = ELFMAG0;
+    header.e_ident[EI_MAG1] = ELFMAG1;
+    header.e_ident[EI_MAG2] = ELFMAG2;
+    header.e_ident[EI_MAG3] = ELFMAG3;
+    header.e_ident[EI_CLASS] = ELFCLASS64;
+    header.e_ident[EI_DATA] = ELFDATA2LSB;
+    header.e_shnum = 3; // null + .shstrtab + meta
+    header.e_shstrndx = 1;
+    header.e_shentsize = sizeof(Elf64_Shdr);
+    header.e_shoff = sizeof(Elf64_Ehdr);
+
+    Elf64_Shdr shstrtabHdr{};
+    shstrtabHdr.sh_name = 1;
+    shstrtabHdr.sh_type = SHT_STRTAB;
+    shstrtabHdr.sh_offset = sizeof(Elf64_Ehdr) + 3 * sizeof(Elf64_Shdr);
+    shstrtabHdr.sh_size = nameTable.size();
+
+    Elf64_Shdr metaHdr{};
+    metaHdr.sh_name = metaNameOff;
+    metaHdr.sh_offset = shstrtabHdr.sh_offset + shstrtabHdr.sh_size;
+    metaHdr.sh_size = dataSize;
+
+    size_t totalSize = metaHdr.sh_offset + metaHdr.sh_size;
+    std::vector<uint8_t> elf(totalSize);
+    auto *p = elf.data();
+
+    memcpy(p, &header, sizeof(header));
+    p += sizeof(header);
+    Elf64_Shdr nullHdr{};
+    memcpy(p, &nullHdr, sizeof(nullHdr));
+    p += sizeof(nullHdr);
+    memcpy(p, &shstrtabHdr, sizeof(shstrtabHdr));
+    p += sizeof(shstrtabHdr);
+    memcpy(p, &metaHdr, sizeof(metaHdr));
+    p += sizeof(metaHdr);
+    memcpy(p, nameTable.data(), nameTable.size());
+    // meta section data is already zeroed
+
+    return elf;
 }
 
 TEST_F(KernelContextTest, mock_valid_section_head_then_test_get_meta_section_expect_success)
 {
-    Elf64_Shdr dummySectionHeader {};
-    dummySectionHeader.sh_offset = sizeof(Elf64_Ehdr) + sizeof(Elf64_Shdr) + sizeof(Elf64_Shdr);
-    dummySectionHeader.sh_size = 5;
-    dummySectionHeader.sh_name = 5;
-    vector<uint8_t> binaryData(1000);
-    rtDevBinary_t binary;
-    binary.data = binaryData.data();
-    binary.length = binaryData.size();
-    std::map<std::string, Elf64_Shdr> headers = {
-        {".ascend.meta.kernel_name", dummySectionHeader}
-    };
-    using GetSectionHeadersFunc = bool(*)(rtDevBinary_t const &, std::map<std::string, Elf64_Shdr> &);
-    GetSectionHeadersFunc getSectionHeaders = &GetSectionHeaders;
-    MOCKER(getSectionHeaders).stubs().with(any(), outBound(headers)).
-        will(returnValue(true));
+    std::vector<uint8_t> elf = CreateElfWithMetaSection("kernel_name", 5);
+    rtDevBinary_t binary{};
+    binary.data = elf.data();
+    binary.length = elf.size();
     std::vector<uint8_t> metaData;
-    ASSERT_EQ(GetMetaSection(binary, "kernel_name", metaData), dummySectionHeader.sh_size);
+    ASSERT_EQ(GetMetaSection(binary, "kernel_name", metaData), 5u);
 }
 
 TEST_F(KernelContextTest, mock_ffts_size_info_then_set_args_size_expect_success)
