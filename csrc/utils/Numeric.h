@@ -18,19 +18,14 @@
 #ifndef __UTILS_NUMERIC_H__
 #define __UTILS_NUMERIC_H__
 
-
-template <uint32_t alignSize>
-inline uint32_t CeilByAlignSize(uint32_t v)
-{
+template <uint32_t alignSize, typename T> inline T CeilByAlignSize(T v) {
     static_assert(alignSize != 0, "align size cannot be zero");
-    return ((v + alignSize - 1) / alignSize) * alignSize;
+    return ((v + static_cast<T>(alignSize) - 1) / static_cast<T>(alignSize)) * static_cast<T>(alignSize);
 }
 
-template <uint32_t alignSize, typename T>
-inline T AlignDownSize(T val)
-{
+template <uint32_t alignSize, typename T> inline T AlignDownSize(T val) {
     static_assert(alignSize != 0, "align size cannot be zero");
-    return val - static_cast<T>((val % alignSize));
+    return val - static_cast<T>((val % static_cast<T>(alignSize)));
 }
 
 #endif // __UTILS_NUMERIC_H__
