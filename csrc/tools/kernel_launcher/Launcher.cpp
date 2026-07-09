@@ -202,6 +202,10 @@ bool Launcher::InitTiling(const Param &tiling)
 
 bool Launcher::SaveOutputs(const std::string &outputDir)
 {
+    if (outputDir.empty()) {
+        DEBUG_LOG("Launcher output is empty");
+        return true;
+    }
     if (!MkdirRecusively(outputDir)) {
         WARN_LOG("Failed to create directory %s", outputDir.c_str());
         return false;
