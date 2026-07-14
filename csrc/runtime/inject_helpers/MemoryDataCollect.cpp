@@ -28,6 +28,7 @@
 #include "utils/InjectLogger.h"
 #include "runtime.h"
 #include "runtime/inject_helpers/KernelContext.h"
+#include "runtime/inject_helpers/ThreadContext.h"
 #include "utils/ElfLoader.h"
 #include "utils/Protocol.h"
 #include "utils/Serialize.h"
@@ -109,7 +110,8 @@ void MemoryManage::CacheMemory<MemoryOpType::FREE>(uint64_t addr, MemInfoSrc inf
             }
         }
     }
-    ERROR_LOG("illegal free addr:%lx infoSrc:%u", addr, static_cast<uint32_t>(infoSrc));
+    WARN_LOG("free addr:%lx is not found, maybe the memory is already freed, infoSrc:%u", addr,
+        static_cast<uint32_t>(infoSrc));
 }
 
 void MemoryManage::SetPermission(uint64_t addr, uint64_t size, uint32_t permission)
@@ -232,6 +234,17 @@ void MemoryManage::UpdateMemoryOp()
         }
     }
     mallocCount_ = memoryOpAddrInfos_.size();
+}
+
+MemoryManage &MemoryManage::Instance() {
+    static std::unordered_map<int32_t, MemoryManage> deviceInstances_;
+    static std::mutex instanceMutex_;
+
+    int32_t deviceId = ThreadContext::Instance().GetDeviceId();
+
+    std::lock_guard<std::mutex> lock(instanceMutex_);
+    auto &instance = deviceInstances_[deviceId];
+    return instance;
 }
 
 void ReportMalloc(uint64_t addr, uint64_t size, MemInfoSrc memInfoSrc, MemInfoDesc memInfoDesc, uint64_t paramsNo)

@@ -19,13 +19,14 @@
 
 #include <elf.h>
 #include <map>
+#include <mutex>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "KernelContext.h"
 #include "core/PlatformConfig.h"
 #include "runtime.h"
-#include "utils/Singleton.h"
 
 enum class MemoryOpType : uint8_t {
     MALLOC = 0,
@@ -43,12 +44,12 @@ enum class MemoryOpType : uint8_t {
  * @endcode
  */
 
-class MemoryManage : public Singleton<MemoryManage, false> {
+class MemoryManage {
 public:
-    friend class Singleton<MemoryManage, false>;
     using AddrsVec = std::vector<HostMemoryInfo>;
     using AddrsSet = std::set<HostMemoryInfo>;
 
+    static MemoryManage &Instance();
     /**
     * @brief 缓存memoryOp信息，包含malloc和free
     * @param opType 内存分配的类型
