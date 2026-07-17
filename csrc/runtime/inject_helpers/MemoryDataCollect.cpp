@@ -38,9 +38,8 @@ namespace {
 
 /// 函数返回值表示是否缓存当前传入的addr
 bool ProcessMc2CtxAddr(uint64_t addr, std::function<void(const KernelContext::AddrInfo &addrInfo)> func) {
-    auto &context = KernelContext::Instance();
-    // 当前index为mc2_context，则解析共享内存地址；
-    std::vector<KernelContext::AddrInfo> mc2CtxAddrs = context.ParseMc2CtxAddrs(addr);
+    std::vector<KernelContext::AddrInfo> mc2CtxAddrs;
+    mc2CtxAddrs = ArgsManager::Instance().GetMc2AddrInfosFromArgAddr(addr);
     for (auto const &addrInfo : mc2CtxAddrs) {
         func(addrInfo);
     }
@@ -378,13 +377,16 @@ void ReportOpMallocInfo(const AclrtLaunchArgsInfo &launchArgs, OpMemInfo &opMemI
         // 部分算子存在内存复用情况，输入和输出为相同地址，这里计算相同地址的最大长度作为malloc上报时的长度
         auto &addrData = it.first->second;
         if (!it.second && addrInfo.length > addrData.length) { addrData.length = addrInfo.length; }
+        DEBUG_LOG("mc2? addr=%#lx, size=%lu\n", addrInfo.addr, addrInfo.length);
         if (it.second) { order.push_back(addrInfo.addr); }
     };
     auto *buff = static_cast<uint64_t *>(launchArgs.hostArgs);
     uint32_t index = 0U;
+    DEBUG_LOG("opMemInfo inputParamsAddrInfos size=%lu\n", opMemInfo.inputParamsAddrInfos.size());
     for (auto &it : opMemInfo.inputParamsAddrInfos) {
         it.addr = *(buff + opMemInfo.skipNum + index);
         ArgsManager::Instance().ParseSecondPtrAddrs(launchArgs, opMemInfo, index);
+        // 如果当前算子不是mc2算子或者是mc2但index位置不是mc2_context，则缓存当前addr
         if (!opMemInfo.hasMc2Ctx || index != MC2_CONTEXT_PARAMS_INDEX || ProcessMc2CtxAddr(it.addr, updateAddrInfos)) {
             updateAddrInfos(it);
         }

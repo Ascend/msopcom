@@ -415,9 +415,6 @@ public:
     /// 解析二级指针地址信息，index表示位于args中的第几个入参
     void ParseSecondPtrAddrs(const rtArgsEx_t &argsInfo, OpMemInfo &opMemInfo, uint32_t index) const;
 
-    /// 解析mc2算子共享内存地址信息
-    std::vector<AddrInfo> ParseMc2CtxAddrs(uint64_t addr) const;
-
     /// 设置算子的argsSize
     void SetArgsSize(uint32_t argSize) { argsSize_ = argSize; }
     /// 获取算子的argsSize

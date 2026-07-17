@@ -27,9 +27,8 @@ PacketType QueryResponsePacketType(PacketType type);
 
 class InteractHelper {
 public:
-    template <typename RecordT, typename RspT, uint32_t timeOut = 5>
-    static inline bool Interact(const PacketType packetType, RecordT const &record, RspT &response)
-    {
+    template <typename RecordT, typename RspT, uint32_t timeOut = 30>
+    static inline bool Interact(const PacketType packetType, RecordT const &record, RspT &response) {
         // 先确保config已经接收过了
         DEBUG_LOG("Enter Interact, packetType: %u.", EnumToUnderlying(packetType));
         SanitizerConfigManager::Instance().GetConfig();

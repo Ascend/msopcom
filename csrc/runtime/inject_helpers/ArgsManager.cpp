@@ -23,6 +23,7 @@
 #include "acl_rt_impl/AscendclImplOrigin.h"
 
 using namespace std;
+using Defer = std::shared_ptr<void>;
 
 namespace {
 constexpr uint64_t U64_BYTE_SIZE = 8U;
@@ -86,13 +87,13 @@ AdumpInfo GetAdumpInfo(const OpMemInfo &memInfo, const vector<uint8_t> &tilingDa
         DEBUG_LOG("Adump Addr map is null");
         return {};
     }
-    
+
     ArgsManager::Instance().SetThroughAdumpFlag(true);
     if (memInfo.tilingDataSize == 0) {
         INFO_LOG("Meta tiling data size is 0, can not parser tiling data, return invalid adump info");
         return {};
     }
- 
+
     if (tilingData.size() < memInfo.tilingDataSize) {
         INFO_LOG("Real tiling buff data size is %lu, "
                  "which less than meta tiling size %lu, return invalid adump info",
@@ -209,6 +210,7 @@ void ArgsManager::ParseSecondPtrAddrs(const AclrtLaunchArgsInfo &launchArgs, OpM
     // 查找当前输入的index是否为二级指针，不是则返回
     auto infosIt = opMemInfo.secondPtrAddrInfos.find(index);
     if (infosIt == opMemInfo.secondPtrAddrInfos.cend()) {
+        DEBUG_LOG("No second point address infomation for index=%u", index);
         return;
     }
     if (launchArgs.placeHolderArray == nullptr) {
@@ -253,4 +255,110 @@ void ArgsManager::ParseSecondPtrAddrs(const AclrtLaunchArgsInfo &launchArgs, OpM
             ptrIdx++;
         }
     }
+}
+
+std::vector<AddrInfo> ArgsManager::GetMc2AddrInfosFromArgAddr(uint64_t addr) const {
+    std::string socVersion = DeviceContext::Local().GetSocVersion();
+    auto chipType = GetProductSeriesType(socVersion);
+    // 910C
+    if (static_cast<uint32_t>(chipType) & static_cast<uint32_t>(ChipProductType::ASCEND910_93_SERIES)) {
+        return GetMc2AddrInfosFromArgAddr910C(addr);
+    } else if (static_cast<uint32_t>(chipType) & static_cast<uint32_t>(ChipProductType::ASCEND910B_SERIES)) {
+        return GetMc2AddrInfosFromArgAddr910B(addr);
+    } else {
+        // unsupport
+        return {};
+    }
+}
+
+std::vector<AddrInfo> ArgsManager::GetMc2AddrInfosFromArgAddr910B(uint64_t addr) const {
+    void *hostData;
+    if (aclrtMallocHostImplOrigin(&hostData, sizeof(HcclCombinOpParam)) != ACL_ERROR_NONE) {
+        return {};
+    }
+    Defer defer0(nullptr, [&hostData](std::nullptr_t&) {
+        if (aclrtFreeHostImplOrigin(hostData) != ACL_ERROR_NONE) {
+            ERROR_LOG("rtFreeHost failed");
+        }
+    });
+    aclError error = aclrtMemcpyImplOrigin(hostData, sizeof(HcclCombinOpParam),
+        reinterpret_cast<void *>(addr), sizeof(HcclCombinOpParam), ACL_MEMCPY_DEVICE_TO_HOST);
+    if (error != ACL_ERROR_NONE) {
+        ERROR_LOG("%s rtMemcpy error: %d", __FUNCTION__, error);
+        return {};
+    }
+    auto opParamPtr = reinterpret_cast<HcclCombinOpParam *>(hostData);
+    if (opParamPtr->multiFlag != 0U) {
+        ERROR_LOG("multiFlag is :%u, not 0, currently unable to parse mc2 address",
+            static_cast<uint32_t>(opParamPtr->multiFlag));
+        return {};
+    }
+    std::vector<AddrInfo> mc2CtxAddrs;
+    /// 共享内存信息来源如果算子经过adump接口，则内存来源为extra，否则应为BYPASS，保证上报成功
+    bool isThroughAdump = ArgsManager::Instance().GetThroughAdumpFlag();
+    MemInfoSrc infoSrc = isThroughAdump ? MemInfoSrc::EXTRA : MemInfoSrc::BYPASS;
+    for (size_t i = 0; i < opParamPtr->rankNum; ++i) {
+        // 如果未经过adump接口，则当前卡的共享内存有rtMalloc，需要过滤掉对应的当前卡的bypass上报，否则会illegal free
+        if (!isThroughAdump && opParamPtr->rankId == i) {
+            continue;
+        }
+        mc2CtxAddrs.push_back({opParamPtr->windowsIn[i], opParamPtr->winSize, infoSrc, MemInfoDesc::HCCL_MC2_CONTEXT});
+        mc2CtxAddrs.push_back({opParamPtr->windowsOut[i], opParamPtr->winSize, infoSrc, MemInfoDesc::HCCL_MC2_CONTEXT});
+    }
+    return mc2CtxAddrs;
+}
+
+std::vector<AddrInfo> ArgsManager::GetMc2AddrInfosFromArgAddr910C(uint64_t addr) const {
+    void *hostData;
+    if (aclrtMallocHostImplOrigin(&hostData, sizeof(HcclOpResParam)) != ACL_ERROR_NONE) {
+        return {};
+    }
+    Defer defer0(nullptr, [&hostData](std::nullptr_t &) {
+        if (aclrtFreeHostImplOrigin(hostData) != ACL_ERROR_NONE) {
+            ERROR_LOG("rtFreeHost failed");
+        }
+    });
+    aclError error = aclrtMemcpyImplOrigin(hostData, sizeof(HcclOpResParam), reinterpret_cast<void *>(addr),
+        sizeof(HcclOpResParam), ACL_MEMCPY_DEVICE_TO_HOST);
+    if (error != ACL_ERROR_NONE) {
+        ERROR_LOG("%s, rtMemcpy error: %d", __FUNCTION__, error);
+        return {};
+    }
+    auto opParamPtr = reinterpret_cast<HcclOpResParam *>(hostData);
+    std::vector<AddrInfo> mc2CtxAddrs;
+    /// 共享内存信息来源如果算子经过adump接口，则内存来源为extra，否则应为BYPASS，保证上报成功
+    bool isThroughAdump = ArgsManager::Instance().GetThroughAdumpFlag();
+    MemInfoSrc infoSrc = isThroughAdump ? MemInfoSrc::EXTRA : MemInfoSrc::BYPASS;
+    DEBUG_LOG("rankSize=%u, localUsrRankId=%u, winSize=%lu", opParamPtr->rankSize, opParamPtr->localUsrRankId,
+        opParamPtr->winSize);
+    void *remoteResData = nullptr;
+    if (aclrtMallocHostImplOrigin(&remoteResData, sizeof(HcclRankRelationResV2)) != ACL_ERROR_NONE) {
+        ERROR_LOG("Parse910CMc2CtxAddrs malloc host for HcclRankRelationResV2 failed");
+        return {};
+    }
+    Defer defer1(nullptr, [&remoteResData](std::nullptr_t &) {
+        if (aclrtFreeHostImplOrigin(remoteResData) != ACL_ERROR_NONE) {
+            ERROR_LOG("rtFreeHost failed");
+        }
+    });
+    for (size_t i = 0; i < opParamPtr->rankSize; ++i) {
+        // 如果未经过adump接口，则当前卡的共享内存有rtMalloc，需要过滤掉对应的当前卡的bypass上报，否则会illegal free
+        if (!isThroughAdump && i == opParamPtr->localUsrRankId) {
+            continue;
+        }
+        uint64_t nextDevicePtr = opParamPtr->remoteRes[i].nextDevicePtr;
+        if (nextDevicePtr == 0U) {
+            continue;
+        }
+        aclError cpErr = aclrtMemcpyImplOrigin(remoteResData, sizeof(HcclRankRelationResV2),
+            reinterpret_cast<void *>(nextDevicePtr), sizeof(HcclRankRelationResV2), ACL_MEMCPY_DEVICE_TO_HOST);
+        if (cpErr != ACL_ERROR_NONE) {
+            ERROR_LOG("%s rtMemcpy remoteRes[%zu] error: %d", __FUNCTION__, i, cpErr);
+            continue;
+        }
+        auto rankRelPtr = reinterpret_cast<HcclRankRelationResV2 *>(remoteResData);
+        DEBUG_LOG("remoteRes[%zu] windowsIn=%#lx, winSize=%lu", i, rankRelPtr->windowsIn, opParamPtr->winSize);
+        mc2CtxAddrs.push_back({rankRelPtr->windowsIn, opParamPtr->winSize, infoSrc, MemInfoDesc::HCCL_MC2_CONTEXT});
+    }
+    return mc2CtxAddrs;
 }

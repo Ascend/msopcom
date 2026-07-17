@@ -828,12 +828,12 @@ bool KernelContext::GetMc2CtxFlag() const
     return this->GetDeviceContext().GetMc2CtxFlag();
 }
 
-void KernelContext::ParseSecondPtrAddrs(
-    const rtArgsEx_t &argsInfo, OpMemInfo &opMemInfo, uint32_t index) const
-{
-     // 查找当前输入的index是否为二级指针，不是则返回
+// merge with ArgsManager::ParseSecondPtrAddrs in future
+void KernelContext::ParseSecondPtrAddrs(const rtArgsEx_t &argsInfo, OpMemInfo &opMemInfo, uint32_t index) const {
+    // 查找当前输入的index是否为二级指针，不是则返回
     auto infosIt = opMemInfo.secondPtrAddrInfos.find(index);
     if (infosIt == opMemInfo.secondPtrAddrInfos.cend()) {
+        DEBUG_LOG("No second point address infomation for index=%u", index);
         return;
     }
     if (argsInfo.hostInputInfoPtr == nullptr) {
@@ -848,8 +848,6 @@ void KernelContext::ParseSecondPtrAddrs(
         auto &secondPtrInfo = infosIt->second;
         uint64_t *hostInputsPtr = buff + curHostInfoPtr.dataOffset / sizeof(uint64_t);
         uint64_t ptrOffset = *hostInputsPtr / sizeof(uint64_t);
-        DEBUG_LOG("hostInput index:%lu addrOffset:%u dataOffset:%u ptrOffset:%lu", hostIndex,
-            curHostInfoPtr.addrOffset, curHostInfoPtr.dataOffset, ptrOffset);
         uint64_t *dimCntPtr = hostInputsPtr + 1;
         size_t dimIdx = 0;
         size_t ptrIdx = 0;
@@ -878,44 +876,6 @@ void KernelContext::ParseSecondPtrAddrs(
             ptrIdx++;
         }
     }
-}
-
-std::vector<AddrInfo> KernelContext::ParseMc2CtxAddrs(uint64_t addr) const
-{
-    void *hostData;
-    if (aclrtMallocHostImplOrigin(&hostData, sizeof(HcclCombinOpParam)) != ACL_ERROR_NONE) {
-        return {};
-    }
-    Defer defer0(nullptr, [&hostData](std::nullptr_t&) {
-        if (aclrtFreeHostImplOrigin(hostData) != ACL_ERROR_NONE) {
-            ERROR_LOG("rtFreeHost failed");
-        }
-    });
-    aclError error = aclrtMemcpyImplOrigin(hostData, sizeof(HcclCombinOpParam),
-        reinterpret_cast<void *>(addr), sizeof(HcclCombinOpParam), ACL_MEMCPY_DEVICE_TO_HOST);
-    if (error != ACL_ERROR_NONE) {
-        ERROR_LOG("ParseMc2CtxAddrs rtMemcpy error: %d", error);
-        return {};
-    }
-    auto opParamPtr = reinterpret_cast<HcclCombinOpParam *>(hostData);
-    if (opParamPtr->multiFlag != 0U) {
-        ERROR_LOG("multiFlag is :%u, not 0, currently unable to parse mc2 address",
-            static_cast<uint32_t>(opParamPtr->multiFlag));
-        return {};
-    }
-    std::vector<AddrInfo> mc2CtxAddrs;
-    /// 共享内存信息来源如果算子经过adump接口，则内存来源为extra，否则应为BYPASS，保证上报成功
-    bool isThroughAdump = ArgsManager::Instance().GetThroughAdumpFlag();
-    MemInfoSrc infoSrc =  isThroughAdump ? MemInfoSrc::EXTRA : MemInfoSrc::BYPASS;
-    int32_t deviceId = 0;
-    aclrtGetDeviceImplOrigin(&deviceId);
-    for (size_t i = 0; i < opParamPtr->rankNum; ++i) {
-        // 如果未经过adump接口，则当前卡的共享内存有rtMalloc，需要过滤掉对应的当前卡的bypass上报，否则会illegal free
-        if (!isThroughAdump && static_cast<size_t>(deviceId) == i) { continue; }
-        mc2CtxAddrs.push_back({opParamPtr->windowsIn[i], opParamPtr->winSize, infoSrc, MemInfoDesc::HCCL_MC2_CONTEXT});
-        mc2CtxAddrs.push_back({opParamPtr->windowsOut[i], opParamPtr->winSize, infoSrc, MemInfoDesc::HCCL_MC2_CONTEXT});
-    }
-    return mc2CtxAddrs;
 }
 
 void KernelContext::AddHdlRegisterEvent(const KernelHandle *hdl, const rtDevBinary_t *bin,
