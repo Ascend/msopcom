@@ -69,8 +69,9 @@ public:
     void SetArgsSize(uint32_t argSize) { argsSize_ = argSize; }
     /// 获取算子的argsSize
     uint32_t GetArgsSize() const { return argsSize_; }
+    /// 解析mc2算子共享内存地址信息
+    std::vector<AddrInfo> GetMc2AddrInfosFromArgAddr(uint64_t addr) const;
 
-    /// 入参为mc2_context内存地址, need multi device card
 #if defined (__BUILD_TESTS__)
     void Clear()
     {
@@ -81,6 +82,13 @@ public:
          argsSize_ = 0;
     }
 #endif
+
+private:
+    /// 解析mc2算子共享内存地址信息
+    std::vector<AddrInfo> GetMc2AddrInfosFromArgAddr910B(uint64_t addr) const;
+
+    /// 解析910C mc2算子(HcclOpResParam)共享内存地址信息，遍历remoteRes拿到各remote rank的windowsIn地址
+    std::vector<AddrInfo> GetMc2AddrInfosFromArgAddr910C(uint64_t addr) const;
 
 private:
     std::unordered_map<aclrtArgsHandle, ArgsContextSP> contexts_;

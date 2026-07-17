@@ -16,7 +16,9 @@
 
 
 #include <elf.h>
+#include <memory>
 #include <random>
+#include <utility>
 #include <gtest/gtest.h>
 #include <map>
 #include <string>
@@ -503,6 +505,20 @@ inline HcclCombinOpParam CreateHcclCombineOpParams(uint32_t rankId, uint32_t ran
     return opParam;
 }
 
+inline std::pair<std::unique_ptr<HcclOpResParam>, std::vector<HcclRankRelationResV2>> CreateHcclOpResParam(
+    uint32_t localUsrRankId, uint32_t rankSize) {
+    std::unique_ptr<HcclOpResParam> opParam(new HcclOpResParam());
+    opParam->localUsrRankId = localUsrRankId;
+    opParam->rankSize = rankSize;
+    opParam->winSize = 200;
+    std::vector<HcclRankRelationResV2> rankRels(rankSize);
+    for (size_t i = 0; i < rankSize; ++i) {
+        rankRels[i].windowsIn = 0x100 * (i + 1);
+        opParam->remoteRes[i].nextDevicePtr = reinterpret_cast<uint64_t>(&rankRels[i]);
+    }
+    return std::make_pair(std::move(opParam), std::move(rankRels));
+}
+
 TEST(MemoryDataCollect, report_mc2_op_malloc_with_adump_info_expect_get_correct_addr_info)
 {
     ArgsManager::Instance().Clear();
@@ -517,6 +533,8 @@ TEST(MemoryDataCollect, report_mc2_op_malloc_with_adump_info_expect_get_correct_
     MOCKER(&aclrtFreeHostImplOrigin).stubs().will(invoke(AclrtFreeHostStub));
     MOCKER(&rtMallocHostOrigin).stubs().will(invoke(RtMallocHostStubFunc));
     MOCKER(&rtFreeHostOrigin).stubs().will(invoke(RtFreeHostStubFunc));
+    // SetSocVersion需在aclrtGetDeviceImplOrigin桩函数设置之后，保证Local()解析到的deviceId与读取时一致
+    DeviceContext::Local().SetSocVersion("Ascend910B1");
     KernelContext::OpMemInfo opMemInfo = CreateOpMemInfo();
     // create tensor addr
     rtArgsEx_t argsInfo {};
@@ -566,6 +584,8 @@ TEST(MemoryDataCollect, report_mc2_op_malloc_with_no_adump_info_expect_get_corre
     MOCKER(&aclrtFreeHostImplOrigin).stubs().will(invoke(AclrtFreeHostStub));
     MOCKER(&rtMallocHostOrigin).stubs().will(invoke(RtMallocHostStubFunc));
     MOCKER(&rtFreeHostOrigin).stubs().will(invoke(RtFreeHostStubFunc));
+    // SetSocVersion需在aclrtGetDeviceImplOrigin桩函数设置之后，保证Local()解析到的deviceId与读取时一致
+    DeviceContext::Local().SetSocVersion("Ascend910B1");
     KernelContext::OpMemInfo opMemInfo = CreateOpMemInfo();
     // create tensor addr
     rtArgsEx_t argsInfo {};
@@ -603,6 +623,149 @@ TEST(MemoryDataCollect, report_mc2_op_malloc_with_no_adump_info_expect_get_corre
     ASSERT_EQ(opMemInfo.uniqueAddrInfos[windowsNum * rankNum - windowsNum].length, SIZE1);
     GlobalMockObject::verify();
 
+}
+
+TEST(MemoryDataCollect, report_mc2_op_malloc_910c_with_adump_info_expect_get_correct_addr_info) {
+    ArgsManager::Instance().Clear();
+    DeviceContext::Local().SetSocVersion("Ascend910_9391");
+    MOCKER(IsSanitizer).stubs().will(returnValue(true));
+    MOCKER(ReportMalloc).stubs();
+    MOCKER(ReportMemset).stubs();
+    MOCKER(&KernelContext::GetMc2CtxFlag).stubs().will(returnValue(true));
+    MOCKER(&aclrtMemcpyImplOrigin).stubs().will(invoke(MemcpyStub));
+    MOCKER(&aclrtMallocHostImplOrigin).stubs().will(invoke(AclrtMallocHostStub));
+    MOCKER(&aclrtFreeHostImplOrigin).stubs().will(invoke(AclrtFreeHostStub));
+    KernelContext::OpMemInfo opMemInfo = CreateOpMemInfo();
+    rtArgsEx_t argsInfo{};
+    uint32_t rankSize = RandNum(4, 8);
+    uint32_t localUsrRankId = g_testMc2DevId;
+    auto opRes = CreateHcclOpResParam(localUsrRankId, rankSize);
+    auto &opParam = opRes.first;
+    auto &rankRels = opRes.second;
+    uint64_t mc2ContextAddr = reinterpret_cast<uint64_t>(opParam.get());
+    std::vector<uint64_t> args{mc2ContextAddr, 0x256};
+
+    argsInfo.args = args.data();
+    argsInfo.argsSize = args.size();
+
+    ReportOpMallocInfo(&argsInfo, opMemInfo);
+
+    /// 经过adump接口时不下发自身卡的共享内存，910C每个rank仅上报windowsIn；ProcessMc2CtxAddr返回true会缓存mc2_context地址
+    /// 排布顺序：windowsIn[0]/windowsIn[1]/.../windowsIn[rankSize-1]/mc2_context/0x256
+    ASSERT_EQ(opMemInfo.uniqueAddrInfos.size(), rankSize + 2);
+    for (size_t i = 0; i < rankSize; ++i) {
+        ASSERT_EQ(opMemInfo.uniqueAddrInfos[i].addr, rankRels[i].windowsIn);
+        ASSERT_EQ(opMemInfo.uniqueAddrInfos[i].length, 200);
+        ASSERT_EQ(opMemInfo.uniqueAddrInfos[i].memInfoSrc, MemInfoSrc::EXTRA);
+        ASSERT_EQ(opMemInfo.uniqueAddrInfos[i].memInfoDesc, MemInfoDesc::HCCL_MC2_CONTEXT);
+    }
+    ASSERT_EQ(opMemInfo.uniqueAddrInfos[rankSize].addr, mc2ContextAddr);
+    ASSERT_EQ(opMemInfo.uniqueAddrInfos[rankSize].length, SIZE0);
+    ASSERT_EQ(opMemInfo.uniqueAddrInfos[rankSize + 1].addr, 0x256);
+    ASSERT_EQ(opMemInfo.uniqueAddrInfos[rankSize + 1].length, SIZE1);
+    GlobalMockObject::verify();
+}
+
+TEST(MemoryDataCollect, report_mc2_op_malloc_910c_without_adump_info_expect_get_correct_addr_info) {
+    ArgsManager::Instance().Clear();
+    ArgsManager::Instance().SetThroughAdumpFlag(false);
+    DeviceContext::Local().SetSocVersion("Ascend910_9391");
+    MOCKER(IsSanitizer).stubs().will(returnValue(true));
+    MOCKER(ReportMalloc).stubs();
+    MOCKER(ReportMemset).stubs();
+    MOCKER(&KernelContext::GetMc2CtxFlag).stubs().will(returnValue(true));
+    MOCKER(&aclrtMemcpyImplOrigin).stubs().will(invoke(MemcpyStub));
+    MOCKER(&aclrtMallocHostImplOrigin).stubs().will(invoke(AclrtMallocHostStub));
+    MOCKER(&aclrtFreeHostImplOrigin).stubs().will(invoke(AclrtFreeHostStub));
+    KernelContext::OpMemInfo opMemInfo = CreateOpMemInfo();
+    rtArgsEx_t argsInfo{};
+    uint32_t rankSize = RandNum(4, 8);
+    uint32_t localUsrRankId = g_testMc2DevId;
+    auto opRes = CreateHcclOpResParam(localUsrRankId, rankSize);
+    auto &opParam = opRes.first;
+    auto &rankRels = opRes.second;
+    uint64_t mc2ContextAddr = reinterpret_cast<uint64_t>(opParam.get());
+    std::vector<uint64_t> args{mc2ContextAddr, 0x256};
+
+    argsInfo.args = args.data();
+    argsInfo.argsSize = args.size();
+
+    ReportOpMallocInfo(&argsInfo, opMemInfo);
+
+    /// 未经过adump接口时跳过localUsrRankId，ProcessMc2CtxAddr返回false不缓存mc2_context地址
+    /// 排布顺序：windowsIn(跳过localUsrRankId)/.../0x256
+    ASSERT_EQ(opMemInfo.uniqueAddrInfos.size(), rankSize);
+    size_t idx = 0;
+    for (size_t i = 0; i < rankSize; ++i) {
+        if (i == localUsrRankId) {
+            continue;
+        }
+        ASSERT_EQ(opMemInfo.uniqueAddrInfos[idx].addr, rankRels[i].windowsIn);
+        ASSERT_EQ(opMemInfo.uniqueAddrInfos[idx].length, 200);
+        ASSERT_EQ(opMemInfo.uniqueAddrInfos[idx].memInfoSrc, MemInfoSrc::BYPASS);
+        ASSERT_EQ(opMemInfo.uniqueAddrInfos[idx].memInfoDesc, MemInfoDesc::HCCL_MC2_CONTEXT);
+        idx++;
+    }
+    ASSERT_EQ(opMemInfo.uniqueAddrInfos[rankSize - 1].addr, 0x256);
+    ASSERT_EQ(opMemInfo.uniqueAddrInfos[rankSize - 1].length, SIZE1);
+    GlobalMockObject::verify();
+}
+
+TEST(MemoryDataCollect, report_mc2_op_malloc_910c_with_null_next_device_ptr_expect_skip_rank) {
+    ArgsManager::Instance().Clear();
+    DeviceContext::Local().SetSocVersion("Ascend910_9391");
+    MOCKER(IsSanitizer).stubs().will(returnValue(true));
+    MOCKER(ReportMalloc).stubs();
+    MOCKER(ReportMemset).stubs();
+    MOCKER(&KernelContext::GetMc2CtxFlag).stubs().will(returnValue(true));
+    MOCKER(&aclrtMemcpyImplOrigin).stubs().will(invoke(MemcpyStub));
+    MOCKER(&aclrtMallocHostImplOrigin).stubs().will(invoke(AclrtMallocHostStub));
+    MOCKER(&aclrtFreeHostImplOrigin).stubs().will(invoke(AclrtFreeHostStub));
+    KernelContext::OpMemInfo opMemInfo = CreateOpMemInfo();
+    rtArgsEx_t argsInfo{};
+    uint32_t rankSize = RandNum(4, 8);
+    uint32_t localUsrRankId = g_testMc2DevId;
+    auto opRes = CreateHcclOpResParam(localUsrRankId, rankSize);
+    auto &opParam = opRes.first;
+    auto &rankRels = opRes.second;
+    // 选取一个非本地rank将其nextDevicePtr置0，期望该rank被跳过
+    uint32_t nullRank = (localUsrRankId + 1) % rankSize;
+    opParam->remoteRes[nullRank].nextDevicePtr = 0U;
+    uint64_t mc2ContextAddr = reinterpret_cast<uint64_t>(opParam.get());
+    std::vector<uint64_t> args{mc2ContextAddr, 0x256};
+
+    argsInfo.args = args.data();
+    argsInfo.argsSize = args.size();
+
+    ReportOpMallocInfo(&argsInfo, opMemInfo);
+
+    /// adump场景不跳过localUsrRankId，但nextDevicePtr为0的rank被跳过
+    /// 排布顺序：windowsIn(跳过nullRank)/.../mc2_context/0x256
+    ASSERT_EQ(opMemInfo.uniqueAddrInfos.size(), rankSize + 1);
+    size_t idx = 0;
+    for (size_t i = 0; i < rankSize; ++i) {
+        if (i == nullRank) {
+            continue;
+        }
+        ASSERT_EQ(opMemInfo.uniqueAddrInfos[idx].addr, rankRels[i].windowsIn);
+        ASSERT_EQ(opMemInfo.uniqueAddrInfos[idx].length, 200);
+        ASSERT_EQ(opMemInfo.uniqueAddrInfos[idx].memInfoSrc, MemInfoSrc::EXTRA);
+        idx++;
+    }
+    ASSERT_EQ(opMemInfo.uniqueAddrInfos[rankSize - 1].addr, mc2ContextAddr);
+    ASSERT_EQ(opMemInfo.uniqueAddrInfos[rankSize - 1].length, SIZE0);
+    ASSERT_EQ(opMemInfo.uniqueAddrInfos[rankSize].addr, 0x256);
+    ASSERT_EQ(opMemInfo.uniqueAddrInfos[rankSize].length, SIZE1);
+    GlobalMockObject::verify();
+}
+
+TEST(MemoryDataCollect, get_mc2_addr_infos_from_arg_addr_with_unsupported_soc_expect_empty) {
+    ArgsManager::Instance().Clear();
+    DeviceContext::Local().SetSocVersion("Ascend310P3");
+    HcclCombinOpParam opParam = CreateHcclCombineOpParams(0, 4);
+    auto addrs = ArgsManager::Instance().GetMc2AddrInfosFromArgAddr(reinterpret_cast<uint64_t>(&opParam));
+    ASSERT_TRUE(addrs.empty());
+    GlobalMockObject::verify();
 }
 
 TEST(MemoryDataCollect, memory_manage_process_mstx_heap_mem_expect_success)
