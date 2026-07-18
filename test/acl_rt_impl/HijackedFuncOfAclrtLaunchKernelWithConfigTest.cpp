@@ -43,7 +43,7 @@ TEST_F(HijackedFuncOfAclrtLaunchKernelWithConfigTest, mock_valid_hijacked_input_
     HijackedFuncOfAclrtLaunchKernelWithConfigImpl inst;
     MOCKER(&FunctionRegister::Get).stubs().will(returnValue(stream));
     MOCKER(&aclrtGetDeviceImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
-    MOCKER(&aclrtGetUserDevIdByLogicDevIdImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
+    MOCKER(&aclrtGetPhyDevIdByLogicDevIdImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER(&aclrtGetFunctionAddrImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER(&aclrtGetSocNameImplOrigin).stubs().will(returnValue(soc.c_str()));
     MOCKER(&aclrtMallocImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
