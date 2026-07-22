@@ -25,7 +25,7 @@ void AscendclImplOriginCtor();
 aclError aclrtSetDeviceImplOrigin(int32_t deviceId);
 aclError aclrtGetDeviceImplOrigin(int32_t *deviceId);
 aclError aclrtResetDeviceForceImplOrigin(int32_t deviceId);
-aclError aclrtGetUserDevIdByLogicDevIdImplOrigin(const int32_t logicDevId, int32_t *const userDevid);
+aclError aclrtGetPhyDevIdByLogicDevIdImplOrigin(const int32_t logicDevId, int32_t *const phyDevId);
 const char *aclrtGetSocNameImplOrigin();
 
 aclError aclrtMallocImplOrigin(void **devPtr, size_t size, aclrtMemMallocPolicy policy);
