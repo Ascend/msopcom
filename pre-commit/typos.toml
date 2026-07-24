@@ -69,6 +69,8 @@ extend-ignore-re = []
 
 [type.cpp.extend-identifiers]
 countr_one = "countr_one"
+InitDatas = "InitDatas"
+datas = "datas"
 
 [type.cpp.extend-words]
 

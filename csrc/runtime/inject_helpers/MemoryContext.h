@@ -75,6 +75,7 @@ public:
     */
     bool Restore();
 
+
 private:
     MemoryContext() = default;
     ~MemoryContext();

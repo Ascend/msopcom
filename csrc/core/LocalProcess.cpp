@@ -28,7 +28,7 @@
 LocalProcess::LocalProcess(CommType type)
 {
     constexpr int retryLimit = 50;            // 链接充实次数上限为50
-    client_ = new Client(type);
+    client_ = new Client(type); // NOLINT(cppcoreguidelines-owning-memory)
     int retryTimes = 0;
     while (client_ != nullptr && !client_->Connect() && retryTimes <= retryLimit) {
         // server 启动前 client 会连接失败，等待 100ms 后重试

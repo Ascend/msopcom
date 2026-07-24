@@ -30,7 +30,7 @@ void HijackedFuncOfAclrtBinaryLoadFromDataImpl::Pre(const void *data, size_t len
 {
     bin_ = data;
     binHandle_ = binHandle;
-    options_ = const_cast<aclrtBinaryLoadOptions*>(options);
+    options_ = const_cast<aclrtBinaryLoadOptions *>(options); // NOLINT(cppcoreguidelines-pro-type-const-cast)
     length_ = length;
 }
 

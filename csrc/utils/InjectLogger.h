@@ -40,6 +40,7 @@ enum class LogLv : uint8_t {
 class InjectLogger {
 public:
     static inline InjectLogger &Instance();
+    ~InjectLogger() = default;
     InjectLogger(InjectLogger const &) = delete;
     InjectLogger &operator=(InjectLogger const &) = delete;
 

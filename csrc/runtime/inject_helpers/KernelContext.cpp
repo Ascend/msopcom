@@ -363,7 +363,9 @@ static bool DumpTilingData(const rtArgsEx_t &argsInfo, const string &outputDir, 
 
     config.tilingDataPath = outputDir + "/input_tiling.bin";
     config.tilingDataSize = tilingDataSize;
-    size_t written = WriteBinary(config.tilingDataPath, (const char *) hostData, tilingDataSize);
+    // NOLINTBEGIN(cppcoreguidelines-pro-type-cstyle-cast)
+    size_t written = WriteBinary(config.tilingDataPath, (const char *)hostData, tilingDataSize);
+    // NOLINTEND(cppcoreguidelines-pro-type-cstyle-cast)
     if (written != tilingDataSize) {
         return false;
     }
@@ -525,8 +527,10 @@ bool KernelContext::DeviceContext::GetKernelAddr(KernelHandleArgs const &args, u
     uint32_t prefetchCnt{};
 
     KernelHandle const *hdl = args.dbiHandle ? args.dbiHandle : args.originHandle;
-    rtError_t ret = rtKernelGetAddrAndPrefCntOrigin(const_cast<void *>(hdl), args.tilingKey,
-                                                    nullptr, 1U, &pcStart, &prefetchCnt);
+    // NOLINTBEGIN(cppcoreguidelines-pro-type-const-cast)
+    rtError_t ret =
+        rtKernelGetAddrAndPrefCntOrigin(const_cast<void *>(hdl), args.tilingKey, nullptr, 1U, &pcStart, &prefetchCnt);
+    // NOLINTEND(cppcoreguidelines-pro-type-const-cast)
     if (ret != RT_ERROR_NONE) {
         ERROR_LOG("call rtKernelGetAddrAndPrefCntOrigin with tiling key failed");
         // reset pcStartAddr to 0x00 if rtKernelGetAddrAndPrefCnt query failed
@@ -919,9 +923,8 @@ KernelContext::DeviceContext const &KernelContext::GetDeviceContext() const
     if (it != this->deviceContextMap_.cend()) {
         return it->second;
     }
-    auto p = this->deviceContextMap_.emplace(std::piecewise_construct,
-                                             std::forward_as_tuple(deviceId),
-                                             std::forward_as_tuple(*const_cast<KernelContext*>(this)));
+    auto p = this->deviceContextMap_.emplace(std::piecewise_construct, std::forward_as_tuple(deviceId),
+        std::forward_as_tuple(*const_cast<KernelContext *>(this))); // NOLINT(cppcoreguidelines-pro-type-const-cast)
     return p.first->second;
 }
 

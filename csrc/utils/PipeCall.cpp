@@ -152,7 +152,7 @@ inline void PrintCmd(std::vector<std::string> const &cmd)
 }
 
 } // namespace [Dummy]
- 
+
 bool PipeCall(std::vector<std::string> const &cmd,
               std::string &output,
               std::string const &input)

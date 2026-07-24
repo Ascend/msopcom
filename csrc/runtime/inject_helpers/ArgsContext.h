@@ -68,6 +68,7 @@ struct AclrtLaunchArgsInfo {
 class ArgsContext {
 public:
     ArgsContext() = default;
+    virtual ~ArgsContext() = default;
     // 插入GM指针
     virtual bool ExpandArgs(void *param, size_t paramSize, uint32_t &paramOffset) = 0;
     // 落盘上下文信息, 使得kernel-launcher加载后使用

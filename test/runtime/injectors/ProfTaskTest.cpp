@@ -80,7 +80,7 @@ TEST(ProfTask, start_prof_task_910B_success)
     MOCKER(&KernelContext::GetMC2Flag)
             .stubs()
             .will(returnValue(true));
-    ASSERT_TRUE(task1->Start(0));
+    ASSERT_TRUE(task1->Start(0, false));
     GlobalMockObject::verify();
 }
 
@@ -95,7 +95,7 @@ TEST(ProfTask, start_prof_task_910B_basic_info_success)
     MOCKER(prof_drv_start_origin)
             .expects(exactly(1))
             .will(returnValue(0));
-    ASSERT_TRUE(task1->Start(0));
+    ASSERT_TRUE(task1->Start(0, false));
     GlobalMockObject::verify();
 }
 
@@ -108,7 +108,7 @@ TEST(ProfTask, start_prof_task_910B_ffts_fail)
     MOCKER(prof_drv_start_origin)
             .expects(exactly(1))
             .will(returnValue(1));
-    ASSERT_FALSE(task1->Start(0));
+    ASSERT_FALSE(task1->Start(0, false));
     GlobalMockObject::verify();
 }
 
@@ -128,7 +128,7 @@ TEST(ProfTask, start_prof_task_910B_aicpu_fail)
     MOCKER(&KernelContext::GetMC2Flag)
             .stubs()
             .will(returnValue(true));
-    ASSERT_FALSE(task1->Start(0));
+    ASSERT_FALSE(task1->Start(0, false));
     GlobalMockObject::verify();
 }
 
@@ -149,7 +149,7 @@ TEST(ProfTask, start_prof_task_910B_stars_fail)
     MOCKER(&KernelContext::GetMC2Flag)
             .stubs()
             .will(returnValue(true));
-    ASSERT_FALSE(task1->Start(0));
+    ASSERT_FALSE(task1->Start(0, false));
     GlobalMockObject::verify();
 }
 
@@ -162,7 +162,7 @@ TEST(ProfTask, start_prof_task_310P_success)
     MOCKER(prof_drv_start_origin)
             .expects(exactly(1))
             .will(returnValue(0));
-    ASSERT_TRUE(task1->Start(1));
+    ASSERT_TRUE(task1->Start(1, false));
     GlobalMockObject::verify();
 }
 
@@ -180,7 +180,7 @@ TEST(ProfTask, start_prof_task_310P_get_all_task_success)
     MOCKER(prof_drv_start_origin)
             .expects(exactly(2))
             .will(returnValue(0));
-    ASSERT_TRUE(task1->Start(0));
+    ASSERT_TRUE(task1->Start(0, false));
     GlobalMockObject::verify();
 }
 
@@ -193,7 +193,7 @@ TEST(ProfTask, start_prof_task_310P_aicore_fail)
     MOCKER(prof_drv_start_origin)
             .expects(exactly(1))
             .will(returnValue(1));
-    ASSERT_FALSE(task1->Start(1));
+    ASSERT_FALSE(task1->Start(1, false));
     GlobalMockObject::verify();
 }
 
@@ -282,7 +282,7 @@ TEST(ProfTask, test_prof_task_A2_StartStarsTask_and_expect_return_true)
     MOCKER(prof_drv_start_origin)
             .stubs()
             .will(returnValue(0));
-    ASSERT_TRUE(task->Start(0));
+    ASSERT_TRUE(task->Start(0, false));
     GlobalMockObject::verify();
 }
 
@@ -306,7 +306,7 @@ TEST(ProfTask, test_prof_task_A5_StartStarsTask_and_expect_return_true)
     MOCKER(prof_drv_start_origin)
             .stubs()
             .will(returnValue(0));
-    ASSERT_TRUE(task->Start(0));
+    ASSERT_TRUE(task->Start(0, false));
     GlobalMockObject::verify();
 }
 
@@ -331,7 +331,7 @@ TEST(ProfTask, test_prof_task_A5_start_and_expect_return_true)
     MOCKER(prof_drv_start_origin)
             .stubs()
             .will(returnValue(0));
-    ASSERT_TRUE(task->Start(0));
+    ASSERT_TRUE(task->Start(0, false));
     GlobalMockObject::verify();
 }
 
@@ -356,7 +356,7 @@ TEST(ProfTask, test_A5_start_instr_task_when_pipe_timeline_enable_then_return_tr
     MOCKER(prof_drv_start_origin)
             .stubs()
             .will(returnValue(0));
-    ASSERT_TRUE(task->Start(0));
+    ASSERT_TRUE(task->Start(0, false));
     GlobalMockObject::verify();
 }
 
@@ -381,7 +381,7 @@ TEST(ProfTask, test_A5_start_instr_task_when_pcSampling_enable_then_return_true)
     MOCKER(prof_drv_start_origin)
             .stubs()
             .will(returnValue(0));
-    ASSERT_TRUE(task->Start(0));
+    ASSERT_TRUE(task->Start(0, false));
     GlobalMockObject::verify();
 }
 
@@ -405,7 +405,7 @@ TEST(ProfTask, test_A5_start_instr_task_when_instr_timeline_enable_then_return_t
     MOCKER(prof_drv_start_origin)
             .stubs()
             .will(returnValue(0));
-    ASSERT_TRUE(task->Start(0));
+    ASSERT_TRUE(task->Start(0, false));
     GlobalMockObject::verify();
 }
 
@@ -448,7 +448,7 @@ TEST(ProfTask, test_A5_channel_read_when_timeline_or_pcsampling_enabled_and_expe
     ProfConfig::Instance().profConfig_.dbiFlag = DBI_FLAG_INSTR_PROF_END;
     std::unique_ptr<ProfTask> task1 = ProfTaskFactory::Create();
     ASSERT_TRUE(task1 != nullptr);
-    task1->Start(0);
+    task1->Start(0, false);
     task1->profRunning_ = false;
     task1->ChannelRead();
     string filePath = JoinPath({path, "timeline.bin.0"});

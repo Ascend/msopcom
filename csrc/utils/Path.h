@@ -30,6 +30,7 @@ public:
     Path(Path &&) = default;
     Path &operator=(Path const &) = default;
     Path &operator=(Path &&) = default;
+    ~Path() = default;
 
     /// 将 Path 对象拼接为原始路径字符串
     std::string ToString(void) const;

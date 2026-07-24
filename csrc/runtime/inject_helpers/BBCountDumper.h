@@ -38,6 +38,7 @@ public:
         return inst;
     }
 
+
     void Init(const std::string &outputDir, const KernelMatcher::Config &config,
         const BIType type = BIType::BB_COUNT)
     {
@@ -78,9 +79,8 @@ public:
     bool GetLaunchCount(const uint64_t regId, uint64_t &count) const;
 
 private:
-    BBCountDumper& operator=(const BBCountDumper&& p) = delete;
-    BBCountDumper(const BBCountDumper&& p) = delete;
     BBCountDumper() = default;
+    ~BBCountDumper() = default;
     void SaveBlockMapFile(uint64_t launchId, uint64_t regId, const std::string &outputPath = "");
 
     void InitDBITaskConfig(uint64_t regId, const std::string &outputPath) const;

@@ -205,7 +205,7 @@ bool DBITask::Run(void **handle, uint64_t launchId, bool withStubFunc)
         DEBUG_LOG("Run dbi task failed, will use original kernel to run.");
         return false;
     }
-    replaceTask_.reset(new KernelReplaceTask(newKernelPath));
+    replaceTask_.reset(new KernelReplaceTask(newKernelPath)); // NOLINT(cppcoreguidelines-owning-memory)
     if (replaceTask_->Run(handle, regId, withStubFunc)) {
         launchId_ = launchId;
         // update stubBin field in registerEvent
@@ -305,6 +305,23 @@ DBITaskConfig::~DBITaskConfig()
     if (!keepRootTmpDirOutputs_ && IsExist(tmpRootDir_)) {
         RemoveAll(tmpRootDir_);
     }
+}
+
+void DBITaskConfig::Reset() const
+{
+    auto &inst = Instance();
+    inst.enabled_ = false;
+    inst.matcher_ = nullptr;
+    inst.tmpRootDir_.clear();
+    inst.pluginPath_.clear();
+    inst.type_ = BIType::MAX;
+    inst.argsSize_ = 0;
+    inst.keepTaskOutputs_ = false;
+    inst.keepRootTmpDirOutputs_ = false;
+    inst.tuneLogPath_.clear();
+    inst.oldKernelName_ = "tmp_old_kernel.o";
+    inst.newKernelName_ = "tmp_new_kernel.o";
+    inst.extraCompilerArgs_.clear();
 }
 
 bool DBITaskConfig::IsEnabled(uint64_t launchId, const string &kernelName) const

@@ -36,7 +36,7 @@ public:
     ArgsRawContext(void *args, uint32_t argsSize, const std::vector<aclrtPlaceHolderInfo> &placeHolderArray)
         : ArgsContext(), args_(args), argsSize_(argsSize), isDeviceArgs_(false), placeHolderArray_(placeHolderArray) {}
 
-    ~ArgsRawContext();
+    ~ArgsRawContext() override;
 
     bool ExpandArgs(void *param, size_t paramSize, uint32_t &paramOffset) override;
 

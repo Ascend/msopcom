@@ -62,7 +62,7 @@ public:
     virtual ~BinaryInstrumentation() = default;
     // 由于跨进程所以此处暂时没必要提供内存的方法
     virtual bool Convert(const std::string& newKernelFile, const std::string& oldKernelFile,
-        const std::string& tilingKey = "") = 0;
+        const std::string& tilingKey) = 0;
     virtual bool NeedExtraSpace() {return true;}
     // 部分DBI过程中，需要添加参数，该参数需要通过此处传递
     virtual bool ExpandArgs(const std::string& expendArgs) {return true;}
@@ -83,7 +83,7 @@ public:
     explicit BBCountDBI() : BinaryInstrumentation(BIType::BB_COUNT) {}
     ~BBCountDBI() override = default;
     bool Convert(const std::string& newKernelFile, const std::string& oldKernelFile,
-        const std::string& tilingKey = "") override;
+        const std::string& tilingKey) override;
 };
 
 class PGODBI : public BinaryInstrumentation {
@@ -91,7 +91,7 @@ public:
     explicit PGODBI() : BinaryInstrumentation(BIType::PGO) {}
     ~PGODBI() override = default;
     bool Convert(const std::string& newKernelFile, const std::string& oldKernelFile,
-        const std::string& tilingKey = "") override;
+        const std::string& tilingKey) override;
     bool ExpandArgs(const std::string& expendArgs) override;
     bool NeedExtraSpace() override {return false;}
 };
@@ -101,7 +101,7 @@ public:
     explicit CustomDBI() : BinaryInstrumentation(BIType::CUSTOMIZE) {}
     ~CustomDBI() override;
     bool Convert(const std::string& newKernelFile, const std::string& oldKernelFile,
-        const std::string& tilingKey = "") override;
+        const std::string& tilingKey) override;
     bool SetConfig(const Config& config) override;
 
 private:
@@ -128,10 +128,10 @@ public:
 
     BinaryInstrumentationSP Create(BIType type) const;
 
+public:
 private:
     DBIFactory() = default;
-    DBIFactory(const DBIFactory&) = default;
-    DBIFactory &operator=(const DBIFactory&)& = default;
+    ~DBIFactory() = default;
 };
 
 #endif // __BINARY_INSTRUCTION__

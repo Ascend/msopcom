@@ -37,6 +37,7 @@
 class FuncContext {
 public:
     using FuncContextSP = std::shared_ptr<FuncContext>;
+    virtual ~FuncContext() = default;
     FuncContext(RegisterContextSP regCtx, void *funcHandle)
         : funcHandle_(funcHandle), regCtx_(regCtx), kernelName_{} {}
 

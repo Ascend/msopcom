@@ -251,6 +251,7 @@ public:
 
 private:
     MsTx();
+    ~MsTx() = default;
     void MstxAttrReset(bool forceReset = false);
     void UpdateRegionsUnregisterInfo(MstxAPI::MstxDomainRegistration const *domain,
         MstxAPI::MstxMemRegionsUnregisterBatch const *desc,

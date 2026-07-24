@@ -92,6 +92,8 @@ struct RegisterParam {
         }
         return *this;
     }
+
+    ~RegisterParam() = default;
 };
 
 /**

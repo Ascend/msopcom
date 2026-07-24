@@ -20,8 +20,8 @@
 #include "utils/InjectLogger.h"
 #include "acl_rt_impl/AclRuntimeConfig.h"
 
-#define LOAD_FUNCTION_BODY(soName, funcName, ...)                       \
-    {                                                                   \
+#define LOAD_FUNCTION_BODY(soName, funcName, ...) \
+    { \
         /* 屏蔽 runtime 接口劫持，防止因劫持接口内调用了 runtime 接口污染记录信息 */ \
         LayerGuard guard(HijackedLayerManager::Instance(), #funcName); \
         FUNC_BODY(soName, funcName, Origin, ACL_ERROR_INTERNAL_ERROR, __VA_ARGS__); \

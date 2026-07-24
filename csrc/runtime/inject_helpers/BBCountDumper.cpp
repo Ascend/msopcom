@@ -103,11 +103,11 @@ std::string BBCountDumper::GenExtraAndReturnName(const std::string &path, uint64
     if (memSize == 0) {
         return "";
     }
-    auto *memInfoHost = new uint8_t[memSize];
+    auto *memInfoHost = new uint8_t[memSize]; // NOLINT(cppcoreguidelines-owning-memory)
     aclError error = aclrtMemcpyImplOrigin(memInfoHost, memSize, memInfo, memSize, ACL_MEMCPY_DEVICE_TO_HOST);
     if (error != ACL_ERROR_NONE) {
         ERROR_LOG("dump basic block data rtMemcpy memInfo error: %d", error);
-        delete[] memInfoHost;
+        delete[] memInfoHost; // NOLINT(cppcoreguidelines-owning-memory)
         memInfoHost = nullptr;
         return "";
     }
@@ -118,9 +118,9 @@ std::string BBCountDumper::GenExtraAndReturnName(const std::string &path, uint64
     if (!dumpResult) {
         ERROR_LOG("rtKernelLaunch write memInfo file failed.");
     }
-    delete[] memInfoHost;
+    delete[] memInfoHost; // NOLINT(cppcoreguidelines-owning-memory)
     memInfoHost = nullptr;
-    return extraMemFileName;
+    return extraMemFileName; // NOLINT(cppcoreguidelines-owning-memory)
 }
 
 bool BBCountDumper::DumpBBData(uint64_t regId, uint64_t memSize, uint8_t *memInfo)
@@ -129,11 +129,11 @@ bool BBCountDumper::DumpBBData(uint64_t regId, uint64_t memSize, uint8_t *memInf
         return false;
     }
     DEBUG_LOG("start to dump BBData for regId=%lu memSize=%lu", regId, memSize);
-    auto *memInfoHost = new uint8_t[memSize];
+    auto *memInfoHost = new uint8_t[memSize]; // NOLINT(cppcoreguidelines-owning-memory)
     aclError error = aclrtMemcpyImplOrigin(memInfoHost, memSize, memInfo, memSize, ACL_MEMCPY_DEVICE_TO_HOST);
     if (error != ACL_ERROR_NONE) {
         ERROR_LOG("dump basic block data rtMemcpy memInfo error: %d", error);
-        delete[] memInfoHost;
+        delete[] memInfoHost; // NOLINT(cppcoreguidelines-owning-memory)
         memInfoHost = nullptr;
         return false;
     }
@@ -145,7 +145,7 @@ bool BBCountDumper::DumpBBData(uint64_t regId, uint64_t memSize, uint8_t *memInf
         ERROR_LOG("rtKernelLaunch write memInfo file failed.");
     }
 
-    delete[] memInfoHost;
+    delete[] memInfoHost; // NOLINT(cppcoreguidelines-owning-memory)
     memInfoHost = nullptr;
     return dumpResult;
 }

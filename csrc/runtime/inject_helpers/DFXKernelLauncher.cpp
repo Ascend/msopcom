@@ -34,7 +34,10 @@ aclError CheckAclResult(aclError result, const string &apiName)
     return result;
 }
 }
-#define RETURN_IF_FAIL(result) if ((result) != ACL_SUCCESS) { return false; }
+#define RETURN_IF_FAIL(result) \
+    if ((result) != ACL_SUCCESS) { \
+        return false; \
+    }
 void DFXKernelLauncher::Init(const std::string &kernelName, const std::string &kernelPath)
 {
     std::unique_lock<std::mutex> lock(mtx_);

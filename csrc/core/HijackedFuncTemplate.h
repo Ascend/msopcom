@@ -99,8 +99,8 @@ public:
         : originfunc_{reinterpret_cast<FuncType>(GET_FUNCTION(soName, funcName))} { }
     virtual ~HijackedFunc() {}
     virtual void Pre(Args... args) {}
-    virtual void Post() {return;}
-    virtual void EmptyFunc() {return;}
+    virtual void Post() {}
+    virtual void EmptyFunc() {}
     virtual void Call(Args... args)
     {
         Pre(args...);

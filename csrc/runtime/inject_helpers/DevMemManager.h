@@ -35,6 +35,8 @@ private:
     DevMemManager() = default;
     ~DevMemManager() { this->Free(); }
 
+public:
+
 private:
     uint64_t memSize_ = 0;
     void *memPtr_ = nullptr;

@@ -141,7 +141,7 @@ Path Path::operator/(Path rhs) const &
 Path Path::operator/(Path rhs) &&
 {
     if (rhs.absolute_) {
-        return std::move(rhs);
+        return rhs;
     }
 
     for (auto &r : rhs.route_) {

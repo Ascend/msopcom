@@ -229,7 +229,7 @@ bool ProfConfig::IsSimulatorLaunchedByDevice() const
     return GetEnv(DEVICE_TO_SIMULATOR) == "true";
 }
 
-ProfConfig::ProfConfig()
+void ProfConfig::InitConfigData()
 {
     if (IsSimulatorLaunchedByDevice()) {
         profConfig_.isSimulator = true;
@@ -239,6 +239,21 @@ ProfConfig::ProfConfig()
         isRangeReplay_ = (profConfig_.replayMode == static_cast<uint8_t>(ReplayMode::RANGE));
     }
     LoadSocVersionFromEnv();
+}
+
+ProfConfig::ProfConfig()
+{
+    InitConfigData();
+}
+
+void ProfConfig::Reset()
+{
+    profConfig_ = {};
+    socVersion_.clear();
+    isAppReplay_ = false;
+    isRangeReplay_ = false;
+    isCaLogTrans_ = false;
+    InitConfigData();
 }
 
 bool ProfConfig::PostNotify(ProcessCtrl::Rsp &rsp)

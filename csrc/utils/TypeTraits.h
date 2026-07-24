@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <type_traits>
+
 
 template <typename T>
 using add_const_t = typename std::add_const<T>::type;

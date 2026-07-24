@@ -55,7 +55,7 @@ bool KernelReplacement::CreateHandle(void **handle, uint64_t launchId)
         return true;
     }
 
-    replaceTask_.reset(new KernelReplaceTask(kernelPath_));
+    replaceTask_.reset(new KernelReplaceTask(kernelPath_)); // NOLINT(cppcoreguidelines-owning-memory)
     if (replaceTask_->Run(handle, regId, false)) {
         oldKernelRegId_ = regId;
         return true;

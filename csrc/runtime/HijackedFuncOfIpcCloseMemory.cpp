@@ -40,7 +40,9 @@ rtError_t HijackedFuncOfIpcCloseMemory::Call(const void *ptr)
         size_t backSize = 0;
         MemoryGuard::Instance().GetGuardSizes(frontSize, backSize);
         // 还原为实际地址再调用
+        // NOLINTBEGIN(cppcoreguidelines-pro-type-const-cast)
         ret = originfunc_(reinterpret_cast<char *>(const_cast<void *>(ptr)) - frontSize);
+        // NOLINTEND(cppcoreguidelines-pro-type-const-cast)
     } else {
         ret = originfunc_(ptr);
     }

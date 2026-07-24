@@ -43,7 +43,7 @@ public:
         static ProfConfig inst;
         return inst;
     }
-    void Reset() const { Instance() = ProfConfig(); }
+    void Reset();
 
     void Init(const MessageOfProfConfig &profConfig) { profConfig_ = profConfig; }
 
@@ -106,19 +106,14 @@ public:
     void SendMsg(const std::string &msg);
 
     std::string GetMsopprofPath() const;
+
+
 private:
     ProfConfig();
-    ProfConfig(const ProfConfig& p)
-    {
-        profConfig_ = p.profConfig_;
-    }
-    ProfConfig& operator=(const ProfConfig& p)
-    {
-        profConfig_ = p.profConfig_;
-        return *this;
-    }
+    ~ProfConfig() = default;
 
     void InitProfConfig();
+    void InitConfigData();
     void LoadSocVersionFromEnv();
     std::mutex communtionMx_;
     MessageOfProfConfig profConfig_ {};

@@ -55,7 +55,10 @@ rtError_t HijackedFuncOfIpcSetMemoryName::Call(const void *ptr, uint64_t byteCou
         }
 
         // 还原为实际地址再调用
-        ret = originfunc_(reinterpret_cast<char *>(const_cast<void *>(ptr)) - frontSize, byteCount + frontSize + backSize, name, len);
+        // NOLINTBEGIN(cppcoreguidelines-pro-type-const-cast)
+        ret = originfunc_(
+            reinterpret_cast<char *>(const_cast<void *>(ptr)) - frontSize, byteCount + frontSize + backSize, name, len);
+        // NOLINTEND(cppcoreguidelines-pro-type-const-cast)
     } else {
         ret = originfunc_(ptr, byteCount, name, len);
     }

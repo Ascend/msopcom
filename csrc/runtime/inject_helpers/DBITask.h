@@ -120,7 +120,7 @@ public:
 
     bool IsEnabled(uint64_t launchId, const std::string &kernelName) const;
     // used only by ut test
-    void Reset() const { Instance() = DBITaskConfig{}; }
+    void Reset() const;
 
     void KeepTaskOutputs() { keepTaskOutputs_ = true; }
 
@@ -155,12 +155,13 @@ public:
 
 private:
     DBITaskConfig();
+    bool enabled_{false};
+    std::shared_ptr<KernelMatcher> matcher_;
+
+public:
     DBITaskConfig(const DBITaskConfig&) = delete;
     DBITaskConfig(DBITaskConfig &&) = delete;
     DBITaskConfig& operator=(DBITaskConfig const&) & = delete;
-    DBITaskConfig& operator=(DBITaskConfig&&) & = default; // 用于Reset()函数
-    bool enabled_{false};
-    std::shared_ptr<KernelMatcher> matcher_;
 };
 
 // call dbi task when kernel launch

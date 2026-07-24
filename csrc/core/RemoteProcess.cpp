@@ -21,7 +21,7 @@
 
 RemoteProcess::RemoteProcess(CommType type)
 {
-    server_ = new Server(type);
+    server_ = new Server(type); // NOLINT(cppcoreguidelines-owning-memory)
 }
 
 void RemoteProcess::Start() const

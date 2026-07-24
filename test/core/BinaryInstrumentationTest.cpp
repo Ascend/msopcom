@@ -33,7 +33,7 @@ TEST(BBCountDBI, covert_kernel_expect_success)
     MOCKER(PipeCall).stubs().will(returnValue(true));
     MOCKER(chmod).stubs().will(returnValue(0));
     BBCountDBI bbcount;
-    bool ret = bbcount.Convert("", "");
+    bool ret = bbcount.Convert("", "", "");
     bool needExtraSpace = bbcount.NeedExtraSpace();
     bool exArgs = bbcount.ExpandArgs("");
     EXPECT_TRUE(ret);
@@ -58,7 +58,7 @@ TEST(PGODBI, covert_kernel_expect_success)
     MOCKER(PipeCall).stubs().will(returnValue(true));
     MOCKER(chmod).stubs().will(returnValue(0));
     PGODBI pgo;
-    bool ret = pgo.Convert("", "");
+    bool ret = pgo.Convert("", "", "");
     bool needExtraSpace = pgo.NeedExtraSpace();
     bool exArgs = pgo.ExpandArgs("");
     EXPECT_TRUE(ret);
@@ -147,7 +147,7 @@ TEST(CustomDBI, input_valid_lib_path_then_convert_expect_success)
             fclose(fp);
         }
         bool ret = dbi.SetConfig(config);
-        ret = dbi.Convert("new_kernel.o", "old_kernel.o");
+        ret = dbi.Convert("new_kernel.o", "old_kernel.o", "");
         EXPECT_TRUE(ret);
         remove(config.pluginPath.c_str());
     }

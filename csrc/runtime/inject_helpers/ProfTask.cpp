@@ -282,7 +282,9 @@ void AicpuTask::GetTask(prof_start_para_t &aicpuProfStartPara) const
 bool InstrProfTask::GetTask(int mode, prof_start_para_t &instrProfStartPara) const
 {
     uint32_t instrConfigSize = sizeof(InstrProfileConfigT);
+    // NOLINTBEGIN(cppcoreguidelines-owning-memory)
     auto *configPtrInstrProf = static_cast<InstrProfileConfigT *>(malloc(instrConfigSize));
+    // NOLINTEND(cppcoreguidelines-owning-memory)
     if (configPtrInstrProf == nullptr) {
         ERROR_LOG("Can not get user data pointer while getting instr profile task");
         return false;
@@ -307,7 +309,9 @@ bool InstrProfTask::GetTask(int mode, prof_start_para_t &instrProfStartPara) con
 bool FftsA5Task::GetTask(uint16_t *aicEventPtr, uint16_t *aivEventPtr, prof_start_para_t &fftsA5ProfStartPara) const
 {
     uint32_t fftsA5ConfigSize = sizeof(FftsA5ProfileConfigT);
+    // NOLINTBEGIN(cppcoreguidelines-owning-memory)
     auto *configPtrFfts = static_cast<FftsA5ProfileConfigT *>(malloc(fftsA5ConfigSize));
+    // NOLINTEND(cppcoreguidelines-owning-memory)
     if (configPtrFfts == nullptr) {
         ERROR_LOG("Can not get user data pointer while getting ffts task");
         return false;
@@ -356,7 +360,9 @@ bool HccsTask::GetTask(prof_start_para_t &l2CacheProfStartPara) const
 bool FftsTask::GetTask(uint16_t *aicEventPtr, uint16_t *aivEventPtr, prof_start_para_t &fftsProfStartPara) const
 {
     uint32_t fftsConfigSize = sizeof(FftsProfileConfigT);
+    // NOLINTBEGIN(cppcoreguidelines-owning-memory)
     auto *configPtrFfts = static_cast<FftsProfileConfigT *>(malloc(fftsConfigSize));
+    // NOLINTEND(cppcoreguidelines-owning-memory)
     if (configPtrFfts == nullptr) {
         ERROR_LOG("Can not get user data pointer while getting ffts task");
         return false;
@@ -397,7 +403,9 @@ bool FftsTask::GetTask(uint16_t *aicEventPtr, uint16_t *aivEventPtr, prof_start_
 bool StarsTask::GetTask(prof_start_para_t &starsProfStartPara) const
 {
     uint32_t starsConfigSize = sizeof(StarsSocLogConfigT);
+    // NOLINTBEGIN(cppcoreguidelines-owning-memory)
     auto *starsConfigPtr = static_cast<StarsSocLogConfigT *>(malloc(starsConfigSize));
+    // NOLINTEND(cppcoreguidelines-owning-memory)
     starsProfStartPara.user_data = nullptr;
     if (starsConfigPtr == nullptr) {
         ERROR_LOG("Can not get user data pointer while getting stars task");
@@ -420,7 +428,9 @@ bool StarsTask::GetTask(prof_start_para_t &starsProfStartPara) const
 bool StarsTask::GetTaskA5(prof_start_para_t &starsProfStartPara) const
 {
     uint32_t starsConfigSize = sizeof(StarsA5SocLogConfigT);
+    // NOLINTBEGIN(cppcoreguidelines-owning-memory)
     auto *starsConfigPtr = static_cast<StarsA5SocLogConfigT *>(malloc(starsConfigSize));
+    // NOLINTEND(cppcoreguidelines-owning-memory)
     starsProfStartPara.user_data = nullptr;
     if (starsConfigPtr == nullptr) {
         ERROR_LOG("Can not get user data pointer while getting stars task");
@@ -443,7 +453,9 @@ bool StarsTask::GetTaskA5(prof_start_para_t &starsProfStartPara) const
 bool AiCoreTask::GetTask(uint16_t *eventPtr, prof_start_para_t &aiCoreProfStartPara) const
 {
     uint32_t aiCoreConfigSize = sizeof(TsAiCoreProfileConfigT);
+    // NOLINTBEGIN(cppcoreguidelines-owning-memory)
     auto *configPtr = static_cast<TsAiCoreProfileConfigT *>(malloc(aiCoreConfigSize));
+    // NOLINTEND(cppcoreguidelines-owning-memory)
     aiCoreProfStartPara.user_data = nullptr;
     if (configPtr == nullptr) {
         ERROR_LOG("Can not get user data pointer while getting aicore task");
@@ -470,7 +482,9 @@ bool AiCoreTask::GetTask(uint16_t *eventPtr, prof_start_para_t &aiCoreProfStartP
 bool HwtsTask::GetTask(prof_start_para_t &hwtsProfStartPara) const
 {
     uint32_t hwtsConfigSize = sizeof(TsHwtsProfileConfigT);
+    // NOLINTBEGIN(cppcoreguidelines-owning-memory)
     auto *configPtr = static_cast<TsHwtsProfileConfigT *>(malloc(hwtsConfigSize));
+    // NOLINTEND(cppcoreguidelines-owning-memory)
     hwtsProfStartPara.user_data = nullptr;
     if (configPtr == nullptr) {
         ERROR_LOG("Can not get user data pointer while getting hwts task");
@@ -490,7 +504,9 @@ bool HwtsTask::GetTask(prof_start_para_t &hwtsProfStartPara) const
 bool L2CacheTask::GetTask(uint16_t *eventPtr, prof_start_para_t &l2CacheProfStartPara) const
 {
     uint32_t l2CacheConfigSize = sizeof(TsL2CacheProfileConfigT);
+    // NOLINTBEGIN(cppcoreguidelines-owning-memory)
     auto *configPtr = static_cast<TsL2CacheProfileConfigT *>(malloc(l2CacheConfigSize));
+    // NOLINTEND(cppcoreguidelines-owning-memory)
     l2CacheProfStartPara.user_data = nullptr;
     if (configPtr == nullptr) {
         ERROR_LOG("Can not get user data pointer while getting l2cache task");
@@ -515,7 +531,9 @@ bool L2CacheTask::GetTask(uint16_t *eventPtr, prof_start_para_t &l2CacheProfStar
 bool L2CacheTask::GetL2cacheEvict(prof_start_para_t &l2CacheProfStartPara, uint16_t *l2EventPtr) const
 {
     uint32_t l2CacheConfigSize = sizeof(TsL2CacheProfileConfigT) + 8 * sizeof(uint32_t);
+    // NOLINTBEGIN(cppcoreguidelines-owning-memory)
     auto *configPtr = static_cast<TsL2CacheProfileConfigT *>(malloc(l2CacheConfigSize));
+    // NOLINTEND(cppcoreguidelines-owning-memory)
     l2CacheProfStartPara.user_data = nullptr;
     if (configPtr == nullptr) {
         ERROR_LOG("Can not get user data pointer while getting l2cache task");
@@ -649,7 +667,7 @@ bool ProfTaskOfA5::StartInstrProfTask(int mode)
             DEBUG_LOG("Failed to start instr profiling channel:%d, return code:%d", static_cast<uint32_t>(it.first), ret);
         }
     }
-    free(instrProfStartPara.user_data);
+    free(instrProfStartPara.user_data); // NOLINT(cppcoreguidelines-owning-memory)
     return true;
 }
 
@@ -669,10 +687,10 @@ bool ProfTaskOfA5::StartFFTSTask(uint32_t replayCount)
     if (!fftsTask.GetTask(aicEventPtr, aivEventPtr, fftsProfStartPara) ||
         prof_drv_start_origin(deviceId_, CHANNEL_FFTS_PROFILE_BUFFER_TASK, &fftsProfStartPara) != 0) {
         ERROR_LOG("Profiling channel start failed.");
-        free(fftsProfStartPara.user_data);
+        free(fftsProfStartPara.user_data); // NOLINT(clang-analyzer-core.CallAndMessage,cppcoreguidelines-owning-memory)
         return false;
     }
-    free(fftsProfStartPara.user_data);
+    free(fftsProfStartPara.user_data); // NOLINT(clang-analyzer-core.CallAndMessage,cppcoreguidelines-owning-memory)
     if ((replayCount == EVENT_MAX_NUM_A5 / PMU_EVENT_MAX_NUM_A5 - 1) ||
         ((aicEventPtr[PMU_EVENT_MAX_NUM_A5] == 0) && (aivEventPtr[PMU_EVENT_MAX_NUM_A5] == 0))) {
         isLastReplay_ = true;
@@ -687,10 +705,10 @@ bool ProfTaskOfA5::StartStarsTask()
     if (!starsTask.GetTaskA5(starsProfStartPara) ||
         prof_drv_start_origin(deviceId_, CHANNEL_STARS_SOC_LOG_BUFFER, &starsProfStartPara) != 0) {
         ERROR_LOG("Profiling channel start failed.");
-        free(starsProfStartPara.user_data);
+        free(starsProfStartPara.user_data); // NOLINT(cppcoreguidelines-owning-memory)
         return false;
     }
-    free(starsProfStartPara.user_data);
+    free(starsProfStartPara.user_data); // NOLINT(cppcoreguidelines-owning-memory)
     isStarsStart_ = true;
     return true;
 }
@@ -757,10 +775,10 @@ bool ProfTaskOf910B::StartStarsTask()
     if (!starsTask.GetTask(starsProfStartPara) ||
         prof_drv_start_origin(deviceId_, CHANNEL_STARS_SOC_LOG_BUFFER, &starsProfStartPara) != 0) {
         ERROR_LOG("Profiling channel start failed.");
-        free(starsProfStartPara.user_data);
+        free(starsProfStartPara.user_data); // NOLINT(cppcoreguidelines-owning-memory)
         return false;
     }
-    free(starsProfStartPara.user_data);
+    free(starsProfStartPara.user_data); // NOLINT(cppcoreguidelines-owning-memory)
     isStarsStart_ = true;
     return true;
 }
@@ -780,10 +798,10 @@ bool ProfTaskOf910B::StartFFTSTask(uint32_t replayCount)
     if (!fftsTask.GetTask(aicEventPtr, aivEventPtr, fftsProfStartPara) ||
         prof_drv_start_origin(deviceId_, CHANNEL_FFTS_PROFILE_BUFFER_TASK, &fftsProfStartPara) != 0) {
         ERROR_LOG("Profiling channel start failed.");
-        free(fftsProfStartPara.user_data);
+        free(fftsProfStartPara.user_data); // NOLINT(cppcoreguidelines-owning-memory)
         return false;
     }
-    free(fftsProfStartPara.user_data);
+    free(fftsProfStartPara.user_data); // NOLINT(cppcoreguidelines-owning-memory)
     if ((replayCount == EVENT_MAX_NUM / PMU_EVENT_MAX_NUM - 1) ||
         ((aicEventPtr[PMU_EVENT_MAX_NUM] == 0) && (aivEventPtr[PMU_EVENT_MAX_NUM] == 0))) {
         isLastReplay_ = true;
@@ -802,10 +820,10 @@ bool ProfTaskOf910B::StartTSFWTask()
     l2CacheTask.GetL2cacheEvict(l2CacheProfStartPara, l2EventPtr);
     if (prof_drv_start_origin(deviceId_, CHANNEL_TSFW_L2, &l2CacheProfStartPara) != 0) {
         ERROR_LOG("Profiling channel start failed, channel is %u.", static_cast<uint32_t>(CHANNEL_TSFW_L2));
-        free(l2CacheProfStartPara.user_data);
+        free(l2CacheProfStartPara.user_data); // NOLINT(cppcoreguidelines-owning-memory)
         return false;
     }
-    free(l2CacheProfStartPara.user_data);
+    free(l2CacheProfStartPara.user_data); // NOLINT(cppcoreguidelines-owning-memory)
     isL2CacheStart_ = true;
     return true;
 }
@@ -820,10 +838,10 @@ bool ProfTaskOf910B::StartHCCSTask()
     hccsTask.GetTask(profStartPara);
     if (prof_drv_start_origin(deviceId_, CHANNEL_HCCS, &profStartPara) != 0) {
         ERROR_LOG("Profiling channel start failed, channel is %d.", static_cast<uint32_t>(CHANNEL_HCCS));
-        free(profStartPara.user_data);
+        free(profStartPara.user_data); // NOLINT(cppcoreguidelines-owning-memory)
         return false;
     }
-    free(profStartPara.user_data);
+    free(profStartPara.user_data); // NOLINT(cppcoreguidelines-owning-memory)
     isHccs_ = true;
     return true;
 }
@@ -885,10 +903,10 @@ bool ProfTaskOf310P::StartHwtsTask()
     if (!hwtsTask.GetTask(hwtsProfStartPara) ||
         prof_drv_start_origin(deviceId_, CHANNEL_HWTS_LOG, &hwtsProfStartPara) != 0) {
         ERROR_LOG("Profiling channel start failed.");
-        free(hwtsProfStartPara.user_data);
+        free(hwtsProfStartPara.user_data); // NOLINT(cppcoreguidelines-owning-memory)
         return false;
     }
-    free(hwtsProfStartPara.user_data);
+    free(hwtsProfStartPara.user_data); // NOLINT(cppcoreguidelines-owning-memory)
     isHwtsStart_ = true;
     return true;
 }
@@ -910,10 +928,10 @@ bool ProfTaskOf310P::Start(uint32_t replayCount, bool hasSimt)
         if (!aiCoreTask.GetTask(aicEventPtr, aiCoreProfStartPara) ||
             prof_drv_start_origin(deviceId_, CHANNEL_AICORE, &aiCoreProfStartPara) != 0) {
             ERROR_LOG("Profiling channel start failed.");
-            free(aiCoreProfStartPara.user_data);
+            free(aiCoreProfStartPara.user_data); // NOLINT(cppcoreguidelines-owning-memory)
             return false;
         }
-        free(aiCoreProfStartPara.user_data);
+        free(aiCoreProfStartPara.user_data); // NOLINT(cppcoreguidelines-owning-memory)
         isAiCoreStart_ = true;
     }
     // save the last replay duration.bin
@@ -929,10 +947,10 @@ bool ProfTaskOf310P::Start(uint32_t replayCount, bool hasSimt)
         if (!l2CacheTask.GetTask(profTaskConfig_.l2CachePmu, l2CacheProfStartPara) ||
             prof_drv_start_origin(deviceId_, CHANNEL_TSFW_L2, &l2CacheProfStartPara) != 0) {
             ERROR_LOG("Profiling channel start failed.");
-            free(l2CacheProfStartPara.user_data);
+            free(l2CacheProfStartPara.user_data); // NOLINT(cppcoreguidelines-owning-memory)
             return false;
         }
-        free(l2CacheProfStartPara.user_data);
+        free(l2CacheProfStartPara.user_data); // NOLINT(cppcoreguidelines-owning-memory)
         isL2CacheStart_ = true;
     }
     return true;

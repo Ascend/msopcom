@@ -62,9 +62,8 @@ bool ParseFirstSymbol(std::string const &text, std::string const &property, std:
 
 BinaryInstrumentation::BinaryInstrumentation(BIType biType): config_{}, biType_(biType) {}
 
-bool BBCountDBI::Convert(const std::string& newKernelFile, const std::string& oldKernelFile,
-    const std::string& tilingKey)
-{
+bool BBCountDBI::Convert(
+    const std::string &newKernelFile, const std::string &oldKernelFile, const std::string &tilingKey) {
     UmaskGuard guard{DEFAULT_UMASK_FOR_LOG_FILE};
     std::vector<std::string> args;
     if (config_.archName.find("dav-c310") != std::string::npos) {
@@ -103,8 +102,7 @@ bool BBCountDBI::Convert(const std::string& newKernelFile, const std::string& ol
     return Chmod(newKernelFile, SAVE_DATA_FILE_AUTHORITY);
 }
 
-bool PGODBI::Convert(const std::string& newKernelFile, const std::string& oldKernelFile, const std::string& tilingKey)
-{
+bool PGODBI::Convert(const std::string &newKernelFile, const std::string &oldKernelFile, const std::string &tilingKey) {
     UmaskGuard guard{DEFAULT_UMASK_FOR_LOG_FILE};
     std::vector<std::string> args = {
         "bisheng-tune",
@@ -198,9 +196,8 @@ bool CustomDBI::GenerateKernelWithProbe(const string &kernelFile, const string &
     return Chmod(kernelWithProbeFile, SAVE_DATA_FILE_AUTHORITY);
 }
 
-bool CustomDBI::Convert(const std::string& newKernelFile, const std::string& oldKernelFile,
-    const std::string& tilingKey)
-{
+bool CustomDBI::Convert(
+    const std::string &newKernelFile, const std::string &oldKernelFile, const std::string &tilingKey) {
     const string &archName = config_.archName;
     if (!initFunc_ || archName.empty()) {
         return false;
