@@ -22,9 +22,14 @@
 #include <cstdio>
 #include <string>
 #include <cstdint>
+#include <cstring>
 #include <map>
 #include <unordered_map>
 #include <mutex>
+#include <ctime>
+#include <chrono>
+#include <unistd.h>
+#include <sys/syscall.h>
 
 #include "utils/FileSystem.h"
 #include "utils/Ustring.h"
@@ -60,6 +65,12 @@ public:
 
     static constexpr std::size_t MAX_LOG_BUF_SIZE = 2048UL;
     char logBuf_[MAX_LOG_BUF_SIZE] = {0};
+
+    static uint64_t GetThreadId(void)
+    {
+        thread_local uint64_t tid = static_cast<uint64_t>(syscall(SYS_gettid));
+        return tid;
+    }
 
 private:
     InjectLogger()
@@ -112,15 +123,25 @@ inline LogLv InjectLogger::GetLogLv() const
     return lv_;
 }
 
-#define ERROR_LOG(format, ...) \
-    InjectLogger::Instance().Log(LogLv::ERROR, "[ERROR] <%s> " format, __func__, ## __VA_ARGS__)
-#define WARN_LOG(format, ...) \
-    InjectLogger::Instance().Log(LogLv::WARN, "[WARN] <%s> " format, __func__, ## __VA_ARGS__)
-#define INFO_LOG(format, ...) \
-    InjectLogger::Instance().Log(LogLv::INFO, "[INFO] <%s> " format, __func__, ## __VA_ARGS__)
-#define DEBUG_LOG(format, ...) \
-    InjectLogger::Instance().Log(LogLv::DEBUG, "[DEBUG] <%s> " format, __func__, ##__VA_ARGS__)
-#define VERBOSE_LOG(format, ...) \
-    InjectLogger::Instance().Log(LogLv::VERBOSE, "[VERBOSE] <%s> " format, __func__, ##__VA_ARGS__)
+// 日志格式：[时间戳] [线程号] [文件名:行号] [级别] 日志信息
+// 级别检查前置：被过滤的日志跳过时间戳、线程号等耗时操作，零开销
+#define INJ_LOG(level, levelStr, format, ...)                                                                    \
+    do {                                                                                                         \
+        if (static_cast<uint8_t>(level) < static_cast<uint8_t>(InjectLogger::Instance().GetLogLv()))             \
+            break;                                                                                               \
+        auto now = std::chrono::system_clock::now();                                                             \
+        std::time_t nowTime = std::chrono::system_clock::to_time_t(now);                                         \
+        char timeBuf[32];                                                                                        \
+        std::strftime(timeBuf, sizeof(timeBuf), "%Y-%m-%d %H:%M:%S", std::gmtime(&nowTime));                     \
+        uint64_t tid = InjectLogger::GetThreadId();                                                              \
+        InjectLogger::Instance().Log((level), "[%s] [%lu] [%s:%d] " levelStr " " format,                         \
+            timeBuf, tid, __FILENAME__, __LINE__, ## __VA_ARGS__);                            \
+    } while (0)
+
+#define ERROR_LOG(format, ...)   INJ_LOG(LogLv::ERROR,   "[ERROR]",   format, ## __VA_ARGS__)
+#define WARN_LOG(format, ...)    INJ_LOG(LogLv::WARN,    "[WARN]",    format, ## __VA_ARGS__)
+#define INFO_LOG(format, ...)    INJ_LOG(LogLv::INFO,    "[INFO]",    format, ## __VA_ARGS__)
+#define DEBUG_LOG(format, ...)   INJ_LOG(LogLv::DEBUG,   "[DEBUG]",   format, ## __VA_ARGS__)
+#define VERBOSE_LOG(format, ...) INJ_LOG(LogLv::VERBOSE, "[VERBOSE]", format, ## __VA_ARGS__)
 
 #endif // __UTILS_INJECT_LOGGER_H__
