@@ -289,7 +289,7 @@ inline bool InAclNewLaunchCallStack() {
 
 // 主要用于存放sanitizer_init和sanitizer_finalize需要共享的数据
 struct SanitizerLaunchGlobalData {
-    Register registers[C220_A2_A3_MAXCORE_NUM]; // 保存寄存器状态，向下一个算子传递
+    Register registers[MAX_AICORE_NUM]; // 保存寄存器状态，向下一个算子传递
 
     static SanitizerLaunchGlobalData &GetInstance() {
         static SanitizerLaunchGlobalData inst;
@@ -319,8 +319,8 @@ void SanitizerLaunchInit::InitKernelType() {
 
 bool SanitizerLaunchInit::AssignGlobalHead() {
     // 继承上一个算子的寄存器状态
-    aclError error = aclrtMemcpyImplOrigin(globalHead_.registers, sizeof(Register) * C220_A2_A3_MAXCORE_NUM,
-        SanitizerLaunchGlobalData::GetInstance().registers, sizeof(Register) * C220_A2_A3_MAXCORE_NUM,
+    aclError error = aclrtMemcpyImplOrigin(globalHead_.registers, sizeof(Register) * MAX_AICORE_NUM,
+        SanitizerLaunchGlobalData::GetInstance().registers, sizeof(Register) * MAX_AICORE_NUM,
         ACL_MEMCPY_HOST_TO_HOST);
     if (error != ACL_ERROR_NONE) {
         ERROR_LOG("init memcpy registers error: %d", error);
@@ -602,7 +602,7 @@ bool SanitizerLaunchFinalize::GlobalHeadD2H() {
 
 bool SanitizerLaunchFinalize::RegistersD2H() const {
     aclError error = aclrtMemcpyImplOrigin(SanitizerLaunchGlobalData::GetInstance().registers,
-        sizeof(Register) * C220_A2_A3_MAXCORE_NUM, globalHead_->registers, sizeof(Register) * C220_A2_A3_MAXCORE_NUM,
+        sizeof(Register) * MAX_AICORE_NUM, globalHead_->registers, sizeof(Register) * MAX_AICORE_NUM,
         ACL_MEMCPY_HOST_TO_HOST);
     if (error != ACL_ERROR_NONE) {
         ERROR_LOG("finalize memcpy registers error: %d", error);

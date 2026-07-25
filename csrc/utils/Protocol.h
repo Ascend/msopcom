@@ -354,6 +354,8 @@ using SimtRecordBlockHead = StructAlignBy<SimtRecordBlockHeadImpl, 64UL>;
 static_assert(sizeof(SimtRecordBlockHead) % 64UL == 0UL, "SimtRecordBlockHead size should aligned by 64 bytes");
 
 constexpr int64_t C220_A2_A3_MAXCORE_NUM = 75;
+constexpr int64_t C310_A5_MAXCORE_NUM = 108;  // A5(950): cube[0,17] + vec[18,53] + cube[54,71] + vec[72,107]
+constexpr int64_t MAX_AICORE_NUM = C310_A5_MAXCORE_NUM;  // 当前全芯片架构最大核数
 struct RecordGlobalHeadImpl {
     uint64_t securityVal = RECORD_HEAD_SECURITY_VALUE;
     CheckParmsInfo checkParms{};
@@ -362,7 +364,7 @@ struct RecordGlobalHeadImpl {
     SimtInfo simtInfo{};
     bool supportSimt{false};                // 当前芯片类型是否支持simt
 
-    Register registers[C220_A2_A3_MAXCORE_NUM]; // 保存核上寄存器状态，数组下标对应coreID
+    Register registers[MAX_AICORE_NUM]; // 保存核上寄存器状态，数组下标对应coreID，按最大核数分配
 };
 
 using RecordGlobalHead = StructAlignBy<RecordGlobalHeadImpl, 64UL>;
