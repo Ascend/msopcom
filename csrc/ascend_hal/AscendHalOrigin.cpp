@@ -57,6 +57,11 @@ drvError_t halGetDeviceInfoOrigin(uint32_t deviceId, int32_t aicoreType, int32_t
     LOAD_FUNCTION_BODY(halGetDeviceInfo, Origin, DRV_ERROR_RESERVED, deviceId, aicoreType, frequeType, freq);
 }
 
+LOAD_FUNCTION(halGetAPIVersion);
+drvError_t halGetAPIVersionOrigin(int32_t *halApiVersion) {
+    LOAD_FUNCTION_BODY(halGetAPIVersion, Origin, DRV_ERROR_RESERVED, halApiVersion);
+}
+
 LOAD_FUNCTION(drvMemGetAttribute);
 drvError_t drvMemGetAttributeOrigin(DVdeviceptr vptr, struct DVattribute *attr) {
     LOAD_FUNCTION_BODY(drvMemGetAttribute, Origin, DRV_ERROR_RESERVED, vptr, attr);

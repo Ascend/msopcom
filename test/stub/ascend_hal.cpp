@@ -50,4 +50,12 @@ drvError_t halGetDeviceInfo(uint32_t deviceId, int32_t aicoreType, int32_t frequ
 {
     return DRV_ERROR_RESERVED;
 }
+
+drvError_t halGetAPIVersion(int *halApiVersion) {
+    if (halApiVersion == nullptr) {
+        return DRV_ERROR_RESERVED;
+    }
+    *halApiVersion = 0x072419;
+    return DRV_ERROR_NONE;
+}
 }

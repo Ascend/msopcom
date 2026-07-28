@@ -164,6 +164,8 @@ drvError_t halGetDeviceInfoByBuffOrigin(
 
 drvError_t halGetDeviceInfoOrigin(uint32_t deviceId, int32_t aicoreType, int32_t frequeType, int64_t *freq);
 
+drvError_t halGetAPIVersionOrigin(int32_t *halApiVersion);
+
 drvError_t drvMemGetAttributeOrigin(DVdeviceptr vptr, struct DVattribute *attr);
 
 #ifdef __cplusplus

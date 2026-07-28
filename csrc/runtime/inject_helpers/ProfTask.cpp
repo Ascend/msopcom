@@ -46,6 +46,8 @@ constexpr int FFTS_PROF_AIC_SCALE_PARTIAL = 1;
 constexpr int INSTR_PROF_PERIOD = 32;
 constexpr uint16_t INSTR_PROF_MODE_BIU_PERF = 0;
 constexpr uint16_t INSTR_PROF_MODE_PC_SAMPLING = 1;
+constexpr int32_t HAL_API_VERSION_REPORT_DATA_LOSS = 0x072419;
+constexpr int32_t INSTR_PROF_DATA_LOSS_ERR = 2326;
 
 // ts data code
 using StarsSocLogConfigT = struct TagStarsSocLogConfig {
@@ -120,6 +122,16 @@ using InstrProfileConfigT = struct TagInstrProfileConfig {
     uint32_t groupType;            // 0: aic, 1: aiv0, 2: aiv1
     uint32_t groupNo;              // group 编号
 };
+
+#pragma pack(push, 1)
+using InstrProfileConfigTV2 = struct TagInstrProfileConfigV2 {
+    uint32_t period; // cycle .. BIU PERF不使用
+    uint32_t biuPcSamplingMode; // 0: biu instr mode, 1: pc sampling
+    uint32_t groupType; // 0: aic, 1: aiv0, 2: aiv1
+    uint32_t groupNo; // group 编号
+    bool reportDataLoss;
+};
+#pragma pack(pop)
 
 using InstrProfHeadInfoT = struct TagInstrProfHeadInfo {
     uint16_t coreId = 0;
@@ -279,12 +291,29 @@ void AicpuTask::GetTask(prof_start_para_t &aicpuProfStartPara) const
     aicpuProfStartPara.user_data_size = 0;
 }
 
+static bool IsDataLoss(void) {
+    int32_t version = 0;
+    const drvError_t ret = halGetAPIVersionOrigin(&version);
+    DEBUG_LOG("Hal API version: %d", version);
+    if (ret != DRV_ERROR_NONE || version < HAL_API_VERSION_REPORT_DATA_LOSS) {
+        return false;
+    }
+    return true;
+}
+
+template <typename ConfigT> static void InitInstrProfileConfig(ConfigT *config, int mode) {
+    config->period = INSTR_PROF_PERIOD;
+    config->biuPcSamplingMode = static_cast<uint32_t>(mode);
+    config->groupType = 0;
+    config->groupNo = 0;
+}
+
 bool InstrProfTask::GetTask(int mode, prof_start_para_t &instrProfStartPara) const
 {
-    uint32_t instrConfigSize = sizeof(InstrProfileConfigT);
-    // NOLINTBEGIN(cppcoreguidelines-owning-memory)
-    auto *configPtrInstrProf = static_cast<InstrProfileConfigT *>(malloc(instrConfigSize));
-    // NOLINTEND(cppcoreguidelines-owning-memory)
+    const bool reportDataLoss = IsDataLoss();
+
+    const uint32_t instrConfigSize = reportDataLoss ? sizeof(InstrProfileConfigTV2) : sizeof(InstrProfileConfigT);
+    void *configPtrInstrProf = malloc(instrConfigSize);
     if (configPtrInstrProf == nullptr) {
         ERROR_LOG("Can not get user data pointer while getting instr profile task");
         return false;
@@ -292,10 +321,14 @@ bool InstrProfTask::GetTask(int mode, prof_start_para_t &instrProfStartPara) con
     instrProfStartPara.user_data = nullptr;
     std::fill_n(reinterpret_cast<char *>(configPtrInstrProf), instrConfigSize, 0);
 
-    configPtrInstrProf->period = INSTR_PROF_PERIOD;
-    configPtrInstrProf->biuPcSamplingMode = static_cast<uint32_t>(mode);
-    configPtrInstrProf->groupType = 0;
-    configPtrInstrProf->groupNo = 0;
+    if (reportDataLoss) {
+        auto *config = static_cast<InstrProfileConfigTV2 *>(configPtrInstrProf);
+        InitInstrProfileConfig(config, mode);
+        config->reportDataLoss = true;
+    } else {
+        auto *config = static_cast<InstrProfileConfigT *>(configPtrInstrProf);
+        InitInstrProfileConfig(config, mode);
+    }
 
     instrProfStartPara.channel_type = PROF_TS_TYPE;
     instrProfStartPara.sample_period = 0;
@@ -745,7 +778,19 @@ bool ProfTaskOfA5::Start(uint32_t replayCount, bool hasSimt)
 void ProfTaskOfA5::StopInstrProfChannels()
 {
     for (auto const &it : instrProfChn_) {
-        prof_stop_origin(deviceId_, static_cast<uint32_t>(it.first));
+        int ret = prof_stop_origin(deviceId_, static_cast<uint32_t>(it.first));
+        if (ret == INSTR_PROF_DATA_LOSS_ERR) {
+            if (instrProfState_ == InstrProfState::TIMELINE) {
+                const bool isCubeCore = it.second.grpType == InstrProfGrpType::AIC;
+                const uint32_t subCoreId = isCubeCore
+                    ? 0
+                    : static_cast<uint32_t>(it.second.grpType) - static_cast<uint32_t>(InstrProfGrpType::AIV0);
+                WARN_LOG("InstrProf channel %u (core%u.%score%u) has data loss", static_cast<uint32_t>(it.first),
+                    static_cast<uint32_t>(it.second.grpId), isCubeCore ? "cube" : "vec", subCoreId);
+            } else if (instrProfState_ == InstrProfState::PC_SAMPLING) {
+                DEBUG_LOG("InstrProf channel %u has data loss", static_cast<uint32_t>(it.first));
+            }
+        }
     }
 }
 

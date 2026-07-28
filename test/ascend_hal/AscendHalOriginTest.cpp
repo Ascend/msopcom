@@ -32,4 +32,10 @@ TEST(AscendHalOrigin, test_call_function_with_originfunc_and_check_expect_return
     EXPECT_EQ(ret5, DRV_ERROR_RESERVED);
     auto ret6 = halGetDeviceInfoOrigin(0, 0, 0, {});
     EXPECT_EQ(ret6, DRV_ERROR_RESERVED);
+    int halApiVersion = 0;
+    auto ret7 = halGetAPIVersionOrigin(&halApiVersion);
+    EXPECT_EQ(ret7, DRV_ERROR_NONE);
+    EXPECT_EQ(halApiVersion, 0x072419);
+    auto ret8 = halGetAPIVersionOrigin(nullptr);
+    EXPECT_EQ(ret8, DRV_ERROR_RESERVED);
 }

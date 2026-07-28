@@ -33,6 +33,7 @@
 #include "runtime/inject_helpers/DeviceContext.h"
 #include "runtime/RuntimeOrigin.h"
 #include "utils/FileSystem.h"
+#include "utils/InjectLogger.h"
 #include "utils/PipeCall.h"
 #include "mockcpp/mockcpp.hpp"
 #include "ascend_hal/AscendHalOrigin.h"
@@ -41,6 +42,75 @@
 
 constexpr uint64_t MEM_ADDR = 0x12c045400000U;
 constexpr uint64_t MEM_SIZE = 0x1000U;
+
+namespace {
+constexpr uint32_t LEGACY_INSTR_CONFIG_SIZE = 16;
+constexpr uint32_t REPORT_DATA_LOSS_INSTR_CONFIG_SIZE = 17;
+constexpr int32_t INSTR_PROF_DATA_LOSS_ERR = 2326;
+int g_halApiVersion = 0;
+drvError_t g_halApiVersionRet = DRV_ERROR_NONE;
+uint32_t g_instrConfigSize = 0;
+bool g_reportDataLoss = false;
+
+drvError_t HalGetApiVersionStub(int *halApiVersion)
+{
+    if (halApiVersion == nullptr) {
+        return DRV_ERROR_RESERVED;
+    }
+    if (g_halApiVersionRet != DRV_ERROR_NONE) {
+        return g_halApiVersionRet;
+    }
+    *halApiVersion = g_halApiVersion;
+    return DRV_ERROR_NONE;
+}
+
+int CaptureInstrConfigStub(unsigned int, unsigned int, prof_start_para_t *startPara)
+{
+    if (startPara == nullptr || startPara->user_data == nullptr) {
+        return 0;
+    }
+    g_instrConfigSize = startPara->user_data_size;
+    if (g_instrConfigSize == REPORT_DATA_LOSS_INSTR_CONFIG_SIZE) {
+        auto *configData = static_cast<const uint8_t *>(startPara->user_data);
+        g_reportDataLoss = configData[LEGACY_INSTR_CONFIG_SIZE] != 0;
+    }
+    return 0;
+}
+
+int ReportDataLossForGroup0Aiv1Stub(unsigned int, unsigned int channelId) {
+    return channelId == static_cast<unsigned int>(InstrChannel::GROUP0_AIV1) ? INSTR_PROF_DATA_LOSS_ERR : 0;
+}
+
+void CheckInstrConfigForHalVersion(drvError_t ret, int halApiVersion, uint32_t expectedSize,
+    bool expectedReportDataLoss)
+{
+    GlobalMockObject::verify();
+    MessageOfProfConfig profMessage;
+    profMessage.replayCount = 0;
+    ProfConfig::Instance().Init(profMessage);
+    ProfConfig::Instance().profConfig_.dbiFlag = DBI_FLAG_INSTR_PROF_DFX;
+    DeviceContext::Local().SetDeviceId(1);
+    DeviceContext::Local().SetSocVersion("Ascend950PR_9589");
+    std::unique_ptr<ProfTask> task = ProfTaskFactory::Create();
+    ASSERT_NE(task, nullptr);
+
+    g_halApiVersionRet = ret;
+    g_halApiVersion = halApiVersion;
+    g_instrConfigSize = 0;
+    g_reportDataLoss = false;
+    MOCKER(halGetAPIVersionOrigin)
+        .expects(once())
+        .will(invoke(HalGetApiVersionStub));
+    MOCKER(prof_drv_start_origin)
+        .stubs()
+        .will(invoke(CaptureInstrConfigStub));
+
+    ASSERT_TRUE(task->Start(0, false));
+    EXPECT_EQ(g_instrConfigSize, expectedSize);
+    EXPECT_EQ(g_reportDataLoss, expectedReportDataLoss);
+    GlobalMockObject::verify();
+}
+} // namespace
 
 /**
 /* | 用例集 | ProfTask
@@ -407,6 +477,110 @@ TEST(ProfTask, test_A5_start_instr_task_when_instr_timeline_enable_then_return_t
             .will(returnValue(0));
     ASSERT_TRUE(task->Start(0, false));
     GlobalMockObject::verify();
+}
+
+/**
+/* | 用例集 | ProfTask
+/* |测试函数| ProfTaskOfA5::StopInstrProfChannels()
+/* | 用例名 | test_A5_stop_timeline_when_data_loss_then_warn_core_name
+/* |用例描述| Timeline通道发生数据丢失时，WARN日志打印对应的core信息
+*/
+TEST(ProfTask, test_A5_stop_timeline_when_data_loss_then_warn_core_name) {
+    MessageOfProfConfig profMessage;
+    ProfConfig::Instance().Init(profMessage);
+    ProfConfig::Instance().profConfig_.dbiFlag = DBI_FLAG_INSTR_PROF_END;
+    DeviceContext::Local().SetDeviceId(1);
+    DeviceContext::Local().SetSocVersion("Ascend950PR_9589");
+    std::unique_ptr<ProfTask> task = ProfTaskFactory::Create();
+    ASSERT_NE(task, nullptr);
+    MOCKER(prof_drv_start_origin).stubs().will(returnValue(0));
+    MOCKER(prof_stop_origin).stubs().will(invoke(ReportDataLossForGroup0Aiv1Stub));
+
+    ASSERT_TRUE(task->Start(0, false));
+    testing::internal::CaptureStdout();
+    task->Stop();
+    std::string capture = testing::internal::GetCapturedStdout();
+    EXPECT_NE(capture.find("[WARN]"), std::string::npos);
+    EXPECT_NE(capture.find("InstrProf channel 13 (core0.veccore1) has data loss"), std::string::npos);
+    GlobalMockObject::verify();
+}
+
+/**
+/* | 用例集 | ProfTask
+/* |测试函数| ProfTaskOfA5::StopInstrProfChannels()
+/* | 用例名 | test_A5_stop_pc_sampling_when_data_loss_then_debug_channel_only
+/* |用例描述| PCSampling通道发生数据丢失时，仅在DEBUG日志打印channel信息
+*/
+TEST(ProfTask, test_A5_stop_pc_sampling_when_data_loss_then_debug_channel_only) {
+    MessageOfProfConfig profMessage;
+    ProfConfig::Instance().Init(profMessage);
+    ProfConfig::Instance().profConfig_.dbiFlag = DBI_FLAG_INSTR_PROF_START;
+    DeviceContext::Local().SetDeviceId(1);
+    DeviceContext::Local().SetSocVersion("Ascend950PR_9589");
+    std::unique_ptr<ProfTask> task = ProfTaskFactory::Create();
+    ASSERT_NE(task, nullptr);
+    MOCKER(prof_drv_start_origin).stubs().will(returnValue(0));
+    MOCKER(prof_stop_origin).stubs().will(invoke(ReportDataLossForGroup0Aiv1Stub));
+
+    ASSERT_TRUE(task->Start(0, true));
+    testing::internal::CaptureStdout();
+    task->Stop();
+    std::string capture = testing::internal::GetCapturedStdout();
+    EXPECT_EQ(capture.find("[WARN]"), std::string::npos);
+    EXPECT_EQ(capture.find("core0.veccore1"), std::string::npos);
+    if (InjectLogger::Instance().GetLogLv() <= LogLv::DEBUG) {
+        EXPECT_NE(capture.find("[DEBUG]"), std::string::npos);
+        EXPECT_NE(capture.find("InstrProf channel 13 has data loss"), std::string::npos);
+    } else {
+        EXPECT_EQ(capture.find("InstrProf channel 13 has data loss"), std::string::npos);
+    }
+    GlobalMockObject::verify();
+}
+
+/**
+/* | 用例集 | ProfTask
+/* |测试函数| InstrProfTask::GetTask(int mode, prof_start_para_t &instrProfStartPara)
+/* | 用例名 | instr_config_uses_legacy_abi_when_hal_api_version_query_fails
+/* |用例描述| HAL API版本查询失败时，使用16字节旧版InstrProfile配置
+*/
+TEST(ProfTask, instr_config_uses_legacy_abi_when_hal_api_version_query_fails)
+{
+    CheckInstrConfigForHalVersion(DRV_ERROR_RESERVED, 0, LEGACY_INSTR_CONFIG_SIZE, false);
+}
+
+/**
+/* | 用例集 | ProfTask
+/* |测试函数| InstrProfTask::GetTask(int mode, prof_start_para_t &instrProfStartPara)
+/* | 用例名 | instr_config_uses_legacy_abi_before_report_data_loss_version
+/* |用例描述| HAL API版本低于0x072419时，使用16字节旧版InstrProfile配置
+*/
+TEST(ProfTask, instr_config_uses_legacy_abi_before_report_data_loss_version)
+{
+    CheckInstrConfigForHalVersion(DRV_ERROR_NONE, 0x072418, LEGACY_INSTR_CONFIG_SIZE, false);
+}
+
+/**
+/* | 用例集 | ProfTask
+/* |测试函数| InstrProfTask::GetTask(int mode, prof_start_para_t &instrProfStartPara)
+/* | 用例名 | instr_config_enables_report_data_loss_at_supported_version
+/* |用例描述| HAL API版本等于0x072419时，使用17字节配置并启用数据丢失上报
+*/
+TEST(ProfTask, instr_config_enables_report_data_loss_at_supported_version)
+{
+    CheckInstrConfigForHalVersion(
+        DRV_ERROR_NONE, 0x072419, REPORT_DATA_LOSS_INSTR_CONFIG_SIZE, true);
+}
+
+/**
+/* | 用例集 | ProfTask
+/* |测试函数| InstrProfTask::GetTask(int mode, prof_start_para_t &instrProfStartPara)
+/* | 用例名 | instr_config_enables_report_data_loss_after_supported_version
+/* |用例描述| HAL API版本高于0x072419时，使用17字节配置并启用数据丢失上报
+*/
+TEST(ProfTask, instr_config_enables_report_data_loss_after_supported_version)
+{
+    CheckInstrConfigForHalVersion(
+        DRV_ERROR_NONE, 0x072500, REPORT_DATA_LOSS_INSTR_CONFIG_SIZE, true);
 }
 
 /**
