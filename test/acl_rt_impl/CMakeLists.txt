@@ -1,4 +1,5 @@
 file(GLOB SOURCE
+    AclRuntimeConfigTest.cpp
     AscendclImplOriginTest.cpp
     HijackedFuncOfKernelArgsInitTest.cpp
     HijackedFuncOfKernelArgsAppendTest.cpp
