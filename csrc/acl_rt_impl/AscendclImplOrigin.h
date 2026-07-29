@@ -29,6 +29,7 @@ aclError aclrtGetPhyDevIdByLogicDevIdImplOrigin(const int32_t logicDevId, int32_
 const char *aclrtGetSocNameImplOrigin();
 
 aclError aclrtMallocImplOrigin(void **devPtr, size_t size, aclrtMemMallocPolicy policy);
+aclError aclrtMallocAlign32ImplOrigin(void **devPtr, size_t size, aclrtMemMallocPolicy policy);
 aclError aclrtFreeImplOrigin(void *devPtr);
 aclError aclrtMemsetImplOrigin(void *devPtr, size_t maxCount, int32_t value, size_t count);
 aclError aclrtMemcpyImplOrigin(void *dst, size_t destMax, const void *src, size_t count, aclrtMemcpyKind kind);

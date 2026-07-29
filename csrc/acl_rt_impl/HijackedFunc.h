@@ -76,6 +76,22 @@ private:
     aclrtMemMallocPolicy policy_{aclrtMemMallocPolicy::ACL_MEM_MALLOC_HUGE_FIRST};
     size_t actualSize_{0};
 };
+
+class HijackedFuncOfAclrtMallocAlign32Impl : public decltype(AscendclImpHijackedType(&aclrtMallocAlign32Impl)) {
+public:
+    explicit HijackedFuncOfAclrtMallocAlign32Impl();
+    ~HijackedFuncOfAclrtMallocAlign32Impl() override = default;
+    void Pre(void **devPtr, size_t size, aclrtMemMallocPolicy policy) override;
+    aclError Call(void **devPtr, size_t size, aclrtMemMallocPolicy policy) override;
+    aclError Post(aclError ret) override;
+
+private:
+    void **devPtr_{nullptr};
+    size_t size_{0};
+    aclrtMemMallocPolicy policy_{aclrtMemMallocPolicy::ACL_MEM_MALLOC_HUGE_FIRST};
+    size_t actualSize_{0};
+};
+
 class HijackedFuncOfAclrtMallocWithCfgImpl : public decltype(AscendclImpHijackedType(&aclrtMallocWithCfgImpl)) {
 public:
     explicit HijackedFuncOfAclrtMallocWithCfgImpl();

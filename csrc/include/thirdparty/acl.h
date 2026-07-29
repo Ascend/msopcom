@@ -33,8 +33,11 @@ typedef enum aclrtMemMallocPolicy {
     ACL_MEM_MALLOC_HUGE_FIRST_P2P,
     ACL_MEM_MALLOC_HUGE_ONLY_P2P,
     ACL_MEM_MALLOC_NORMAL_ONLY_P2P,
-    ACL_MEM_TYPE_LOW_BAND_WIDTH   = 0x0100,
-    ACL_MEM_TYPE_HIGH_BAND_WIDTH  = 0x1000,
+    ACL_MEM_MALLOC_HUGE1G_ONLY,
+    ACL_MEM_MALLOC_HUGE1G_ONLY_P2P,
+    ACL_MEM_TYPE_LOW_BAND_WIDTH = 0x0100U,
+    ACL_MEM_TYPE_HIGH_BAND_WIDTH = 0x1000U,
+    ACL_MEM_ACCESS_USER_SPACE_READONLY = 0x100000U,
 } aclrtMemMallocPolicy;
 
 typedef enum aclrtMemcpyKind {
@@ -213,6 +216,8 @@ aclError aclrtResetDeviceImpl(int32_t deviceId);
 aclError aclrtResetDeviceForceImpl(int32_t deviceId);
 
 aclError aclrtMallocImpl(void **devPtr, size_t size, aclrtMemMallocPolicy policy);
+
+aclError aclrtMallocAlign32Impl(void **devPtr, size_t size, aclrtMemMallocPolicy policy);
 
 aclError aclrtMallocCachedImpl(void **devPtr, size_t size, aclrtMemMallocPolicy policy);
 

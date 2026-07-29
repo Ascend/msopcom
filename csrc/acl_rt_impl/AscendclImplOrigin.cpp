@@ -36,6 +36,7 @@ void AscendclImplOriginCtor()
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtGetPhyDevIdByLogicDevIdImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtGetSocNameImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMallocImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMallocAlign32Impl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtFreeImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMemsetImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMemcpyImpl);
@@ -127,6 +128,10 @@ const char *aclrtGetSocNameImplOrigin()
 aclError aclrtMallocImplOrigin(void **devPtr, size_t size, aclrtMemMallocPolicy policy)
 {
     LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtMallocImpl, devPtr, size, policy);
+}
+
+aclError aclrtMallocAlign32ImplOrigin(void **devPtr, size_t size, aclrtMemMallocPolicy policy) {
+    LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtMallocAlign32Impl, devPtr, size, policy);
 }
 
 aclError aclrtFreeImplOrigin(void *devPtr)

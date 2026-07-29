@@ -1,6 +1,6 @@
 /* -------------------------------------------------------------------------
  * This file is part of the MindStudio project.
- * Copyright (c) 2025 Huawei Technologies Co.,Ltd.
+ * Copyright (c) 2026 Huawei Technologies Co.,Ltd.
  *
  * MindStudio is licensed under Mulan PSL v2.
  * You can use this software according to the terms and conditions of the Mulan PSL v2.
@@ -29,20 +29,17 @@
 #include "runtime/inject_helpers/MemoryContext.h"
 #include "runtime/inject_helpers/MemoryDataCollect.h"
 #include "runtime/inject_helpers/MemGuard.h"
-#include "runtime/inject_helpers/DeviceContext.h"
 
-HijackedFuncOfAclrtMallocImpl::HijackedFuncOfAclrtMallocImpl()
-    : HijackedFuncType(AclRuntimeLibName(), "aclrtMallocImpl"), devPtr_{nullptr}, size_{} {}
+HijackedFuncOfAclrtMallocAlign32Impl::HijackedFuncOfAclrtMallocAlign32Impl()
+    : HijackedFuncType(AclRuntimeLibName(), "aclrtMallocAlign32Impl"), devPtr_{nullptr}, size_{} {}
 
-void HijackedFuncOfAclrtMallocImpl::Pre(void **devPtr, size_t size, aclrtMemMallocPolicy policy)
-{
+void HijackedFuncOfAclrtMallocAlign32Impl::Pre(void **devPtr, size_t size, aclrtMemMallocPolicy policy) {
     this->devPtr_ = devPtr;
     this->size_ = size;
     this->policy_ = policy;
 }
 
-aclError HijackedFuncOfAclrtMallocImpl::Call(void **devPtr, size_t size, aclrtMemMallocPolicy policy)
-{
+aclError HijackedFuncOfAclrtMallocAlign32Impl::Call(void **devPtr, size_t size, aclrtMemMallocPolicy policy) {
     size_t actualSize = MemoryGuard::Instance().GetTotalSize(size);
     this->actualSize_ = actualSize;
     Pre(devPtr, size, policy);
@@ -50,13 +47,12 @@ aclError HijackedFuncOfAclrtMallocImpl::Call(void **devPtr, size_t size, aclrtMe
         aclError ret = originfunc_(devPtr, actualSize, policy);
         return Post(ret);
     }
-    ERROR_LOG("HijackedFuncOfAclrtMalloc originfunc is nullptr.");
+    ERROR_LOG("HijackedFuncOfAclrtMallocAlign32 originfunc is nullptr.");
 
     return EmptyFunc();
 }
 
-aclError HijackedFuncOfAclrtMallocImpl::Post(aclError ret)
-{
+aclError HijackedFuncOfAclrtMallocAlign32Impl::Post(aclError ret) {
     if (IsSanitizer()) {
         // 只有实际内存分配成功内存地址才有效，才需要上报内存分配信息
         if (ret != ACL_ERROR_NONE) {
@@ -66,19 +62,13 @@ aclError HijackedFuncOfAclrtMallocImpl::Post(aclError ret)
         MemoryGuard::Instance().MallocProc(devPtr_, size_);
 
         constexpr uint64_t blockAlignSize = 32;
-        PacketHead head = { PacketType::MEMORY_RECORD };
+        PacketHead head = {PacketType::MEMORY_RECORD};
         HostMemRecord record{};
         record.type = MemOpType::MALLOC;
         record.infoSrc = MemInfoSrc::ACL;
         record.dstAddr = reinterpret_cast<uint64_t>(*devPtr_);
-        // acl 接口内存分配上报时 size 与 rt 接口保持一致
-        // Ascend950 或 1G 大页：仅对齐不加 32 字节；其余：对齐后额外加 32 字节
-        if (DeviceContext::Local().IsAscend950() || policy_ == ACL_MEM_MALLOC_HUGE1G_ONLY ||
-            policy_ == ACL_MEM_MALLOC_HUGE1G_ONLY_P2P) {
-            record.memSize = CeilByAlignSize<blockAlignSize>(size_);
-        } else {
-            record.memSize = CeilByAlignSize<blockAlignSize>(size_) + blockAlignSize;
-        }
+        // aclrtMallocAlign32 仅对用户申请的 size 做 32 字节对齐，不会额外增加 32 字节
+        record.memSize = CeilByAlignSize<blockAlignSize>(size_);
         MemoryManage::Instance().CacheMemory<MemoryOpType::MALLOC>(record.dstAddr, record.infoSrc, record.memSize);
         LocalDevice::Local().Notify(Serialize(head, record));
     }

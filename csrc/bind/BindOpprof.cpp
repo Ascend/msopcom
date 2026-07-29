@@ -80,6 +80,7 @@ void RegisterAscendCl()
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtSetDeviceImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtResetDeviceImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMallocImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMallocAlign32Impl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtFreeImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMapMemImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtUnmapMemImpl);
@@ -475,6 +476,13 @@ aclError aclrtMallocImpl(void **devPtr, size_t size, aclrtMemMallocPolicy policy
     PRINT_ENTER_INSTRUMENTOR;
     LayerGuard guard(HijackedLayerManager::Instance(), __func__);
     HijackedFuncOfAclrtMallocImpl instance;
+    return instance.Call(devPtr, size, policy);
+}
+
+aclError aclrtMallocAlign32Impl(void **devPtr, size_t size, aclrtMemMallocPolicy policy) {
+    PRINT_ENTER_INSTRUMENTOR;
+    LayerGuard guard(HijackedLayerManager::Instance(), __func__);
+    HijackedFuncOfAclrtMallocAlign32Impl instance;
     return instance.Call(devPtr, size, policy);
 }
 
