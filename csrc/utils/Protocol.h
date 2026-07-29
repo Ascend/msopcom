@@ -588,6 +588,7 @@ struct SanitizerConfig {
     bool checkUnusedMemory;
     bool checkCrossNpuRaces;
     bool isPrintFullStack{false};
+    bool traceNonDefaultSprReg{false};
     int16_t checkBlockId = CHECK_ALL_BLOCK;
     uint32_t cacheSize = DEFAULT_CACHE_SIZE;
     DemangleMode demangleMode{DemangleMode::FULL_DEMANGLED_NAME};

@@ -43,6 +43,7 @@ void AssureEqSanConfig(const SanitizerConfig &rhs, const SanitizerConfig &lhs)
     ASSERT_TRUE(rhs.initCheck == lhs.initCheck);
     ASSERT_TRUE(rhs.syncCheck == lhs.syncCheck);
     ASSERT_TRUE(rhs.registerCheck == lhs.registerCheck);
+    ASSERT_TRUE(rhs.traceNonDefaultSprReg == lhs.traceNonDefaultSprReg);
     ASSERT_TRUE(rhs.checkDeviceHeap == lhs.checkDeviceHeap);
     ASSERT_TRUE(rhs.checkCannHeap == lhs.checkCannHeap);
     ASSERT_TRUE(rhs.leakCheck == lhs.leakCheck);
@@ -76,6 +77,7 @@ TEST(ConfigManagerTest, get_equal_config_and_unequal_config_with_different_devID
     config1.initCheck = false;
     config1.syncCheck = false;
     config1.registerCheck = false;
+    config1.traceNonDefaultSprReg = false;
     config1.checkDeviceHeap = false;
     config1.checkCannHeap = false;
     config1.leakCheck = false;
