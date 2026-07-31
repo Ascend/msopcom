@@ -82,6 +82,7 @@ void RegisterAscendCl()
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMallocImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMallocAlign32Impl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtFreeImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtFreeWithDevSyncImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMapMemImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtUnmapMemImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtGetDeviceImpl);
@@ -102,6 +103,7 @@ void RegisterAscendCl()
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtKernelArgsInitImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtKernelArgsInitByUserMemImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMallocWithCfgImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMallocForTaskSchedulerImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtKernelArgsParaUpdateImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtBinaryGetFunctionByEntryImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtLaunchKernelWithHostArgsImpl);
@@ -494,6 +496,13 @@ aclError aclrtFreeImpl(void *devPtr)
     return instance.Call(devPtr);
 }
 
+aclError aclrtFreeWithDevSyncImpl(void *devPtr) {
+    PRINT_ENTER_INSTRUMENTOR;
+    LayerGuard guard(HijackedLayerManager::Instance(), __func__);
+    HijackedFuncOfAclrtFreeWithDevSyncImpl instance;
+    return instance.Call(devPtr);
+}
+
 aclError aclrtMapMemImpl(void *virPtr, size_t size, size_t offset,
                          aclrtDrvMemHandle handle, uint64_t flags)
 {
@@ -648,6 +657,13 @@ aclError aclrtMallocWithCfgImpl(void **devPtr, size_t size, aclrtMemMallocPolicy
 {
     PRINT_ENTER_INSTRUMENTOR;
     HijackedFuncOfAclrtMallocWithCfgImpl instance;
+    return instance.Call(devPtr, size, policy, cfg);
+}
+
+aclError aclrtMallocForTaskSchedulerImpl(
+    void **devPtr, size_t size, aclrtMemMallocPolicy policy, aclrtMallocConfig *cfg) {
+    PRINT_ENTER_INSTRUMENTOR;
+    HijackedFuncOfAclrtMallocForTaskSchedulerImpl instance;
     return instance.Call(devPtr, size, policy, cfg);
 }
 

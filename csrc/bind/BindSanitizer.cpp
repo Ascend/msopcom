@@ -48,6 +48,7 @@ void HijackedAscendclImplCtor()
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMallocHostImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMallocHostWithCfgImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtFreeImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtFreeWithDevSyncImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtFreeHostImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMemsetImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMemcpyImpl);
@@ -69,6 +70,7 @@ void HijackedAscendclImplCtor()
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtLaunchKernelWithConfigImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtKernelArgsInitByUserMemImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMallocWithCfgImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMallocForTaskSchedulerImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclmdlRICaptureBeginImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclmdlRICaptureEndImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclmdlRIBindStreamImpl);
@@ -638,6 +640,12 @@ aclError aclrtFreeImpl(void *devPtr)
     return instance.Call(devPtr);
 }
 
+aclError aclrtFreeWithDevSyncImpl(void *devPtr) {
+    LayerGuard guard(HijackedLayerManager::Instance(), __func__);
+    HijackedFuncOfAclrtFreeWithDevSyncImpl instance;
+    return instance.Call(devPtr);
+}
+
 aclError aclrtMemsetImpl(void *devPtr, size_t maxCount, int32_t value, size_t count)
 {
     LayerGuard guard(HijackedLayerManager::Instance(), __func__);
@@ -834,6 +842,13 @@ aclError aclrtMallocWithCfgImpl(void **devPtr, size_t size, aclrtMemMallocPolicy
 {
     PRINT_ENTER_INSTRUMENTOR;
     HijackedFuncOfAclrtMallocWithCfgImpl instance;
+    return instance.Call(devPtr, size, policy, cfg);
+}
+
+aclError aclrtMallocForTaskSchedulerImpl(
+    void **devPtr, size_t size, aclrtMemMallocPolicy policy, aclrtMallocConfig *cfg) {
+    PRINT_ENTER_INSTRUMENTOR;
+    HijackedFuncOfAclrtMallocForTaskSchedulerImpl instance;
     return instance.Call(devPtr, size, policy, cfg);
 }
 

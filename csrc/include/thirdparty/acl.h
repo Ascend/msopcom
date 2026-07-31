@@ -181,6 +181,8 @@ aclError aclrtMallocHost(void **hostPtr, size_t size);
 aclError aclrtFreeHost(void *hostPtr);
 aclError aclrtMalloc(void **devPtr, size_t size, aclrtMemMallocPolicy policy);
 aclError aclrtMallocWithCfgImpl(void **devPtr, size_t size, aclrtMemMallocPolicy policy, aclrtMallocConfig *cfg);
+aclError aclrtMallocForTaskSchedulerImpl(
+    void **devPtr, size_t size, aclrtMemMallocPolicy policy, aclrtMallocConfig *cfg);
 aclError aclrtFree(void *devPtr);
 aclError aclrtMemcpy(void *dst, size_t destMax, const void *src, size_t count, aclrtMemcpyKind kind);
 aclError aclrtBinaryLoadFromFile(const char* binPath, aclrtBinaryLoadOptions *options, aclrtBinHandle *binHandle);
@@ -222,6 +224,8 @@ aclError aclrtMallocAlign32Impl(void **devPtr, size_t size, aclrtMemMallocPolicy
 aclError aclrtMallocCachedImpl(void **devPtr, size_t size, aclrtMemMallocPolicy policy);
 
 aclError aclrtFreeImpl(void *devPtr);
+
+aclError aclrtFreeWithDevSyncImpl(void *devPtr);
 
 aclError aclrtMemsetImpl(void *devPtr, size_t maxCount, int32_t value, size_t count);
 

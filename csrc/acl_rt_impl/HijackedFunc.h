@@ -134,6 +134,22 @@ private:
     size_t size_{0};
 };
 
+class HijackedFuncOfAclrtMallocForTaskSchedulerImpl
+    : public decltype(AscendclImpHijackedType(&aclrtMallocForTaskSchedulerImpl)) {
+public:
+    explicit HijackedFuncOfAclrtMallocForTaskSchedulerImpl();
+    ~HijackedFuncOfAclrtMallocForTaskSchedulerImpl() override = default;
+    void Pre(void **devPtr, size_t size, aclrtMemMallocPolicy policy, aclrtMallocConfig *cfg) override;
+    aclError Call(void **devPtr, size_t size, aclrtMemMallocPolicy policy, aclrtMallocConfig *cfg) override;
+    aclError Post(aclError ret) override;
+
+private:
+    void **devPtr_{nullptr};
+    size_t size_{0};
+    aclrtMemMallocPolicy policy_{aclrtMemMallocPolicy::ACL_MEM_MALLOC_HUGE_FIRST};
+    size_t actualSize_{0};
+};
+
 class HijackedFuncOfAclrtMallocHostWithCfgImpl : public decltype(AscendclImpHijackedType(&aclrtMallocHostWithCfgImpl)) {
 public:
     explicit HijackedFuncOfAclrtMallocHostWithCfgImpl();
@@ -163,6 +179,18 @@ public:
     explicit HijackedFuncOfAclrtFreeHostImpl();
     ~HijackedFuncOfAclrtFreeHostImpl() override = default;
     void Pre(void *hostPtr) override;
+};
+
+class HijackedFuncOfAclrtFreeWithDevSyncImpl : public decltype(AscendclImpHijackedType(&aclrtFreeWithDevSyncImpl)) {
+public:
+    explicit HijackedFuncOfAclrtFreeWithDevSyncImpl();
+    ~HijackedFuncOfAclrtFreeWithDevSyncImpl() override = default;
+    void Pre(void *devPtr) override;
+    aclError Call(void *devPtr) override;
+
+private:
+    void *devPtr_{nullptr};
+    void *actualPtr_{nullptr};
 };
 
 class HijackedFuncOfAclrtMemsetImpl : public decltype(AscendclImpHijackedType(&aclrtMemsetImpl)) {

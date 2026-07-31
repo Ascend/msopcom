@@ -9,6 +9,7 @@ file(GLOB INJECTION_SRC
     HijackedFuncOfAclrtMallocHostImpl.cpp
     HijackedFuncOfAclrtMallocHostWithCfgImpl.cpp
     HijackedFuncOfAclrtFreeImpl.cpp
+    HijackedFuncOfAclrtFreeWithDevSyncImpl.cpp
     HijackedFuncOfAclrtFreeHostImpl.cpp
     HijackedFuncOfAclrtMemsetImpl.cpp
     HijackedFuncOfAclrtMemsetAsyncImpl.cpp
@@ -50,6 +51,7 @@ file(GLOB INJECTION_SRC
     HijackedFuncOfAclrtLaunchKernelWithConfigImpl.cpp
     HijackedFuncOfAclrtLaunchKernelWithHostArgsImpl.cpp
     HijackedFuncOfAclrtMallocWithCfgImpl.cpp
+    HijackedFuncOfAclrtMallocForTaskSchedulerImpl.cpp
     HijackedFuncOfAclrtKernelArgsInitByUserMemImpl.cpp
 )
 

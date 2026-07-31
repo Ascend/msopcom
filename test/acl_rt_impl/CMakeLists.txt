@@ -21,6 +21,8 @@ file(GLOB SOURCE
     HijackedFuncOfAclrtIpcMemGetExportKeyTest.cpp
     HijackedFuncOfAclrtIpcMemImportByKeyTest.cpp
     HijackedFuncOfAclrtMallocWithCfgImplTest.cpp
+    HijackedFuncOfAclrtMallocForTaskSchedulerImplTest.cpp
+    HijackedFuncOfAclrtFreeWithDevSyncImplTest.cpp
     HijackFuncOfLaunchKernelTest.cpp
     HijackedFuncOfAclrtMallocImplTest.cpp
     HijackedFuncOfAclrtKernelArgsInitByUserMemImplTest.cpp
