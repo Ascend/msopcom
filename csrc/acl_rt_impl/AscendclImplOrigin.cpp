@@ -33,7 +33,7 @@ void AscendclImplOriginCtor()
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtSetDeviceImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtGetDeviceImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtResetDeviceForceImpl);
-    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtGetPhyDevIdByLogicDevIdImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtGetLogicDevIdByUserDevIdImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtGetSocNameImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMallocImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMallocAlign32Impl);
@@ -108,8 +108,8 @@ aclError aclrtResetDeviceForceImplOrigin(int32_t deviceId)
     LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtResetDeviceForceImpl, deviceId);
 }
 
-aclError aclrtGetPhyDevIdByLogicDevIdImplOrigin(const int32_t logicDevId, int32_t *const phyDevId) {
-    LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtGetPhyDevIdByLogicDevIdImpl, logicDevId, phyDevId);
+aclError aclrtGetLogicDevIdByUserDevIdImplOrigin(const int32_t userDevid, int32_t *const logicDevId) {
+    LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtGetLogicDevIdByUserDevIdImpl, userDevid, logicDevId);
 }
 
 const char *aclrtGetSocNameImplOrigin()
