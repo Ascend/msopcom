@@ -30,6 +30,8 @@ constexpr uint64_t BLOCK_MEM_SIZE = MAX_BLOCK_DATA_SIZE + BLOCK_GAP; // 每个bl
 constexpr uint64_t RECORD_OVERFLOW_BIT = 1ULL << 63; // BlockHeader溢出标记位
 constexpr char const *OPERAND_RECORD = "OperandRecord.bin";
 constexpr char const *WARP_TIMELINE = "WarpTimeline.bin";
+constexpr char const *DFX_TUNE_LOG = "dfx_tune.log";
+constexpr char const *DFX_REGION_MAP = "dfx_region_map.txt";
 constexpr uint32_t WARP_NUM_PER_BLOCK = 64U; // 每个block固定64个warp
 
 enum class ProfDBIType {

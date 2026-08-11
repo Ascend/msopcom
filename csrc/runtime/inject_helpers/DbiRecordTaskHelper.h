@@ -117,9 +117,9 @@ inline void AppendExtraInfo(const ProfDBIType &mode, const std::string &outputPa
         extraArgs = std::vector<std::string>{START_STUB_COMPILER_ARGS};
     } else if (mode == ProfDBIType::INSTR_PROF_DFX) {
         std::string instrPipeArg = "--dfx-region-instr-pipe=" + ProfConfig::Instance().GetInstrTimelinePipe();
-        std::string regionIdMapArg = "--dfx-region-id-map=" + JoinPath({outputPath, "dfx_region_map.txt"});
+        std::string regionIdMapArg = "--dfx-region-id-map=" + JoinPath({outputPath, DFX_REGION_MAP});
         extraArgs = std::vector<std::string>{instrPipeArg, regionIdMapArg};
-        tuneLogPath = JoinPath({outputPath, "dfx_tune.log"});
+        tuneLogPath = JoinPath({outputPath, DFX_TUNE_LOG});
     }
 }
 } // namespace DbiRecordTaskHelper
