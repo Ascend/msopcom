@@ -49,8 +49,8 @@ aclError HijackedFuncOfAclrtIpcMemCloseImpl::Post(aclError ret)
         // get current process ipc meminfo by this key
         auto it = IPCMemManager::Instance().ipcMemInfoMap.find(key);
         if (it == IPCMemManager::Instance().ipcMemInfoMap.cend()) {
-            ERROR_LOG("aclrtIpcMemCloseImpl cannot find key in ipcMemInfoMap. key:%s",
-                      ToSafeString(key).c_str());
+            std::string keyLog = FormatNameForLog(key);
+            ERROR_LOG("aclrtIpcMemCloseImpl cannot find key in ipcMemInfoMap. key:%s", keyLog.c_str());
             return ret;
         }
 

@@ -30,8 +30,9 @@ HijackedFuncOfIpcSetMemoryName::HijackedFuncOfIpcSetMemoryName()
 
 rtError_t HijackedFuncOfIpcSetMemoryName::Call(const void *ptr, uint64_t byteCount, char *name, uint32_t len)
 {
-    DEBUG_LOG(
-        "enter HijackedFuncOfIpcSetMemoryName byteCount:%lu, name:%s, len:%u", byteCount, name, len);
+    std::string nameLog = FormatNameForLog(
+        std::string(name, GetValidLength(name, std::min<uint64_t>(len, sizeof(IPCMemorySetInfo::name)))));
+    DEBUG_LOG("enter HijackedFuncOfIpcSetMemoryName byteCount:%lu, name:%s, len:%u", byteCount, nameLog.c_str(), len);
 
     if (this->originfunc_ == nullptr) {
         ERROR_LOG("HijackedFuncOfIpcSetMemoryName originfunc is nullptr.");
@@ -64,12 +65,8 @@ rtError_t HijackedFuncOfIpcSetMemoryName::Call(const void *ptr, uint64_t byteCou
     }
 
     if (ret != RT_ERROR_NONE) {
-        ERROR_LOG(
-            "error happened when calling rtIpcSetMemoryName byteCount:%lu, name:%.2048s, len:%u, retVal:%u",
-            byteCount,
-            name,
-            len,
-            ret);
+        ERROR_LOG("error happened when calling rtIpcSetMemoryName byteCount:%lu, name:%.2048s, len:%u, retVal:%u",
+            byteCount, nameLog.c_str(), len, ret);
         return Post(ret);
     }
 
@@ -86,11 +83,8 @@ rtError_t HijackedFuncOfIpcSetMemoryName::Call(const void *ptr, uint64_t byteCou
         IPCInteract(record);
     }
 
-    DEBUG_LOG("leave HijackedFuncOfIpcSetMemoryName byteCount:%lu, name:%.2048s, len:%u, retVal:%u",
-        byteCount,
-        name,
-        len,
-        ret);
+    DEBUG_LOG("leave HijackedFuncOfIpcSetMemoryName byteCount:%lu, name:%.2048s, len:%u, retVal:%u", byteCount,
+        nameLog.c_str(), len, ret);
 
     return Post(ret);
 }

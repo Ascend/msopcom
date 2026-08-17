@@ -163,3 +163,46 @@ TEST(Ustring, test_to_lower_correct)
     ToLower(str);
     EXPECT_EQ(str, "abc123_xyz");
 }
+
+TEST(Ustring, format_name_for_log_empty_string_expect_empty_string) { EXPECT_EQ(FormatNameForLog(""), ""); }
+
+TEST(Ustring, format_name_for_log_printable_string_expect_hash_only) {
+    // printable name is also output as hash only, no longer printed verbatim
+    EXPECT_EQ(FormatNameForLog("torch_ipc_42"), "hash=e6444933");
+}
+
+TEST(Ustring, format_name_for_log_text_with_bad_bytes_expect_hash_only) {
+    std::string name = "torch_123";
+    name += static_cast<char>(0x02);
+    name += "abc";
+    EXPECT_EQ(FormatNameForLog(name), "hash=d8919ddc");
+}
+
+TEST(Ustring, format_name_for_log_binary_input_expect_hash_only) {
+    // binary name (e.g. IPC handle): output FNV-1a 32-bit hash, no bin/length prefix
+    std::string input;
+    input += static_cast<char>(0x01);
+    input += static_cast<char>(0x02);
+    input += static_cast<char>(0x03);
+    input += static_cast<char>(0x04);
+    EXPECT_EQ(FormatNameForLog(input), "hash=5734a87d");
+}
+
+TEST(Ustring, format_name_for_log_user_ipc_handle_blob_expect_hash_only) {
+    // reproduce the 50-byte binary IPC handle from field logs; before fix it was garbled,
+    // previous fix emitted a 200-char \\xHH string, now only the hash is emitted
+    const unsigned char raw[] = {0x01, 0x01, 0x01, 0x01, 0x09, 0x01, 0x07, 0x01, 0x34, 0x06, 0x1b, 0x01, 0xe7, 0x55,
+        0x01, 0x01, 0x01, 0x01, 0x01, 0x40, 0x02, 0x01, 0x4f, 0x80, 0x01, 0x01, 0x20, 0x19, 0x01, 0x01, 0x01, 0x01,
+        0x35, 0x01, 0x01, 0x01, 0x07, 0x01, 0x09, 0x01, 0xad, 0x91, 0x9f, 0x99, 0xef, 0x95, 0x80, 0x80, 0x80, 0x80};
+    std::string input(reinterpret_cast<const char *>(raw), sizeof(raw));
+    EXPECT_EQ(FormatNameForLog(input), "hash=5020ab2f");
+}
+
+TEST(Ustring, format_name_for_log_deterministic_expect_same_input_same_output) {
+    std::string input;
+    for (int i = 0; i < 64; ++i) {
+        input += static_cast<char>(0x80);
+    }
+    EXPECT_EQ(FormatNameForLog(input), "hash=e5f96ac5");
+    EXPECT_EQ(FormatNameForLog(input), FormatNameForLog(input));
+}

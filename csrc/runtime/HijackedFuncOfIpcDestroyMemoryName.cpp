@@ -30,8 +30,8 @@ HijackedFuncOfIpcDestroyMemoryName::HijackedFuncOfIpcDestroyMemoryName()
 
 rtError_t HijackedFuncOfIpcDestroyMemoryName::Call(const char *name) {
     uint64_t validLen = GetValidLength(name, KERNEL_NAME_MAX);
-    std::string validName(name, validLen);
-    DEBUG_LOG("enter HijackedFuncOfIpcDestroyMemoryName name: %s", validName.c_str());
+    std::string nameLog = FormatNameForLog(std::string(name, validLen));
+    DEBUG_LOG("enter HijackedFuncOfIpcDestroyMemoryName name: %s", nameLog.c_str());
 
     if (this->originfunc_ == nullptr) {
         ERROR_LOG("HijackedFuncOfIpcDestroyMemoryName originfunc is nullptr.");
@@ -40,7 +40,7 @@ rtError_t HijackedFuncOfIpcDestroyMemoryName::Call(const char *name) {
 
     rtError_t ret = this->originfunc_(name);
     if (ret != RT_ERROR_NONE) {
-        ERROR_LOG("error happened when calling rtIpcDestroyMemoryName, name:%s, ", name);
+        ERROR_LOG("error happened when calling rtIpcDestroyMemoryName, name:%s, ", nameLog.c_str());
         return Post(ret);
     }
 
@@ -56,7 +56,7 @@ rtError_t HijackedFuncOfIpcDestroyMemoryName::Call(const char *name) {
         IPCInteract(record);
     }
 
-    DEBUG_LOG("leave HijackedFuncOfIpcDestroyMemoryName name:(%.2048s).", name);
+    DEBUG_LOG("leave HijackedFuncOfIpcDestroyMemoryName name:(%.2048s).", nameLog.c_str());
 
     return Post(ret);
 }

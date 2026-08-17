@@ -29,7 +29,8 @@ HijackedFuncOfIpcOpenMemory::HijackedFuncOfIpcOpenMemory()
 
 rtError_t HijackedFuncOfIpcOpenMemory::Call(void **ptr, const char *name)
 {
-    DEBUG_LOG("enter HijackedFuncOfIpcOpenMemory name:%.2048s.", name);
+    std::string nameLog = FormatNameForLog(std::string(name, GetValidLength(name, KERNEL_NAME_MAX)));
+    DEBUG_LOG("enter HijackedFuncOfIpcOpenMemory name:%.2048s.", nameLog.c_str());
 
     if (this->originfunc_ == nullptr) {
         ERROR_LOG("HijackedFuncOfIpcOpenMemory originfunc is nullptr.");
@@ -37,7 +38,7 @@ rtError_t HijackedFuncOfIpcOpenMemory::Call(void **ptr, const char *name)
     }
     rtError_t ret = this->originfunc_(ptr, name);
     if (ret != RT_ERROR_NONE) {
-        ERROR_LOG("error happened when calling rtIpcOpenMemory name:%.2048s.", name);
+        ERROR_LOG("error happened when calling rtIpcOpenMemory name:%.2048s.", nameLog.c_str());
         return ret;
     }
 
@@ -51,7 +52,7 @@ rtError_t HijackedFuncOfIpcOpenMemory::Call(void **ptr, const char *name)
 
     if (IsSanitizer()) {
         if (ptr == nullptr) {
-            ERROR_LOG("rtIpcOpenMemory return nullptr name:%.2048s.", name);
+            ERROR_LOG("rtIpcOpenMemory return nullptr name:%.2048s.", nameLog.c_str());
         } else {
             IPCMemRecord record{};
             record.type = IPCOperationType::MAP_INFO;
@@ -65,7 +66,7 @@ rtError_t HijackedFuncOfIpcOpenMemory::Call(void **ptr, const char *name)
         }
     }
 
-    DEBUG_LOG("leave HijackedFuncOfIpcOpenMemory name:%.2048s.", name);
+    DEBUG_LOG("leave HijackedFuncOfIpcOpenMemory name:%.2048s.", nameLog.c_str());
 
     return Post(ret);
 }

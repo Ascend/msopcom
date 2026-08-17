@@ -66,7 +66,8 @@ aclError HijackedFuncOfAclrtIpcMemImportByKeyImpl::Post(aclError ret)
         std::string key(key_, length);
 
         if (devPtr_ == nullptr) {
-            ERROR_LOG("aclrtIpcMemImportByKeyImpl return nullptr key:%.2048s.", ToSafeString(key).c_str());
+            std::string keyLog = FormatNameForLog(key);
+            ERROR_LOG("aclrtIpcMemImportByKeyImpl return nullptr key:%.2048s.", keyLog.c_str());
             return ret;
         }
 

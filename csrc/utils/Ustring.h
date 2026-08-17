@@ -18,6 +18,7 @@
 #ifndef __USTRING_H__
 #define __USTRING_H__
 
+#include <cstdint>
 #include <string>
 #include <set>
 #include <vector>
@@ -156,6 +157,28 @@ inline std::string ToSafeString(const std::string &str)
         i++;
     }
     return safeStr;
+}
+
+// 为日志打印格式化共享内存名称: 直接输出 32 位 FNV-1a 哈希, 形如 hash=5020ab2f,
+// 既避免二进制 name 造成的乱码, 也避免长串 \\xHH 转义污染日志; 同一 name 哈希值确定, 便于跨日志行关联
+inline std::string FormatNameForLog(const std::string &str) {
+    if (str.empty()) {
+        return {};
+    }
+    static const char HEX_DIGITS[] = "0123456789abcdef";
+    uint32_t hash = 0x811c9dc5U; // FNV-1a 32-bit basis
+    for (unsigned char c : str) {
+        hash ^= c;
+        hash *= 0x01000193U; // FNV-1a 32-bit prime
+    }
+    std::string out = "hash=";
+    char hex[9] = {0}; // 8 hex digits + NUL
+    for (int i = 7; i >= 0; --i) {
+        hex[i] = HEX_DIGITS[hash & 0xFU];
+        hash >>= 4U;
+    }
+    out += hex;
+    return out;
 }
 
 template<typename Iterator>
