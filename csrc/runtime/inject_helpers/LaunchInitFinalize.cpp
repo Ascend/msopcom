@@ -346,6 +346,7 @@ bool SanitizerLaunchInit::AssignGlobalHead() {
     globalHead_.checkParms.checkBlockId = cliConfig.checkBlockId;
     globalHead_.checkParms.defaultcheck = cliConfig.defaultCheck;
     globalHead_.checkParms.memcheck = cliConfig.memCheck;
+    globalHead_.checkParms.outOfBoundCheck = cliConfig.outOfBoundCheck;
     globalHead_.checkParms.racecheck = cliConfig.raceCheck;
     globalHead_.checkParms.initcheck = cliConfig.initCheck;
     globalHead_.checkParms.synccheck = cliConfig.syncCheck;
