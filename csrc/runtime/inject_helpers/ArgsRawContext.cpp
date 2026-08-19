@@ -149,7 +149,15 @@ bool ArgsRawContext::Save(const std::string &outputPath, DumperContext &config, 
 
 ArgsContextSP ArgsRawContext::Clone(void) const
 {
-    return std::make_shared<ArgsRawContext>(*this);
+    std::shared_ptr<ArgsRawContext> ret = std::make_shared<ArgsRawContext>(*this);
+    // 拷贝构造会把 argsCopy_/argsWithMemInfo_ 的内容拷贝一份，但 args_ 仍指向原对象内部的缓冲，
+    // 需要把 args_ 修正到克隆对象自己的缓冲上，否则原对象析构后克隆对象会持有悬垂指针。
+    if (args_ == argsCopy_.data()) {
+        ret->args_ = ret->argsCopy_.data();
+    } else if (args_ == argsWithMemInfo_.data()) {
+        ret->args_ = ret->argsWithMemInfo_.data();
+    }
+    return ret;
 }
 
 void ArgsRawContext::FreeArgs()

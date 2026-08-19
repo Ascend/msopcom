@@ -34,7 +34,15 @@ public:
         : ArgsContext(), args_(args), argsSize_(argsSize), isDeviceArgs_(isDeviceArgs),  placeHolderArray_() {}
 
     ArgsRawContext(void *args, uint32_t argsSize, const std::vector<aclrtPlaceHolderInfo> &placeHolderArray)
-        : ArgsContext(), args_(args), argsSize_(argsSize), isDeviceArgs_(false), placeHolderArray_(placeHolderArray) {}
+        : ArgsContext(), args_(args), argsSize_(argsSize), isDeviceArgs_(false), placeHolderArray_(placeHolderArray)
+    {
+        // 图模式(sink)下 dump 回调异步执行，调用方的 hostArgs 缓冲区可能在回调前被复用/释放，
+        // 这里提前拷贝一份，保证 dump 时能读到稳定的入参。
+        if (args != nullptr && argsSize > 0) {
+            argsCopy_.assign(static_cast<uint8_t *>(args), static_cast<uint8_t *>(args) + argsSize);
+            args_ = argsCopy_.data();
+        }
+    }
 
     ~ArgsRawContext() override;
 
@@ -61,5 +69,6 @@ private:
     bool isDeviceArgs_;
     bool needFree_ = false;
     std::vector<uint8_t> argsWithMemInfo_;
+    std::vector<uint8_t> argsCopy_;
     std::vector<aclrtPlaceHolderInfo> placeHolderArray_;
 };
