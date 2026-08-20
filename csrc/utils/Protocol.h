@@ -308,6 +308,7 @@ struct CheckParmsInfo {
     bool initcheck{};                                 // 是否开启未初始化检测
     bool synccheck{};                                 // 是否开启同步检测
     bool registerCheck{};                             // 是否开启寄存器检测
+    bool dcciCheck{};
     uint32_t gmBufferGuardSize = GM_BUFFER_GUARD_DFT_SIZE;  // GM 内存地址buffer前后安全区长度，单位字节
 };
 
@@ -588,6 +589,7 @@ struct SanitizerConfig {
     bool leakCheck;
     bool checkUnusedMemory;
     bool checkCrossNpuRaces;
+    bool checkDcci;
     bool isPrintFullStack{false};
     bool outOfBoundCheck{false};          // 是否开启核间踩踏，--log-level=error 时不使能
     bool traceNonDefaultSprReg{false};

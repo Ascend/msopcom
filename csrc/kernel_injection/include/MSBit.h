@@ -500,6 +500,7 @@ enum class InstrType {
     SIMT_END,
     MSTX_STUB_CALLI,
     MSTX_STUB_CALL,
+    DCCI = 480,
 
     MAX
 };
