@@ -980,10 +980,8 @@ bool DataCollectInDevice::ReplayOnce(
 
 bool DataCollectInDevice::KernelLaunchForInstrProf(
     rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc) {
-    // 仅在采集 pc sampling 时对算子预热20次
-    if (ProfConfig::Instance().IsPCSamplingEnabled()) {
-        WarmUp(stream, kernelLaunchFunc, 20);
-    }
+    uint16_t warmUpTimes = ProfConfig::Instance().GetWarmUpTimes();
+    WarmUp(stream, kernelLaunchFunc, warmUpTimes);
     ProfCommandAction(MsprofCommandHandleType::PROF_COMMANDHANDLE_TYPE_START);
 
     bool isMC2 = KernelContext::Instance().GetMC2Flag();
