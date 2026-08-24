@@ -482,3 +482,116 @@ TEST_F(DBITaskTest, mock_launch_context_and_run_failed_then_RunDBITask_expect_nu
 
     EXPECT_EQ(RunDBITask(launchCtx_), nullptr);
 }
+
+// 静态桩场景：开启 keepTaskOutputs(INJ_LOG_LEVEL=0) 后，kernel.o 落盘到 launch 目录
+TEST_F(DBITaskTest, RunDBITask_launch_ctx_static_stub_with_keep_outputs_expect_dump)
+{
+    DeviceContext::Local().SetSocVersion("Ascend910B");
+    BIType type = BIType::CUSTOMIZE;
+    string pluginPath = "pluginPath";
+    KernelMatcher::Config config{};
+    DBITaskConfig::Instance().Init(type, pluginPath, config);
+    DBITaskConfig::Instance().KeepTaskOutputs();
+
+    regCtx_ = std::make_shared<RegisterContext>();
+    string tilingKernelName = "abc";
+    MOCKER_CPP(&RegisterManager::GetContext).stubs().will(returnValue(regCtx_));
+    MOCKER_CPP(&RegisterContext::GetKernelName).stubs().will(returnValue(tilingKernelName));
+    MOCKER_CPP(&RegisterContext::GetRegisterId).stubs().will(returnValue(10UL));
+    MOCKER_CPP(&RegisterContext::HasStaticStub).stubs().will(returnValue(true));
+    MOCKER_CPP(&RegisterContext::Save).expects(exactly(1)).will(returnValue(true));
+    MOCKER(&MkdirRecusively).stubs().will(returnValue(true));
+
+    uint64_t data[5];
+    tilingFuncCtx_ = FuncManager::Instance().CreateContext(&data[0], uint64_t(0), &data[0]);
+    ArgsContextSP argsBinCtx = ArgsManager::Instance().CreateContext(&data[0], &data[1]);
+    LaunchParam param{ 1, &data[0], true, 1};
+    launchCtx_ = make_shared<LaunchContext>(tilingFuncCtx_, argsBinCtx, param);
+
+    auto funcCtx = RunDBITask(launchCtx_);
+    EXPECT_EQ(funcCtx, nullptr);
+    // TearDown 中 GlobalMockObject::verify() 校验 RegisterContext::Save 恰好被调用一次
+}
+
+// 静态桩场景：未开启 keepTaskOutputs 时，不产生额外落盘文件（行为与现状一致）
+TEST_F(DBITaskTest, RunDBITask_launch_ctx_static_stub_without_keep_outputs_expect_no_dump)
+{
+    DeviceContext::Local().SetSocVersion("Ascend910B");
+    BIType type = BIType::CUSTOMIZE;
+    string pluginPath = "pluginPath";
+    KernelMatcher::Config config{};
+    DBITaskConfig::Instance().Init(type, pluginPath, config);
+    // 显式关闭，避免受环境变量 INJ_LOG_LEVEL 或前序测试状态影响
+    DBITaskConfig::Instance().keepTaskOutputs_ = false;
+
+    regCtx_ = std::make_shared<RegisterContext>();
+    string tilingKernelName = "abc";
+    MOCKER_CPP(&RegisterManager::GetContext).stubs().will(returnValue(regCtx_));
+    MOCKER_CPP(&RegisterContext::GetKernelName).stubs().will(returnValue(tilingKernelName));
+    MOCKER_CPP(&RegisterContext::GetRegisterId).stubs().will(returnValue(10UL));
+    MOCKER_CPP(&RegisterContext::HasStaticStub).stubs().will(returnValue(true));
+    MOCKER_CPP(&RegisterContext::Save).expects(exactly(0));
+
+    uint64_t data[5];
+    tilingFuncCtx_ = FuncManager::Instance().CreateContext(&data[0], uint64_t(0), &data[0]);
+    ArgsContextSP argsBinCtx = ArgsManager::Instance().CreateContext(&data[0], &data[1]);
+    LaunchParam param{ 1, &data[0], true, 1};
+    launchCtx_ = make_shared<LaunchContext>(tilingFuncCtx_, argsBinCtx, param);
+
+    auto funcCtx = RunDBITask(launchCtx_);
+    EXPECT_EQ(funcCtx, nullptr);
+    // TearDown 中 GlobalMockObject::verify() 校验 RegisterContext::Save 未被调用
+}
+
+// rt 级 launch (rtKernelLaunch) 静态桩场景：开启 keepTaskOutputs 后落盘 kernel.o
+TEST_F(DBITaskTest, RunDBITask_stub_func_static_stub_with_keep_outputs_expect_dump)
+{
+    DeviceContext::Local().SetSocVersion("Ascend910B");
+    BIType type = BIType::CUSTOMIZE;
+    string pluginPath = "pluginPath";
+    KernelMatcher::Config config{};
+    DBITaskConfig::Instance().Init(type, pluginPath, config);
+    DBITaskConfig::Instance().KeepTaskOutputs();
+
+    rtDevBinary_t binary{};
+    char data[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+    binary.data = data;
+    binary.length = sizeof(data);
+    using GetDevBinaryFunc = bool(KernelContext::*)(KernelContext::StubFuncPtr, rtDevBinary_t &, bool) const;
+    GetDevBinaryFunc getDevBinary = &KernelContext::GetDevBinary;
+    MOCKER(getDevBinary).stubs().with(any(), outBound(binary), any()).will(returnValue(true));
+    MOCKER(HasStaticStub).stubs().will(returnValue(true));
+    MOCKER(&MkdirRecusively).stubs().will(returnValue(true));
+    MOCKER(&WriteBinary).expects(exactly(1)).will(returnValue(size_t(sizeof(data))));
+
+    const void *stubFunc = nullptr;
+    EXPECT_FALSE(RunDBITask(&stubFunc));
+    // TearDown 中 GlobalMockObject::verify() 校验 WriteBinary 被调用一次（落盘 kernel.o）
+}
+
+// rt 级 launch (rtKernelLaunchWithHandleV2) 静态桩场景：开启 keepTaskOutputs 后落盘 kernel.o
+TEST_F(DBITaskTest, RunDBITask_handle_static_stub_with_keep_outputs_expect_dump)
+{
+    DeviceContext::Local().SetSocVersion("Ascend910B");
+    BIType type = BIType::CUSTOMIZE;
+    string pluginPath = "pluginPath";
+    KernelMatcher::Config config{};
+    DBITaskConfig::Instance().Init(type, pluginPath, config);
+    DBITaskConfig::Instance().KeepTaskOutputs();
+
+    rtDevBinary_t binary{};
+    char data[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+    binary.data = data;
+    binary.length = sizeof(data);
+    using GetDevBinaryFunc = bool(KernelContext::*)(KernelContext::KernelHandlePtr, rtDevBinary_t &, bool) const;
+    GetDevBinaryFunc getDevBinary = &KernelContext::GetDevBinary;
+    MOCKER(getDevBinary).stubs().with(any(), outBound(binary), any()).will(returnValue(true));
+    MOCKER(HasStaticStub).stubs().will(returnValue(true));
+    MOCKER(&MkdirRecusively).stubs().will(returnValue(true));
+    MOCKER(&WriteBinary).expects(exactly(1)).will(returnValue(size_t(sizeof(data))));
+
+    void *hdl = nullptr;
+    const uint64_t tilingKey = 1;
+    EXPECT_FALSE(RunDBITask(&hdl, tilingKey));
+    // TearDown 中 GlobalMockObject::verify() 校验 WriteBinary 被调用一次（落盘 kernel.o）
+}

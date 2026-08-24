@@ -36,6 +36,50 @@
 
 using namespace std;
 
+// 此重载用于 aclrt 启动路径 (RunDBITask(launchCtx))，通过 RegisterContext::Save 落盘，与动态插桩 Dump kernel object 的处理保持一致（含 e_flags 修正）。
+void DumpStaticStubKernel(uint64_t launchId, const RegisterContextSP &regCtx)
+{
+    if (regCtx == nullptr) {
+        return;
+    }
+    auto &config = DBITaskConfig::Instance();
+    if (!config.keepTaskOutputs_) {
+        return;
+    }
+    std::string launchDir = config.GetOutputDir(launchId);
+    if (!MkdirRecusively(launchDir)) {
+        ERROR_LOG("Mkdir tmp launch dir failed, launchId=%lu", launchId);
+        return;
+    }
+    std::string kernelPath = JoinPath({launchDir, "tmp_static_kernel.o"});
+    if (!regCtx->Save(kernelPath)) {
+        DEBUG_LOG("Dump static stub kernel object failed, kernelPath=%s", kernelPath.c_str());
+        return;
+    }
+    DEBUG_LOG("Dump static stub kernel object success, kernelPath=%s", kernelPath.c_str());
+}
+
+// 此重载用于 rt launch 路径 (rtKernelLaunch / rtKernelLaunchWithHandleV2)，直接以注册的 dev binary 数据落盘。
+void DumpStaticStubKernel(uint64_t launchId, const rtDevBinary_t &binary)
+{
+    auto &config = DBITaskConfig::Instance();
+    if (!config.keepTaskOutputs_ || binary.data == nullptr || binary.length == 0) {
+        return;
+    }
+    std::string launchDir = config.GetOutputDir(launchId);
+    if (!MkdirRecusively(launchDir)) {
+        ERROR_LOG("Mkdir tmp launch dir failed, launchId=%lu", launchId);
+        return;
+    }
+    std::string kernelPath = JoinPath({launchDir, "tmp_static_kernel.o"});
+    size_t written = WriteBinary(kernelPath, static_cast<const char *>(binary.data), binary.length);
+    if (written != binary.length) {
+        DEBUG_LOG("Dump static stub kernel object failed, kernelPath=%s", kernelPath.c_str());
+        return;
+    }
+    DEBUG_LOG("Dump static stub kernel object success, kernelPath=%s", kernelPath.c_str());
+}
+
 DBITaskFactory &DBITaskFactory::Instance()
 {
     thread_local static DBITaskFactory inst;
@@ -384,7 +428,11 @@ bool RunDBITask(const StubFunc **stubFunc)
     uint64_t launchId = KernelContext::Instance().GetLaunchId();
     string kernelName = KernelContext::Instance().GetLaunchName();
     const auto &config = DBITaskConfig::Instance();
-    if ((!config.IsEnabled(launchId, kernelName)) || HasStaticStub(binary)) {
+    if (!config.IsEnabled(launchId, kernelName)) {
+        return false;
+    }
+    if (HasStaticStub(binary)) {
+        DumpStaticStubKernel(launchId, binary);
         return false;
     }
     uint64_t regId = KernelContext::Instance().GetRegisterId(launchId);
@@ -418,7 +466,11 @@ bool RunDBITask(void **hdl, const uint64_t tilingKey)
     uint64_t launchId = KernelContext::Instance().GetLaunchId();
     string kernelName = KernelContext::Instance().GetLaunchName();
     const auto &config = DBITaskConfig::Instance();
-    if ((!config.IsEnabled(launchId, kernelName)) || HasStaticStub(binary)) {
+    if (!config.IsEnabled(launchId, kernelName)) {
+        return false;
+    }
+    if (HasStaticStub(binary)) {
+        DumpStaticStubKernel(launchId, binary);
         return false;
     }
     uint64_t regId = KernelContext::Instance().GetRegisterId(launchId);
@@ -441,11 +493,16 @@ FuncContextSP RunDBITask(const LaunchContextSP &launchCtx)
     uint64_t launchId = launchCtx->GetLaunchId();
     string kernelName = launchCtx->GetFuncContext()->GetKernelName();
     const auto &config = DBITaskConfig::Instance();
-    if ((!config.IsEnabled(launchId, kernelName)) || launchCtx->GetFuncContext()->GetRegisterContext()->HasStaticStub()) {
+    if (!config.IsEnabled(launchId, kernelName)) {
+        return nullptr;
+    }
+    auto regCtx = launchCtx->GetFuncContext()->GetRegisterContext();
+    if (regCtx->HasStaticStub()) {
+        DumpStaticStubKernel(launchId, regCtx);
         return nullptr;
     }
     DEBUG_LOG("DBI with launch id = %lu, kernelName=%s", launchId, kernelName.c_str());
-    uint64_t regId = launchCtx->GetFuncContext()->GetRegisterContext()->GetRegisterId();
+    uint64_t regId = regCtx->GetRegisterId();
     // 暂时取巧使用了kernelName替代tilingKey，反正两个东西具有相同的唯一性
     auto task = DBITaskFactory::Instance().GetOrCreate(regId, kernelName, config.type_, config.pluginPath_);
     if (task == nullptr) {
