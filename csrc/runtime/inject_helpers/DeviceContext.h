@@ -46,6 +46,8 @@ public:
 
     bool NeedOverflowStatus() const;
 
+    bool IsAscend950();
+
 #if defined (__BUILD_TESTS__)
     void Clear()
     {

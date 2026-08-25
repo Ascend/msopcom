@@ -50,6 +50,11 @@ const std::string &DeviceContext::GetSocVersion()
     return socVersion_;
 }
 
+bool DeviceContext::IsAscend950() {
+    const std::string &soc = GetSocVersion();
+    return soc.find("Ascend950") != std::string::npos;
+}
+
 inline void ConvertToVisibleDeviceIdIfPossible(int32_t &deviceId)
 {
     void *func = GET_FUNCTION("runtime", "rtGetVisibleDeviceIdByLogicDeviceId");
