@@ -14,7 +14,6 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
- 
 #include <gtest/gtest.h>
 #include <cstdlib>
 
@@ -25,18 +24,11 @@ using namespace std;
 
 namespace {
 
-aclError aclrtKernelArgsGetMemSizeImplStub(aclrtFuncHandle funcHandle,
-                                           size_t userArgsSize,
-                                           size_t *actualArgsSize)
-{
-    *actualArgsSize = userArgsSize;
-    return ACL_ERROR_NONE;
-}
+uint64_t g_argsHandleStorage{};
 
-aclError aclrtKernelArgsGetHandleMemSizeImplStub(aclrtFuncHandle funcHandle,
-                                                 size_t *memSize)
-{
-    *memSize = 10;
+aclError aclrtKernelArgsInitImplOriginStub(aclrtFuncHandle funcHandle, aclrtArgsHandle *argsHandle) {
+    (void)funcHandle;
+    *argsHandle = reinterpret_cast<aclrtArgsHandle>(&g_argsHandleStorage);
     return ACL_ERROR_NONE;
 }
 
@@ -94,9 +86,7 @@ TEST_F(ArgsHandleContextTest, input_valid_then_cache_args_para_update_expect_siz
 
 TEST_F(ArgsHandleContextTest, input_valid_then_finalize_expect_success)
 {
-    MOCKER(&aclrtKernelArgsGetMemSizeImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
-    MOCKER(&aclrtKernelArgsGetHandleMemSizeImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
-    MOCKER(&aclrtKernelArgsInitByUserMemImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(&aclrtKernelArgsInitImplOrigin).stubs().will(invoke(&aclrtKernelArgsInitImplOriginStub));
     MOCKER(&aclrtKernelArgsFinalizeImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
     MOCKER(&aclrtKernelArgsAppendImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
 
@@ -126,39 +116,16 @@ TEST_F(ArgsHandleContextTest, expand_args_expect_size_correct)
     ASSERT_EQ(ctx_->GetParams().size(), 1);
 }
 
-TEST_F(ArgsHandleContextTest, args_get_mem_size_failed_expect_generate_args_handle_return_nullptr)
-{
-    MOCKER(&aclrtKernelArgsGetMemSizeImplOrigin).stubs().will(returnValue(ACL_ERROR_INTERNAL_ERROR));
+TEST_F(ArgsHandleContextTest, args_init_failed_expect_generate_args_handle_return_nullptr) {
+    MOCKER(&aclrtKernelArgsInitImplOrigin).stubs().will(returnValue(ACL_ERROR_INTERNAL_ERROR));
 
     aclrtArgsHandle argsHandle = ctx_->GenerateArgsHandle();
-    ASSERT_EQ(argsHandle, nullptr);
-}
-
-TEST_F(ArgsHandleContextTest, args_get_handle_mem_size_failed_expect_generate_args_handle_return_nullptr)
-{
-    MOCKER(&aclrtKernelArgsGetMemSizeImplOrigin).stubs().will(invoke(&aclrtKernelArgsGetMemSizeImplStub));
-    MOCKER(&aclrtKernelArgsGetHandleMemSizeImplOrigin).stubs().will(returnValue(ACL_ERROR_INTERNAL_ERROR));
-
-    aclrtArgsHandle argsHandle = ctx_->GenerateArgsHandle();
-    ASSERT_EQ(argsHandle, nullptr);
-}
-
-TEST_F(ArgsHandleContextTest, args_init_by_user_mem_failed_expect_generate_args_handle_return_nullptr)
-{
-    MOCKER(&aclrtKernelArgsGetMemSizeImplOrigin).stubs().will(invoke(&aclrtKernelArgsGetMemSizeImplStub));
-    MOCKER(&aclrtKernelArgsGetHandleMemSizeImplOrigin).stubs().will(invoke(&aclrtKernelArgsGetHandleMemSizeImplStub));
-    MOCKER(&aclrtKernelArgsInitByUserMemImplOrigin).stubs().will(returnValue(ACL_ERROR_INTERNAL_ERROR));
-
-    aclrtArgsHandle argsHandle = ctx_->GenerateArgsHandle();
-    //
     ASSERT_EQ(argsHandle, nullptr);
 }
 
 TEST_F(ArgsHandleContextTest, args_append_failed_expect_generate_args_handle_return_nullptr)
 {
-    MOCKER(&aclrtKernelArgsGetMemSizeImplOrigin).stubs().will(invoke(&aclrtKernelArgsGetMemSizeImplStub));
-    MOCKER(&aclrtKernelArgsGetHandleMemSizeImplOrigin).stubs().will(invoke(&aclrtKernelArgsGetHandleMemSizeImplStub));
-    MOCKER(&aclrtKernelArgsInitByUserMemImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(&aclrtKernelArgsInitImplOrigin).stubs().will(invoke(&aclrtKernelArgsInitImplOriginStub));
     MOCKER(&aclrtKernelArgsAppendImplOrigin).stubs().will(returnValue(ACL_ERROR_INTERNAL_ERROR));
 
     uint64_t devAddr{};
@@ -170,9 +137,7 @@ TEST_F(ArgsHandleContextTest, args_append_failed_expect_generate_args_handle_ret
 
 TEST_F(ArgsHandleContextTest, args_append_placeholder_failed_expect_generate_args_handle_return_nullptr)
 {
-    MOCKER(&aclrtKernelArgsGetMemSizeImplOrigin).stubs().will(invoke(&aclrtKernelArgsGetMemSizeImplStub));
-    MOCKER(&aclrtKernelArgsGetHandleMemSizeImplOrigin).stubs().will(invoke(&aclrtKernelArgsGetHandleMemSizeImplStub));
-    MOCKER(&aclrtKernelArgsInitByUserMemImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(&aclrtKernelArgsInitImplOrigin).stubs().will(invoke(&aclrtKernelArgsInitImplOriginStub));
     MOCKER(&aclrtKernelArgsAppendPlaceHolderImplOrigin).stubs().will(returnValue(ACL_ERROR_INTERNAL_ERROR));
 
     aclrtParamHandle paramHandle = &placeholder_;
@@ -183,9 +148,7 @@ TEST_F(ArgsHandleContextTest, args_append_placeholder_failed_expect_generate_arg
 
 TEST_F(ArgsHandleContextTest, args_get_placeholder_buffer_failed_expect_generate_args_handle_return_nullptr)
 {
-    MOCKER(&aclrtKernelArgsGetMemSizeImplOrigin).stubs().will(invoke(&aclrtKernelArgsGetMemSizeImplStub));
-    MOCKER(&aclrtKernelArgsGetHandleMemSizeImplOrigin).stubs().will(invoke(&aclrtKernelArgsGetHandleMemSizeImplStub));
-    MOCKER(&aclrtKernelArgsInitByUserMemImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(&aclrtKernelArgsInitImplOrigin).stubs().will(invoke(&aclrtKernelArgsInitImplOriginStub));
     MOCKER(&aclrtKernelArgsAppendPlaceHolderImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
     MOCKER(&aclrtKernelArgsGetPlaceHolderBufferImplOrigin).stubs().will(returnValue(ACL_ERROR_INTERNAL_ERROR));
 
@@ -197,9 +160,8 @@ TEST_F(ArgsHandleContextTest, args_get_placeholder_buffer_failed_expect_generate
 
 TEST_F(ArgsHandleContextTest, args_finalize_failed_expect_generate_args_handle_return_nullptr)
 {
-    MOCKER(&aclrtKernelArgsGetMemSizeImplOrigin).stubs().will(invoke(&aclrtKernelArgsGetMemSizeImplStub));
-    MOCKER(&aclrtKernelArgsGetHandleMemSizeImplOrigin).stubs().will(invoke(&aclrtKernelArgsGetHandleMemSizeImplStub));
-    MOCKER(&aclrtKernelArgsInitByUserMemImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(&aclrtKernelArgsInitImplOrigin).stubs().will(invoke(&aclrtKernelArgsInitImplOriginStub));
+    MOCKER(&aclrtKernelArgsAppendImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
     MOCKER(aclrtKernelArgsFinalizeImplOrigin).stubs().will(returnValue(ACL_ERROR_INTERNAL_ERROR));
 
     aclrtArgsHandle argsHandle = ctx_->GenerateArgsHandle();
@@ -208,9 +170,7 @@ TEST_F(ArgsHandleContextTest, args_finalize_failed_expect_generate_args_handle_r
 
 TEST_F(ArgsHandleContextTest, args_append_all_args_success_expect_generate_args_handle_return_handle)
 {
-    MOCKER(&aclrtKernelArgsGetMemSizeImplOrigin).stubs().will(invoke(&aclrtKernelArgsGetMemSizeImplStub));
-    MOCKER(&aclrtKernelArgsGetHandleMemSizeImplOrigin).stubs().will(invoke(&aclrtKernelArgsGetHandleMemSizeImplStub));
-    MOCKER(&aclrtKernelArgsInitByUserMemImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(&aclrtKernelArgsInitImplOrigin).stubs().will(invoke(&aclrtKernelArgsInitImplOriginStub));
     MOCKER(&aclrtKernelArgsAppendImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
     MOCKER(&aclrtKernelArgsAppendPlaceHolderImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
     MOCKER(&aclrtKernelArgsGetPlaceHolderBufferImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));

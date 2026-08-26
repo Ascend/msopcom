@@ -43,14 +43,9 @@ public:
         void *srcBuffer{nullptr};
     };
 
-    struct ArgsHandleData {
-        std::vector<uint8_t> handle;
-        std::vector<uint8_t> buffer;
-    };
-
 public:
     ArgsHandleContext(aclrtFuncHandle funcHandle, aclrtArgsHandle argsHandle)
-        : funcHandle_(funcHandle), argsHandle_(argsHandle), argsHandleData_{} {}
+        : funcHandle_(funcHandle), argsHandle_(argsHandle) {}
     void Swap(ArgsHandleContext &rhs);
 
     void SetFuncHandle(aclrtFuncHandle funcHandle) { funcHandle_ = funcHandle; }
@@ -88,14 +83,13 @@ public:
 #endif
 
 private:
-    bool ReplayArgs(void);
+    bool ReplayArgs(aclrtArgsHandle argsHandle);
     bool UpdateNormalTaskArgsAddr(OpMemInfo &memInfo) const;
 
 private:
     std::vector<ParamData> params_;
     aclrtFuncHandle funcHandle_;
     aclrtArgsHandle argsHandle_;
-    ArgsHandleData argsHandleData_;
     bool finalized_{false};
 };
 

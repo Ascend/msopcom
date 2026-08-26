@@ -127,43 +127,31 @@ void ArgsHandleContext::CacheArgsParaUpdateOp(aclrtParamHandle paramHandle, void
 
 aclrtArgsHandle ArgsHandleContext::GenerateArgsHandle()
 {
-    size_t userArgsSize = this->CalcUserArgsSize();
-    size_t actualArgsSize{};
-    aclError ret = aclrtKernelArgsGetMemSizeImplOrigin(funcHandle_, userArgsSize, &actualArgsSize);
-    if (ret != ACL_ERROR_NONE) {
-        WARN_LOG("Get kernel args mem size failed.");
-        return nullptr;
-    }
-    argsHandleData_.buffer.resize(actualArgsSize);
-
-    size_t handleSize{};
-    ret = aclrtKernelArgsGetHandleMemSizeImplOrigin(funcHandle_, &handleSize);
-    if (ret != ACL_ERROR_NONE) {
-        WARN_LOG("Get handle mem size failed.");
-        return nullptr;
-    }
-    argsHandleData_.handle.resize(handleSize);
-
-    ret = aclrtKernelArgsInitByUserMemImplOrigin(funcHandle_, argsHandleData_.handle.data(),
-                                                 argsHandleData_.buffer.data(),
-                                                 argsHandleData_.buffer.size());
+    // 改用 aclrtKernelArgsInitImplOrigin 重建句柄。runtime 对该接口固定
+    // maxUserParamNum=MAX_PARAM_CNT(128)、bufferSize=MAX_ARGS_BUFF_SIZE(64KB)，
+    // 不依赖 kernel 的 DFX_ARG_INFO 元数据，DSL 内核（AscendNPU-IR 生成、缺元数据）
+    // 亦能正常追加参数。
+    aclrtArgsHandle argsHandle = nullptr;
+    aclError ret = aclrtKernelArgsInitImplOrigin(funcHandle_, &argsHandle);
     if (ret != ACL_ERROR_NONE) {
         WARN_LOG("Init expanded args handle failed.");
         return nullptr;
     }
 
-    if (!this->ReplayArgs()) {
+    DEBUG_LOG("GenerateArgsHandle funcHandle=%p params_=%zu", funcHandle_, params_.size());
+
+    if (!this->ReplayArgs(argsHandle)) {
         return nullptr;
     }
 
     // finalize args handle
-    ret = aclrtKernelArgsFinalizeImplOrigin(argsHandleData_.handle.data());
+    ret = aclrtKernelArgsFinalizeImplOrigin(argsHandle);
     if (ret != ACL_ERROR_NONE) {
         WARN_LOG("Finalize kernel args failed.");
         return nullptr;
     }
 
-    return argsHandleData_.handle.data();
+    return argsHandle;
 }
 
 void ArgsHandleContext::CacheArgsGetPlaceholderBufferOp(aclrtParamHandle paramHandle, size_t dataSize, void *buffer)
@@ -198,8 +186,7 @@ size_t ArgsHandleContext::CalcUserArgsSize(void) const
     return userArgsSize;
 }
 
-bool ArgsHandleContext::ReplayArgs(void)
-{
+bool ArgsHandleContext::ReplayArgs(aclrtArgsHandle argsHandle) {
     aclError ret{};
     std::vector<aclrtParamHandle> paramHandles(params_.size());
     // Replay args append
@@ -207,16 +194,14 @@ bool ArgsHandleContext::ReplayArgs(void)
         auto &param = params_[idx].param;
         if (params_[idx].type == ParamType::NORMAL) {
             // Append normal args directly
-            ret = aclrtKernelArgsAppendImplOrigin(argsHandleData_.handle.data(), param.data(),
-                                                  param.size(), &paramHandles[idx]);
+            ret = aclrtKernelArgsAppendImplOrigin(argsHandle, param.data(), param.size(), &paramHandles[idx]);
             if (ret != ACL_ERROR_NONE) {
                 WARN_LOG("Append normal kernel args failed.");
                 return false;
             }
         } else {
             // Append placeholder
-            ret = aclrtKernelArgsAppendPlaceHolderImplOrigin(argsHandleData_.handle.data(),
-                                                             &paramHandles[idx]);
+            ret = aclrtKernelArgsAppendPlaceHolderImplOrigin(argsHandle, &paramHandles[idx]);
             if (ret != ACL_ERROR_NONE) {
                 WARN_LOG("Append kernel args placeholder failed.");
                 return false;
@@ -231,9 +216,7 @@ bool ArgsHandleContext::ReplayArgs(void)
             continue;
         }
         auto &param = params_[idx].param;
-        ret = aclrtKernelArgsGetPlaceHolderBufferImplOrigin(argsHandleData_.handle.data(),
-                                                            paramHandles[idx], param.size(),
-                                                            &buffer);
+        ret = aclrtKernelArgsGetPlaceHolderBufferImplOrigin(argsHandle, paramHandles[idx], param.size(), &buffer);
         if (ret != ACL_ERROR_NONE) {
             WARN_LOG("Get placeholder buffer failed.");
             return false;
