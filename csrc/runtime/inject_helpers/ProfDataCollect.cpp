@@ -1005,17 +1005,17 @@ bool DataCollectInDevice::KernelLaunchForInstrProf(
     if (readThread.joinable()) {
         readThread.join();
     }
-    if (syncRet == ACL_SUCCESS && ret) {
-        return ret;
-    } else {
-        WARN_LOG("Kernel run on device %d for instr prof failed.", deviceId_);
-    }
     if (ProfConfig::Instance().IsAppReplay()) {
         return ret;
     }
     // MC2调优去掉Restore,配合取消AICORE 劫持函数CALL的那次调用，取得最后一次重放的aicore的timeline
     if (!isMC2 && !KernelContext::Instance().GetLcclFlag()) {
         MemoryContext::Instance().Restore();
+    }
+    if (syncRet == ACL_SUCCESS && ret) {
+        return ret;
+    } else {
+        WARN_LOG("Kernel run on device %d for instr prof failed", deviceId_);
     }
     return ret;
 }

@@ -50,6 +50,7 @@ file(GLOB INJECTION_SRC
     HijackedFuncOfAclrtLaunchKernelV2Impl.cpp
     HijackedFuncOfAclrtLaunchKernelWithConfigImpl.cpp
     HijackedFuncOfAclrtLaunchKernelWithHostArgsImpl.cpp
+    HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsImpl.cpp
     HijackedFuncOfAclrtMallocWithCfgImpl.cpp
     HijackedFuncOfAclrtMallocForTaskSchedulerImpl.cpp
     HijackedFuncOfAclrtKernelArgsInitByUserMemImpl.cpp

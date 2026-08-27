@@ -581,6 +581,43 @@ private:
     ArgsContextSP argsCtx_{nullptr};
 };
 
+class HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsImpl
+    : public decltype(AscendclImpHijackedType(&aclrtLaunchSIMTKernelWithHostArgsImpl)),
+      protected AclLaunchKernelMixin {
+public:
+    explicit HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsImpl();
+    aclError Call(void *func, dim3 gridDim, dim3 blockDim, size_t dynUbufSize, aclrtStream stream,
+        aclrtLaunchKernelCfg *cfg, void *hostArgs, size_t argsSize, aclrtPlaceHolderInfo *placeHolderArray,
+        size_t placeHolderNum) override;
+    void Pre(void *func, dim3 gridDim, dim3 blockDim, size_t dynUbufSize, aclrtStream stream, aclrtLaunchKernelCfg *cfg,
+        void *hostArgs, size_t argsSize, aclrtPlaceHolderInfo *placeHolderArray, size_t placeHolderNum) override;
+    aclError Post(aclError ret) override;
+
+private:
+    bool InitParam(void *func, dim3 gridDim, dim3 blockDim, size_t dynUbufSize, aclrtStream stream,
+        aclrtLaunchKernelCfg *cfg, void *hostArgs, size_t argsSize, aclrtPlaceHolderInfo *placeHolderArray,
+        size_t placeHolderNum);
+    void ProfPre(const std::function<bool(void)> &func, const std::function<void(const std::string &)> &bbCountTask,
+        aclrtStream stm);
+    void ProfPreForInstrProf(const std::function<bool(void)> &func,
+        const std::function<void(const std::string &)> &bbCountTask, rtStream_t stream);
+    bool PrepareDbiTask(ProfDBIType mode, uint64_t memSize);
+    void ProfPost();
+    void RunDbiRecordTask(ProfDBIType mode, const char *failedLog);
+    void SanitizerPre();
+    void SanitizerPost();
+    uint32_t blockNum_{0};
+    dim3 blockDim_{};
+    size_t dynUbufSize_{0};
+    dim3 gridDim_{};
+    void *hostArgs_{nullptr};
+    size_t argsSize_{0};
+    aclrtLaunchKernelCfg *cfg_{nullptr};
+    std::vector<aclrtPlaceHolderInfo> placeHolderArray_;
+    size_t placeHolderNum_{0};
+    ArgsContextSP argsCtx_{nullptr};
+};
+
 class HijackedFuncOfAclrtLaunchKernelWithHostArgsImpl
     : public decltype(AscendclImpHijackedType(&aclrtLaunchKernelWithHostArgsImpl)),
       protected AclLaunchKernelMixin {
@@ -613,7 +650,6 @@ private:
     std::vector<aclrtPlaceHolderInfo> placeHolderArray_;
     size_t placeHolderNum_{0};
     ArgsContextSP argsCtx_{nullptr};
-    KernelType kernelType_{KernelType::INVALID};
 };
 
 class HijackedFuncOfAclrtLaunchKernelWithConfigImpl

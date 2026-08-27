@@ -110,6 +110,7 @@ void RegisterAscendCl()
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtBinaryLoadFromDataImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtCreateBinaryImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtBinaryLoadImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtLaunchSIMTKernelWithHostArgsImpl);
 }
 
 // 上板注册libruntime.so，仿真注册libruntime_camodel.so
@@ -722,6 +723,15 @@ aclrtBinary aclrtCreateBinaryImpl(const void *data, size_t dataLen)
     PRINT_ENTER_INSTRUMENTOR;
     HijackedFuncOfAclrtCreateBinaryImpl instance;
     return instance.Call(data, dataLen);
+}
+
+aclError aclrtLaunchSIMTKernelWithHostArgsImpl(void *func, dim3 gridDim, dim3 blockDim, size_t dynUbufSize,
+    aclrtStream stream, aclrtLaunchKernelCfg *cfg, void *hostArgs, size_t argsSize,
+    aclrtPlaceHolderInfo *placeHolderArray, size_t placeHolderNum) {
+    PRINT_ENTER_INSTRUMENTOR;
+    HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsImpl instance;
+    return instance.Call(
+        func, gridDim, blockDim, dynUbufSize, stream, cfg, hostArgs, argsSize, placeHolderArray, placeHolderNum);
 }
 
 aclError aclrtBinaryLoadImpl(const aclrtBinary binary, aclrtBinHandle *binHandle)

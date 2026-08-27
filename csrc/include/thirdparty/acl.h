@@ -22,6 +22,19 @@
 #include <cstddef>
 #include <cstdint>
 
+typedef struct dim3 {
+    uint32_t x;
+    uint32_t y;
+    uint32_t z;
+#ifdef __cplusplus
+#if __cplusplus >= 201103L
+    constexpr dim3(uint32_t vx = 1, uint32_t vy = 1, uint32_t vz = 1) : x(vx), y(vy), z(vz) {}
+#else
+    dim3(uint32_t vx = 1, uint32_t vy = 1, uint32_t vz = 1) : x(vx), y(vy), z(vz) {}
+#endif
+#endif // __cplusplus
+} dim3;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -295,6 +308,12 @@ aclError aclrtGetFunctionAttributeImpl(aclrtFuncHandle funcHandle, aclrtFuncAttr
 aclError aclrtLaunchCallbackImpl(aclrtCallback fn, void *userData, aclrtCallbackBlockType blockType, aclrtStream stream);
 aclError aclrtProcessReportImpl(int32_t timeout);
 aclError aclrtSubscribeReportImpl(uint64_t threadId, aclrtStream stream);
+aclError aclrtGetFuncBySymbolImpl(const void *symbol, aclrtFuncHandle *funcHandle);
+aclError aclrtFunctionGetParamCountImpl(const void *func, size_t *paramCount);
+aclError aclrtFunctionGetParamInfoImpl(const void *func, size_t paramIndex, size_t *paramOffset, size_t *paramSize);
+aclError aclrtLaunchSIMTKernelWithHostArgsImpl(void *func, dim3 gridDim, dim3 blockDim, size_t dynUbufSize,
+    aclrtStream stream, aclrtLaunchKernelCfg *cfg, void *hostArgs, size_t argsSize,
+    aclrtPlaceHolderInfo *placeHolderArray, size_t placeHolderNum);
 #ifdef __cplusplus
 } // extern "C"
 #endif

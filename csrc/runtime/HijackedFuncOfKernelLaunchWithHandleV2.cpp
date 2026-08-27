@@ -39,6 +39,7 @@
 #include "runtime/inject_helpers/MemoryDataCollect.h"
 #include "runtime/inject_helpers/InstrReport.h"
 #include "runtime/inject_helpers/ProfConfig.h"
+#include "runtime/inject_helpers/MemoryContext.h"
 #include "runtime/inject_helpers/ProfDataCollect.h"
 #include "runtime/inject_helpers/ConfigManager.h"
 #include "runtime/inject_helpers/LaunchArgs.h"
@@ -172,6 +173,9 @@ void HijackedFuncOfKernelLaunchWithHandleV2::RunDbiRecordTask(ProfDBIType mode)
         return;
     }
     rtStreamSynchronizeOrigin(stm_);
+    if (!ProfConfig::Instance().IsAppReplay() && !MemoryContext::Instance().Restore()) {
+        WARN_LOG("Restore input data before DBI record task failed, mode=%u", static_cast<uint32_t>(mode));
+    }
     uint64_t memSize = DbiRecordTaskHelper::GetDbiRecordMemSize(mode, blockDim_);
     if (!PrepareDbiTask(mode, memSize) || originfunc_ == nullptr) {
         return;

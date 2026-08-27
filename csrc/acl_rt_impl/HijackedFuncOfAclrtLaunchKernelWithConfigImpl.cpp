@@ -27,6 +27,7 @@
 #include "runtime/inject_helpers/LocalDevice.h"
 #include "runtime/inject_helpers/MemoryDataCollect.h"
 #include "runtime/inject_helpers/ProfConfig.h"
+#include "runtime/inject_helpers/MemoryContext.h"
 #include "runtime/inject_helpers/InstrReport.h"
 #include "runtime/inject_helpers/BBCountDumper.h"
 #include "runtime/inject_helpers/DBITask.h"
@@ -306,6 +307,9 @@ void HijackedFuncOfAclrtLaunchKernelWithConfigImpl::RunDbiRecordTask(ProfDBIType
         return;
     }
     aclrtSynchronizeStreamImplOrigin(stream_);
+    if (!ProfConfig::Instance().IsAppReplay() && !MemoryContext::Instance().Restore()) {
+        WARN_LOG("Restore input data before DBI record task failed, mode=%u", static_cast<uint32_t>(mode));
+    }
     uint64_t memSize = DbiRecordTaskHelper::GetDbiRecordMemSize(mode, blockDim_);
     if (!PrepareDbiTask(mode, memSize) || originfunc_ == nullptr) {
         return;

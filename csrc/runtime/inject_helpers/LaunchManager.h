@@ -49,8 +49,7 @@ public:
                                    aclrtLaunchKernelCfg *cfg, aclrtArgsHandle argsHandle);
 
     LaunchContextSP CreateContext(aclrtFuncHandle funcHandle, uint32_t blockDim, aclrtStream stream,
-                                   aclrtLaunchKernelCfg *cfg, ArgsContextSP argsContext);
-
+        aclrtLaunchKernelCfg *cfg, ArgsContextSP argsContext);
     LaunchContextSP GetContext(uint64_t launchId) const;
 
     LaunchContextSP GetLastContext() const;

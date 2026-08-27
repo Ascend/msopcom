@@ -76,6 +76,7 @@ void HijackedAscendclImplCtor()
     REGISTER_FUNCTION(AclRuntimeLibName(), aclmdlRIBindStreamImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclmdlRIUnbindStreamImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtLaunchKernelWithHostArgsImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtLaunchSIMTKernelWithHostArgsImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtBinaryLoadFromDataImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtCreateBinaryImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtBinaryLoadImpl);
@@ -715,6 +716,18 @@ aclError aclrtLaunchKernelWithHostArgsImpl(aclrtFuncHandle funcHandle, uint32_t 
     LayerGuard guard(HijackedLayerManager::Instance(), __func__);
     HijackedFuncOfAclrtLaunchKernelWithHostArgsImpl instance;
     return instance.Call(funcHandle, blockDim, stream, cfg, hostArgs, argsSize, placeHolderArray, placeHolderNum);
+}
+
+aclError aclrtLaunchSIMTKernelWithHostArgsImpl(void *func, dim3 gridDim, dim3 blockDim, size_t dynUbufSize,
+    aclrtStream stream, aclrtLaunchKernelCfg *cfg, void *hostArgs, size_t argsSize,
+    aclrtPlaceHolderInfo *placeHolderArray, size_t placeHolderNum)
+
+{
+    PRINT_ENTER_INSTRUMENTOR;
+    LayerGuard guard(HijackedLayerManager::Instance(), __func__);
+    HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsImpl instance;
+    return instance.Call(
+        func, gridDim, blockDim, dynUbufSize, stream, cfg, hostArgs, argsSize, placeHolderArray, placeHolderNum);
 }
 
 aclError aclrtBinaryLoadImpl(const aclrtBinary binary, aclrtBinHandle *binHandle)

@@ -78,10 +78,10 @@ bool HijackedFuncOfAclrtLaunchKernelWithHostArgsImpl::InitParam(
         skipSanitizer_ = false;
     };
     refreshParamFunc_();
-    if (FuncManager::Instance().GetContext(funcHandle) == nullptr) {
-        CreateFuncContext(funcHandle);
-    }
     auto funcCtx = FuncManager::Instance().GetContext(funcHandle);
+    if (funcCtx == nullptr) {
+        funcCtx = CreateFuncContext(funcHandle);
+    }
     if (funcCtx && funcCtx->GetRegisterContext()->GetMagic() == RT_DEV_BINARY_MAGIC_ELF_AICPU) {
         return false;
     }
@@ -328,6 +328,11 @@ void HijackedFuncOfAclrtLaunchKernelWithHostArgsImpl::RunDbiRecordTask(ProfDBITy
         return;
     }
     aclrtSynchronizeStreamImplOrigin(stream_);
+    // Call 已消耗过一次算子输入；每次 DBI 重放前恢复输入到快照态，
+    // 否则后续插桩读到的是被污染的数据（app 模式 Call 跳过 origin，输入未被消耗，无需恢复）
+    if (!ProfConfig::Instance().IsAppReplay() && !MemoryContext::Instance().Restore()) {
+        WARN_LOG("Restore input data before DBI record task failed, mode=%u", static_cast<uint32_t>(mode));
+    }
     uint64_t memSize = DbiRecordTaskHelper::GetDbiRecordMemSize(mode, blockDim_, MAX_BLOCK);
     if (!PrepareDbiTask(mode, memSize) || originfunc_ == nullptr) {
         return;

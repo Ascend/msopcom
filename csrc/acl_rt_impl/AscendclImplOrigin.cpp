@@ -81,6 +81,10 @@ void AscendclImplOriginCtor()
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtSubscribeReportImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtGetFunctionNameImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtFunctionGetBinaryImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtFunctionGetParamCountImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtFunctionGetParamInfoImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtGetFuncBySymbolImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtLaunchSIMTKernelWithHostArgsImpl);
 }
 
 aclError aclrtFunctionGetBinaryImplOrigin(const aclrtFuncHandle funcHandle, aclrtBinHandle *binHandle)
@@ -344,4 +348,24 @@ aclError aclrtProcessReportImplOrigin(int32_t timeout)
 aclError aclrtSubscribeReportImplOrigin(uint64_t threadId, aclrtStream stream)
 {
     LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtSubscribeReportImpl, threadId, stream);
+}
+
+aclError aclrtFunctionGetParamCountImplOrigin(const void *func, size_t *paramCount) {
+    LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtFunctionGetParamCountImpl, func, paramCount);
+}
+
+aclError aclrtGetFuncBySymbolImplOrigin(const void *symbol, aclrtFuncHandle *funcHandle) {
+    LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtGetFuncBySymbolImpl, symbol, funcHandle);
+}
+
+aclError aclrtFunctionGetParamInfoImplOrigin(
+    const void *func, size_t paramIndex, size_t *paramOffset, size_t *paramSize) {
+    LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtFunctionGetParamInfoImpl, func, paramIndex, paramOffset, paramSize);
+}
+
+aclError aclrtLaunchSIMTKernelWithHostArgsImplOrigin(void *func, dim3 gridDim, dim3 blockDim, size_t dynUbufSize,
+    aclrtStream stream, aclrtLaunchKernelCfg *cfg, void *hostArgs, size_t argsSize,
+    aclrtPlaceHolderInfo *placeHolderArray, size_t placeHolderNum) {
+    LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtLaunchSIMTKernelWithHostArgsImpl, func, gridDim, blockDim, dynUbufSize,
+        stream, cfg, hostArgs, argsSize, placeHolderArray, placeHolderNum);
 }
