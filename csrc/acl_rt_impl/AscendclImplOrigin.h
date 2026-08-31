@@ -82,9 +82,10 @@ aclError aclrtSubscribeReportImplOrigin(uint64_t threadId, aclrtStream stream);
 aclError aclrtGetFunctionNameImplOrigin(aclrtFuncHandle funcHandle, uint32_t maxLen, char *name);
 aclError aclrtFunctionGetBinaryImplOrigin(const aclrtFuncHandle funcHandle, aclrtBinHandle *binHandle);
 aclError aclrtFunctionGetParamCountImplOrigin(const void *func, size_t *paramCount);
-aclError aclrtFunctionGetParamInfoImplOrigin(
-    const void *func, size_t paramIndex, size_t *paramOffset, size_t *paramSize);
+aclError aclrtFunctionGetParamInfoImplOrigin(const void *func, size_t paramIndex, size_t *paramOffset, size_t *paramSize);
 aclError aclrtGetFuncBySymbolImplOrigin(const void *symbol, aclrtFuncHandle *funcHandle);
 aclError aclrtLaunchSIMTKernelWithHostArgsImplOrigin(void *func, dim3 gridDim, dim3 blockDim, size_t dynUbufSize,
     aclrtStream stream, aclrtLaunchKernelCfg *cfg, void *hostArgs, size_t argsSize,
     aclrtPlaceHolderInfo *placeHolderArray, size_t placeHolderNum);
+aclError aclrtLaunchSIMTKernelWithArgsArrayImplOrigin(void *func, dim3 gridDim, dim3 blockDim, size_t dynUbufSize,
+    aclrtStream stream, aclrtLaunchKernelCfg *cfg, void **args);

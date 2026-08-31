@@ -20,6 +20,7 @@
 #include "acl.h"
 #include "core/HijackedFuncTemplate.h"
 #include "runtime/inject_helpers/ArgsContext.h"
+#include "runtime/inject_helpers/ArgsArrayContext.h"
 #include "runtime/inject_helpers/FuncContext.h"
 #include "runtime/inject_helpers/LaunchContext.h"
 #include "runtime/inject_helpers/ProfDataCollect.h"
@@ -581,9 +582,39 @@ private:
     ArgsContextSP argsCtx_{nullptr};
 };
 
+class HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl
+    : public decltype(AscendclImpHijackedType(&aclrtLaunchSIMTKernelWithArgsArrayImpl)),
+    protected AclLaunchKernelMixin {
+public:
+    explicit HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl();
+    aclError Call(void *func, dim3 gridDim, dim3 blockDim, size_t dynUbufSize,
+        aclrtStream stream, aclrtLaunchKernelCfg *cfg, void **args) override;
+    void Pre(void *func, dim3 gridDim, dim3 blockDim, size_t dynUbufSize,
+        aclrtStream stream, aclrtLaunchKernelCfg *cfg, void **args) override;
+    aclError Post(aclError ret) override;
+private:
+    bool InitParam(void *func, dim3 gridDim, dim3 blockDim, size_t dynUbufSize,
+        aclrtStream stream, aclrtLaunchKernelCfg *cfg, void **args);
+    void ProfPre(const std::function<bool(void)> &func, const std::function<void(const std::string &)> &bbCountTask,
+        aclrtStream stm);
+    void ProfPreForInstrProf(const std::function<bool(void)> &func,
+        const std::function<void(const std::string &)> &bbCountTask, rtStream_t stream);
+    bool PrepareDbiTask(ProfDBIType mode, uint64_t memSize);
+    void ProfPost();
+    void RunDbiRecordTask(ProfDBIType mode, const char *failedLog);
+    void SanitizerPre();
+    void SanitizerPost();
+    uint32_t blockNum_{0};
+    dim3 blockDim_{};
+    size_t dynUbufSize_{0};
+    dim3 gridDim_{};
+    aclrtLaunchKernelCfg *cfg_{nullptr};
+    ArgsArrayContextSP argsCtx_{nullptr};
+};
+
 class HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsImpl
     : public decltype(AscendclImpHijackedType(&aclrtLaunchSIMTKernelWithHostArgsImpl)),
-      protected AclLaunchKernelMixin {
+    protected AclLaunchKernelMixin {
 public:
     explicit HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsImpl();
     aclError Call(void *func, dim3 gridDim, dim3 blockDim, size_t dynUbufSize, aclrtStream stream,
@@ -592,7 +623,6 @@ public:
     void Pre(void *func, dim3 gridDim, dim3 blockDim, size_t dynUbufSize, aclrtStream stream, aclrtLaunchKernelCfg *cfg,
         void *hostArgs, size_t argsSize, aclrtPlaceHolderInfo *placeHolderArray, size_t placeHolderNum) override;
     aclError Post(aclError ret) override;
-
 private:
     bool InitParam(void *func, dim3 gridDim, dim3 blockDim, size_t dynUbufSize, aclrtStream stream,
         aclrtLaunchKernelCfg *cfg, void *hostArgs, size_t argsSize, aclrtPlaceHolderInfo *placeHolderArray,

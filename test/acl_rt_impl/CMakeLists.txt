@@ -12,6 +12,7 @@ file(GLOB SOURCE
     HijackedFuncOfAclrtLaunchKernelV2Test.cpp
     HijackedFuncOfAclrtLaunchKernelWithHostArgsTest.cpp
     HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsTest.cpp
+    HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImplTest.cpp
     HijackedFuncOfAclrtCreateContextImplTest.cpp
     HijackedFuncOfAclrtGetDeviceImplTest.cpp
     HijackedFuncOfAclrtGetDeviceCountImplTest.cpp

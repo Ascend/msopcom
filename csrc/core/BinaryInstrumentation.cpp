@@ -93,6 +93,9 @@ bool BBCountDBI::Convert(
     if (!tilingKey.empty()) {
         args.push_back("--tiling-key=" + tilingKey);
     }
+    for (size_t i = 0; i < config_.extraArgs.size(); ++i) {
+        args.push_back(config_.extraArgs[i]);
+    }
     std::string output;
     if (!PipeCall(args, output)) {
         WARN_LOG("Convert bbcount failed.");
@@ -113,6 +116,9 @@ bool PGODBI::Convert(const std::string &newKernelFile, const std::string &oldKer
     };
     if (!tilingKey.empty()) {
         args.push_back("--tiling-key=" + tilingKey);
+    }
+    for (size_t i = 0; i < config_.extraArgs.size(); ++i) {
+        args.push_back(config_.extraArgs[i]);
     }
     std::string output;
     if (!PipeCall(args, output)) {

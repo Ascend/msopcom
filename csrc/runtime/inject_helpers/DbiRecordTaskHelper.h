@@ -17,10 +17,12 @@
 #ifndef MSOPPROF_RUNTIME_INJECT_HELPERS_DBI_RECORD_TASK_HELPER_H
 #define MSOPPROF_RUNTIME_INJECT_HELPERS_DBI_RECORD_TASK_HELPER_H
 
+#include <algorithm>
 #include <cstdint>
 #include "include/opprof/DbiDefs.h"
 #include "runtime/inject_helpers/ProfConfig.h"
 #include "runtime/inject_helpers/ProfDataCollect.h"
+#include "runtime/inject_helpers/DBITask.h"
 
 namespace DbiRecordTaskHelper {
 
@@ -122,6 +124,21 @@ inline void AppendExtraInfo(const ProfDBIType &mode, const std::string &outputPa
         tuneLogPath = JoinPath({outputPath, DFX_TUNE_LOG});
     }
 }
+
+// ArgsArray 场景（参数以数组方式传入）下，动态插桩的 bisheng 命令需要额外追加
+// --append-hbmout-paraminfo，使 bisheng-tune 能正确识别 HBM 输出参数信息。
+// 注意：AppendExtraInfo 在部分 mode 下是对 extraArgs 的覆盖式赋值，因此本参数
+// 必须在 AppendExtraInfo 之后统一追加，避免被覆盖丢失。
+// 带去重：局部临时 vector 与全局复用的 DBITaskConfig::extraCompilerArgs_ 均可使用。
+inline void AppendHbmOutParamInfoArgs(std::vector<std::string> &extraArgs) {
+    if (std::find(extraArgs.begin(), extraArgs.end(), APPEND_HBMOUT_PARAMINFO_ARGS) == extraArgs.end()) {
+        extraArgs.emplace_back(APPEND_HBMOUT_PARAMINFO_ARGS);
+    }
+}
+
+// ArgsArray 场景下，把 --append-hbmout-paraminfo 追加到全局 DBITaskConfig 的
+// 编译器附加参数中，供后续 RunDBITask / BBCountDumper 生成的 bisheng 命令使用。
+inline void AppendHbmOutParamInfoToConfig() { AppendHbmOutParamInfoArgs(DBITaskConfig::Instance().extraCompilerArgs_); }
 } // namespace DbiRecordTaskHelper
 
 #endif // MSOPPROF_RUNTIME_INJECT_HELPERS_DBI_RECORD_TASK_HELPER_H

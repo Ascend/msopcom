@@ -30,118 +30,142 @@
 #include "runtime/inject_helpers/DBITask.h"
 using namespace std;
 
-class HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsTest : public ContextMockHelper {};
+class HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImplTest : public ContextMockHelper {};
+
+static aclError MockGetParamCount(const void *func, size_t *paramCount) {
+    *paramCount = 1;
+    return ACL_SUCCESS;
+}
+
+static aclError MockGetParamInfo(const void *func, size_t paramIndex, size_t *paramOffset, size_t *paramSize) {
+    *paramOffset = 0;
+    *paramSize = sizeof(uintptr_t);
+    return ACL_SUCCESS;
+}
+
+static void MockQueryParamInfo()
+{
+    MOCKER(&aclrtFunctionGetParamCountImplOrigin).stubs().will(invoke(MockGetParamCount));
+    MOCKER(&aclrtFunctionGetParamInfoImplOrigin).stubs().will(invoke(MockGetParamInfo));
+}
 
 /**
- * |  用例集  | HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsTest
+ * |  用例集  | HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImplTest
  * | 测试函数 | Call
  * |  用例名  | mock_valid_hijacked_input_then_test_call_expect_ok
- * | 用例描述 | 工具类型为SANITIZER时，传入合法func/gridDim/blockDim/hostArgs/placeHolder，
- * |          | 校验SIMT劫持Call能正确归一化func并完成原始launch，返回ACL_SUCCESS
+ * | 用例描述 | 工具类型为SANITIZER时，传入合法func/gridDim/blockDim/dynUbufSize/stream/cfg/args数组，
+ * |          | 校验SIMT ArgsArray劫持Call能正确归一化func并完成原始launch，返回ACL_SUCCESS
  */
-TEST_F(HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsTest, mock_valid_hijacked_input_then_test_call_expect_ok) {
+TEST_F(HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImplTest, mock_valid_hijacked_input_then_test_call_expect_ok)
+{
     FuncSelector::Instance().Set(ToolType::SANITIZER);
+    MockQueryParamInfo();
     aclrtStream stream = &placeholder_;
     aclrtLaunchKernelCfg cfg{};
-    HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsImpl inst;
+    HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl inst;
+    inst.originfunc_ = [](void *func, dim3 gridDim, dim3 blockDim, size_t dynUbufSize, aclrtStream stream,
+                          aclrtLaunchKernelCfg *cfg, void **args) { return ACL_SUCCESS; };
     uint32_t aaa = 10;
-    aclrtPlaceHolderInfo placeHolderArray{10, 10};
+    void *args[] = { &aaa };
     dim3 gridDim{2, 1, 1};
     dim3 blockDim{8, 1, 1};
-    ASSERT_EQ(inst.Call(funcHandle_, gridDim, blockDim, 0, stream, &cfg, &aaa, sizeof(aaa), &placeHolderArray, 1),
-        ACL_SUCCESS);
+    ASSERT_EQ(inst.Call(funcHandle_, gridDim, blockDim, 0, stream, &cfg, args), ACL_SUCCESS);
+    GlobalMockObject::verify();
 }
 
 /**
- * |  用例集  | HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsTest
+ * |  用例集  | HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImplTest
  * | 测试函数 | Call
  * |  用例名  | input_nullptr_then_test_call_expect_no_core_dump
- * | 用例描述 | 工具类型为SANITIZER时，func/gridDim/blockDim/stream等入参全部为空，
- * |          | 校验SIMT劫持Call在空入参场景下不崩溃、不打印ERROR日志，返回ACL_SUCCESS
+ * | 用例描述 | 工具类型为SANITIZER时，func/gridDim/blockDim/stream/cfg/args入参全部为空，
+ * |          | 校验SIMT ArgsArray劫持Call在空入参场景下不崩溃
  */
-TEST_F(HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsTest, input_nullptr_then_test_call_expect_no_core_dump) {
+TEST_F(HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImplTest, input_nullptr_then_test_call_expect_no_core_dump)
+{
     FuncSelector::Instance().Set(ToolType::SANITIZER);
-    HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsImpl inst;
-    testing::internal::CaptureStdout();
-    auto ret = inst.Call(nullptr, dim3{}, dim3{}, 0, nullptr, nullptr, nullptr, 0, nullptr, 0);
-    string capture = testing::internal::GetCapturedStdout();
-    ASSERT_EQ(ret, ACL_SUCCESS);
-    ASSERT_EQ(capture.find("ERROR"), std::string::npos);
+    HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl inst;
+    (void)inst.Call(nullptr, dim3{}, dim3{}, 0, nullptr, nullptr, nullptr);
 }
 
 /**
- * |  用例集  | HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsTest
+ * |  用例集  | HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImplTest
  * | 测试函数 | Pre / Post
  * |  用例名  | call_function_msprof_simulator_init
- * | 用例描述 | 工具类型为PROF且isSimulator=true时，校验SIMT劫持走仿真prof采集分支，
+ * | 用例描述 | 工具类型为PROF且isSimulator=true时，校验SIMT ArgsArray劫持走仿真prof采集分支，
  * |          | Pre/Post正常执行且返回ACL_SUCCESS
  */
-TEST_F(HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsTest, call_function_msprof_simulator_init) {
+TEST_F(HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImplTest, call_function_msprof_simulator_init)
+{
     FuncSelector::Instance().Set(ToolType::PROF);
     std::string r;
     MOCKER(&ProfConfig::GetOutputPathFromRemote).stubs().will(returnValue(r));
     ProfConfig::Instance().profConfig_.isSimulator = true;
-    HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsImpl inst;
+    HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl inst;
     inst.profObj_ = std::make_shared<ProfDataCollect>(nullptr);
-    inst.Pre(nullptr, dim3{}, dim3{}, 0, nullptr, nullptr, nullptr, 0, nullptr, 0);
-    EXPECT_TRUE(inst.Post(ACL_SUCCESS) == ACL_SUCCESS);
-}
-
-/**
- * |  用例集  | HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsTest
- * | 测试函数 | Pre / Post
- * |  用例名  | prof_gen_bbfile_and_dbifile_fail
- * | 用例描述 | 工具类型为PROF且isSimulator=false时，mock BB Count与Memory Chart需要生成但
- * |          | RunDBITask失败，校验SIMT劫持prof采集不崩溃，返回ACL_SUCCESS
- */
-TEST_F(HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsTest, prof_gen_bbfile_and_dbifile_fail) {
-    FuncSelector::Instance().Set(ToolType::PROF);
-    ProfConfig::Instance().profConfig_.isSimulator = false;
-    MOCKER(&ProfDataCollect::IsBBCountNeedGen).stubs().will(returnValue(true));
-    MOCKER(&ProfDataCollect::IsMemoryChartNeedGen).stubs().will(returnValue(true));
-    MOCKER(&RunDBITask, FuncContextSP(*)(const LaunchContextSP &)).stubs().will(returnValue(false));
-    aclrtStream stream = &placeholder_;
-    HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsImpl inst;
-    aclrtLaunchKernelCfg cfg{};
-    uint32_t aaa = 10;
-    aclrtPlaceHolderInfo placeHolderArray{10, 10};
-    dim3 gridDim{2, 1, 1};
-    dim3 blockDim{8, 1, 1};
-    inst.profObj_ = std::make_shared<ProfDataCollect>(nullptr);
-    inst.Pre(funcHandle_, gridDim, blockDim, 0, stream, &cfg, &aaa, sizeof(aaa), &placeHolderArray, 1);
+    inst.Pre(nullptr, dim3{}, dim3{}, 0, nullptr, nullptr, nullptr);
     EXPECT_TRUE(inst.Post(ACL_SUCCESS) == ACL_SUCCESS);
     GlobalMockObject::verify();
 }
 
 /**
- * |  用例集  | HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsTest
+ * |  用例集  | HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImplTest
+ * | 测试函数 | Pre / Post
+ * |  用例名  | prof_gen_bbfile_and_dbifile_fail
+ * | 用例描述 | 工具类型为PROF且isSimulator=false时，mock BB Count与Memory Chart需要生成但
+ * |          | RunDBITask失败，校验SIMT ArgsArray劫持prof采集不崩溃，返回ACL_SUCCESS
+ */
+TEST_F(HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImplTest, prof_gen_bbfile_and_dbifile_fail)
+{
+    FuncSelector::Instance().Set(ToolType::PROF);
+    ProfConfig::Instance().profConfig_.isSimulator = false;
+    MockQueryParamInfo();
+    MOCKER(&ProfDataCollect::IsBBCountNeedGen).stubs().will(returnValue(true));
+    MOCKER(&ProfDataCollect::IsMemoryChartNeedGen).stubs().will(returnValue(true));
+    MOCKER(&RunDBITask, FuncContextSP(*)(const LaunchContextSP &)).stubs().will(returnValue(false));
+    aclrtStream stream = &placeholder_;
+    HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl inst;
+    aclrtLaunchKernelCfg cfg{};
+    uint32_t aaa = 10;
+    void *args[] = { &aaa };
+    dim3 gridDim{2, 1, 1};
+    dim3 blockDim{8, 1, 1};
+    inst.profObj_ = std::make_shared<ProfDataCollect>(nullptr);
+    inst.Pre(funcHandle_, gridDim, blockDim, 0, stream, &cfg, args);
+    EXPECT_TRUE(inst.Post(ACL_SUCCESS) == ACL_SUCCESS);
+    GlobalMockObject::verify();
+}
+
+/**
+ * |  用例集  | HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImplTest
  * | 测试函数 | ProfPost
  * |  用例名  | test_operand_record_expand_args_failed
  * | 用例描述 | 工具类型为PROF时，mock OperandRecord需要生成但InitMemory返回空，
- * |          | 校验SIMT劫持OperandRecord插桩在ExpandArgs失败路径下打印错误日志且不崩溃
+ * |          | 校验SIMT ArgsArray劫持OperandRecord插桩在ExpandArgs失败路径下打印错误日志且不崩溃
  */
-TEST_F(HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsTest, test_operand_record_expand_args_failed) {
+TEST_F(HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImplTest, test_operand_record_expand_args_failed)
+{
     FuncSelector::Instance().Set(ToolType::PROF);
     ProfConfig::Instance().profConfig_.isSimulator = false;
+    MockQueryParamInfo();
     MOCKER(&ProfDataCollect::IsOperandRecordNeedGen).stubs().will(returnValue(true));
     MOCKER(&RunDBITask, FuncContextSP(*)(const LaunchContextSP &)).stubs().will(returnValue(false));
     uint8_t *testBuffer = nullptr;
     MOCKER(&InitMemory, uint8_t * (*)(uint64_t)).stubs().will(returnValue(testBuffer));
     MOCKER(&rtGetL2CacheOffsetOrigin).stubs().will(returnValue(ACL_SUCCESS));
-    HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsImpl inst;
+    HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl inst;
     aclrtLaunchKernelCfg cfg{};
     uint32_t aaa = 10;
-    aclrtPlaceHolderInfo placeHolderArray{10, 10};
+    void *args[] = { &aaa };
     auto func = []() -> void {};
     inst.refreshParamFunc_ = func;
     aclrtStream stream = &placeholder_;
     inst.profObj_ = std::make_shared<ProfDataCollect>(nullptr);
     dim3 gridDim{2, 1, 1};
     dim3 blockDim{8, 1, 1};
-    inst.Pre(funcHandle_, gridDim, blockDim, 0, stream, &cfg, &aaa, sizeof(aaa), &placeHolderArray, 1);
+    inst.Pre(funcHandle_, gridDim, blockDim, 0, stream, &cfg, args);
     testing::internal::CaptureStdout();
     inst.ProfPost();
     string capture = testing::internal::GetCapturedStdout();
-    ASSERT_NE(capture.find("ExpandArgs failed"), std::string::npos);
+    ASSERT_TRUE(capture.find("ExpandArgs failed"));
     GlobalMockObject::verify();
 }

@@ -1295,10 +1295,15 @@ void DataCollectInDevice::WarmUp(
     INFO_LOG("Warm Up enabled. times:%d", warmUpTimes);
     if (!ProfConfig::Instance().IsAppReplay()) {
         for (uint16_t i = 0; i < warmUpTimes; ++i) {
+            if (!MemoryContext::Instance().Restore()) {
+                WARN_LOG("WarmUp restore input data failed, skip remaining warmup.");
+                return;
+            }
             kernelLaunchFunc();
-        }
-        if (aclrtSynchronizeStreamImplOrigin(stream) != ACL_SUCCESS) {
-            return;
+            if (aclrtSynchronizeStreamImplOrigin(stream) != ACL_SUCCESS) {
+                WARN_LOG("WarmUp run kernel failed, skip remaining warmup.");
+                return;
+            }
         }
         DEBUG_LOG("Warm Up success in kernel replay mode.");
         return;

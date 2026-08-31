@@ -27,6 +27,7 @@ file(GLOB COMMON_SOURCE
     ArgsHandleContext.cpp
     ArgsExContext.cpp
     ArgsRawContext.cpp
+    ArgsArrayContext.cpp
     LaunchManager.cpp
     LaunchContext.cpp
     DeviceContext.cpp

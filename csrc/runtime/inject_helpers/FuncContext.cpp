@@ -111,3 +111,27 @@ KernelType FuncContext::GetKernelTypeFromRuntime() const
     DEBUG_LOG("get kernel type from aclrtGetFunctionAttribute: %u", static_cast<uint32_t>(kernelType));
     return kernelType;
 }
+
+bool FuncContext::QueryParamInfo()
+{
+    size_t paramCount = 0;
+    if (funcHandle_ == nullptr ||
+        aclrtFunctionGetParamCountImplOrigin(funcHandle_, &paramCount) != ACL_SUCCESS || paramCount == 0) {
+        WARN_LOG("Get kernel param count failed or kernel has no param.");
+        return false;
+    }
+    paramCount_ = paramCount;
+    paramOffsets_.clear();
+    paramSizes_.clear();
+    for (size_t i = 0; i < paramCount; ++i) {
+        size_t offset = 0;
+        size_t size = 0;
+        if (aclrtFunctionGetParamInfoImplOrigin(funcHandle_, i, &offset, &size) != ACL_SUCCESS) {
+            WARN_LOG("Get kernel param info failed, index: %lu.", i);
+            return false;
+        }
+        paramOffsets_.push_back(offset);
+        paramSizes_.push_back(size);
+    }
+    return true;
+}

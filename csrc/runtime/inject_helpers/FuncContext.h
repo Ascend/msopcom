@@ -19,8 +19,10 @@
 
 #pragma once
 
+#include <cstddef>
 #include <map>
 #include <string>
+#include <vector>
 
 #include "acl.h"
 #include "runtime.h"
@@ -55,6 +57,15 @@ public:
 
     KernelType GetKernelType() const;
 
+    // 查询内核参数布局，缓存 paramCount_/paramOffsets_/paramSizes_，供 ArgsArrayContext 复用
+    bool QueryParamInfo();
+
+    size_t GetParamCount() const { return paramCount_; }
+
+    const std::vector<size_t> &GetParamOffsets() const { return paramOffsets_; }
+
+    const std::vector<size_t> &GetParamSizes() const { return paramSizes_; }
+
     // Create FuncContext and call aclrt api with the same param except register info
     virtual FuncContextSP Clone(const RegisterContextSP &regCtx) const = 0;
 
@@ -67,6 +78,9 @@ protected:
     void *funcHandle_;
     RegisterContextSP regCtx_;
     std::string kernelName_;
+    size_t paramCount_{0};
+    std::vector<size_t> paramOffsets_;
+    std::vector<size_t> paramSizes_;
 };
 using FuncContextSP = std::shared_ptr<FuncContext>;
 

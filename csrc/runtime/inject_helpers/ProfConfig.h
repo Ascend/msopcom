@@ -30,6 +30,7 @@
 
 constexpr char const *PCOFFSET_RECORD = "PcOffset.bin";
 constexpr char const *START_STUB_COMPILER_ARGS = "--kernel-bounded-pcstb-mode";
+constexpr char const *APPEND_HBMOUT_PARAMINFO_ARGS = "--append-hbmout-paraminfo";
 constexpr char const *DEVICE_TO_SIMULATOR = {"DEVICE_TO_SIMULATOR"};
 constexpr char const *IS_SIMULATOR_ENV = {"IS_SIMULATOR_ENV"};
 constexpr char const *DEVICE_PROF_DUMP_PATH_ENV = {"DEVICE_PROF_DUMP_PATH"};

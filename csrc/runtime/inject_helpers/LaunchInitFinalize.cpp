@@ -285,7 +285,8 @@ inline bool InAclNewLaunchCallStack() {
         HijackedLayerManager::Instance().InCallStack("aclrtLaunchKernelV2Impl") ||
         HijackedLayerManager::Instance().InCallStack("aclrtLaunchKernelWithConfigImpl") ||
         HijackedLayerManager::Instance().InCallStack("aclrtLaunchKernelWithHostArgsImpl") ||
-        HijackedLayerManager::Instance().InCallStack("aclrtLaunchSIMTKernelWithHostArgsImpl");
+        HijackedLayerManager::Instance().InCallStack("aclrtLaunchSIMTKernelWithHostArgsImpl") ||
+        HijackedLayerManager::Instance().InCallStack("aclrtLaunchSIMTKernelWithArgsArrayImpl");
 }
 
 // 主要用于存放sanitizer_init和sanitizer_finalize需要共享的数据

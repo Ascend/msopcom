@@ -152,6 +152,11 @@ aclError aclrtLaunchSIMTKernelWithHostArgsImpl(void *func, dim3 gridDim, dim3 bl
     return ACL_SUCCESS;
 }
 
+aclError aclrtLaunchSIMTKernelWithArgsArrayImpl(void *func, dim3 gridDim, dim3 blockDim, size_t dynUbufSize,
+    aclrtStream stream, aclrtLaunchKernelCfg *cfg, void **args) {
+    return ACL_SUCCESS;
+}
+
 aclError aclrtLaunchKernelV2Impl(aclrtFuncHandle funcHandle, uint32_t numBlocks, const void *argsData, size_t argsSize, aclrtLaunchKernelCfg *cfg, aclrtStream stream)
 {
     return ACL_SUCCESS;

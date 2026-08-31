@@ -82,14 +82,14 @@ public:
     func_injection::register_function::FunctionRegister::GetInstance()->Get(soName, funcName)
 
 } // namespace func_injection
-#define FUNC_BODY(soName, funcName, suffix, ErrorRet, ...) \
-    using FuncType = decltype(&funcName##suffix); \
-    static FuncType funcType = nullptr; \
-    if (funcType == nullptr) { \
-        funcType = reinterpret_cast<FuncType>(GET_FUNCTION(soName, #funcName)); \
-        if (funcType == nullptr) { \
-            return ErrorRet; \
-        } \
-    } \
+#define FUNC_BODY(soName, funcName, suffix, ErrorRet, ...)                            \
+    using FuncType = decltype(&funcName##suffix);                                       \
+    static FuncType funcType = nullptr;                                                   \
+    if (funcType == nullptr) {                                                            \
+        funcType = reinterpret_cast<FuncType>(GET_FUNCTION(soName, #funcName));           \
+        if (funcType == nullptr) {                                                        \
+            return ErrorRet;                                                          \
+        }                                                                             \
+    }                                                                                 \
     return funcType(__VA_ARGS__)
 #endif // __FUNCTION_LOADER_H__

@@ -314,6 +314,8 @@ aclError aclrtFunctionGetParamInfoImpl(const void *func, size_t paramIndex, size
 aclError aclrtLaunchSIMTKernelWithHostArgsImpl(void *func, dim3 gridDim, dim3 blockDim, size_t dynUbufSize,
     aclrtStream stream, aclrtLaunchKernelCfg *cfg, void *hostArgs, size_t argsSize,
     aclrtPlaceHolderInfo *placeHolderArray, size_t placeHolderNum);
+aclError aclrtLaunchSIMTKernelWithArgsArrayImpl(void *func, dim3 gridDim, dim3 blockDim, size_t dynUbufSize,
+    aclrtStream stream, aclrtLaunchKernelCfg *cfg, void **args);
 #ifdef __cplusplus
 } // extern "C"
 #endif
