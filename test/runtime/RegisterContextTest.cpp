@@ -14,7 +14,6 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
- 
 #include <gtest/gtest.h>
 #include <cstdlib>
 #include "mockcpp/mockcpp.hpp"
@@ -24,6 +23,8 @@
 #include "acl_rt_impl/AscendclImplOrigin.h"
 #include "utils/FileSystem.h"
 #include "utils/ElfLoader.h"
+#include "utils/Serialize.h"
+#include "stub/FakeElf.h"
 using namespace std;
 
 static bool GetValidNameFromBinary(const char *data,
@@ -180,4 +181,98 @@ TEST_F(RegisterContextTest, mock_bin_file_then_call_clone_from_bin_expect_succes
     const void *data = static_cast<const void*>(elfData.data());
     auto ctx = RegisterManager::Instance().CreateContext(data, elfData.size(), binHandle, RT_DEV_BINARY_MAGIC_ELF, nullptr);
     EXPECT_NE(ctx->Clone("mock_path"), nullptr);
+}
+
+// 构造一个只包含 <shstrtab, metadata 段> 的合法 ELF，用于验证 GetMetaSection 的段名匹配逻辑
+static Buffer CreateElfWithMetaSection(std::string const &metaSectionName, std::vector<uint8_t> const &metaData) {
+    constexpr Elf64_Half SECTION_NUM = 2;
+    Elf64_Ehdr header{};
+    header.e_ident[EI_MAG0] = ELFMAG0;
+    header.e_ident[EI_MAG1] = ELFMAG1;
+    header.e_ident[EI_MAG2] = ELFMAG2;
+    header.e_ident[EI_MAG3] = ELFMAG3;
+    header.e_ident[EI_CLASS] = ELFCLASS64;
+    header.e_ident[EI_DATA] = ELFDATA2LSB;
+    header.e_shnum = SECTION_NUM;
+    header.e_shstrndx = 0;
+    header.e_shentsize = sizeof(Elf64_Shdr);
+    header.e_shoff = sizeof(Elf64_Ehdr);
+
+    // .shstrtab 起始于 NUL 字符
+    std::string strtab(1, '\0');
+    strtab.append(".shstrtab").push_back('\0');
+    strtab.append(metaSectionName).push_back('\0');
+    const Elf64_Word strtabNameOff = 1;
+    const Elf64_Word metaNameOff = 1 + strlen(".shstrtab") + 1;
+
+    Elf64_Shdr strtabHeader{};
+    strtabHeader.sh_name = strtabNameOff;
+    strtabHeader.sh_offset = sizeof(Elf64_Ehdr) + sizeof(Elf64_Shdr) * SECTION_NUM;
+    strtabHeader.sh_size = strtab.size();
+
+    Elf64_Shdr metaHeader{};
+    metaHeader.sh_name = metaNameOff;
+    metaHeader.sh_offset = strtabHeader.sh_offset + strtabHeader.sh_size;
+    metaHeader.sh_size = metaData.size();
+
+    Buffer buffer = Serialize<Buffer>(header) + Serialize<Buffer>(strtabHeader) + Serialize<Buffer>(metaHeader);
+    buffer.insert(buffer.end(), strtab.begin(), strtab.end());
+    buffer.insert(buffer.end(), metaData.begin(), metaData.end());
+    return buffer;
+}
+
+TEST(RegisterContext, get_meta_section_with_exact_section_name_expect_success) {
+    std::string sectionName = ".ascend.meta.test_kernel_mix_aiv";
+    std::vector<uint8_t> metaData{0x11, 0x22, 0x33, 0x44};
+    Buffer elf = CreateElfWithMetaSection(sectionName, metaData);
+
+    rtDevBinary_t binary{};
+    binary.data = elf.data();
+    binary.length = elf.size();
+    std::vector<uint8_t> parsed;
+    ASSERT_EQ(GetMetaSection(binary, "test_kernel_mix_aiv", parsed), metaData.size());
+    ASSERT_EQ(parsed, metaData);
+}
+
+TEST(RegisterContext, get_meta_section_with_mix_aiv_tail_expect_success) {
+    // 回归用例：MIX 二进制的 meta 段名带 _mix_aiv 尾缀，而 kernelName 不带该尾缀，
+    // 验证 GetMetaSection 能通过尾缀变体匹配到 meta 段
+    std::string sectionName = ".ascend.meta.test_kernel_mix_aiv";
+    std::vector<uint8_t> metaData{0x1, 0x2, 0x3, 0x4, 0x5};
+    Buffer elf = CreateElfWithMetaSection(sectionName, metaData);
+
+    rtDevBinary_t binary{};
+    binary.data = elf.data();
+    binary.length = elf.size();
+    std::vector<uint8_t> parsed;
+    ASSERT_EQ(GetMetaSection(binary, "test_kernel", parsed), metaData.size());
+    ASSERT_EQ(parsed, metaData);
+}
+
+TEST(RegisterContext, get_meta_section_with_mix_aic_tail_expect_success) {
+    // 回归用例：MIX 二进制的 meta 段名带 _mix_aic 尾缀，而 kernelName 不带该尾缀，
+    // 验证 GetMetaSection 能通过尾缀变体匹配到 meta 段
+    std::string sectionName = ".ascend.meta.test_kernel_mix_aic";
+    std::vector<uint8_t> metaData{0x9, 0x8, 0x7, 0x6, 0x5, 0x4};
+    Buffer elf = CreateElfWithMetaSection(sectionName, metaData);
+
+    rtDevBinary_t binary{};
+    binary.data = elf.data();
+    binary.length = elf.size();
+    std::vector<uint8_t> parsed;
+    ASSERT_EQ(GetMetaSection(binary, "test_kernel", parsed), metaData.size());
+    ASSERT_EQ(parsed, metaData);
+}
+
+TEST(RegisterContext, get_meta_section_with_nonexistent_section_expect_return_zero) {
+    std::string sectionName = ".ascend.meta.other_kernel";
+    std::vector<uint8_t> metaData{0x1};
+    Buffer elf = CreateElfWithMetaSection(sectionName, metaData);
+
+    rtDevBinary_t binary{};
+    binary.data = elf.data();
+    binary.length = elf.size();
+    std::vector<uint8_t> parsed;
+    ASSERT_EQ(GetMetaSection(binary, "missing_kernel", parsed), 0);
+    ASSERT_TRUE(parsed.empty());
 }

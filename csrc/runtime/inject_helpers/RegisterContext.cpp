@@ -242,10 +242,24 @@ uint64_t GetMetaSection(const rtDevBinary_t &binary, const string &kernelName, v
     Elf elf = loader.Load();
     std::string sectionName = ".ascend.meta." + kernelName;
     const auto &headers = elf.GetSectionHeaders();
-    if (headers.find(sectionName) == headers.end()) {
+    bool found = headers.find(sectionName) != headers.end();
+    if (!found) {
+        // MIX 二进制的 meta 段名带有 _mix_aic/_mix_aiv 尾缀，与 kernelName（.text 符号）不一致，
+        // 需要额外尝试尾缀变体，避免精确匹配失败。
+        for (const auto &tail : {MIX_AIC_TAIL, MIX_AIV_TAIL}) {
+            const std::string candidate = sectionName + tail;
+            if (headers.find(candidate) != headers.end()) {
+                sectionName = candidate;
+                found = true;
+                break;
+            }
+        }
+    }
+    if (!found) {
         DEBUG_LOG("Cannot find meta data in binary file");
         return 0;
     }
+    DEBUG_LOG("Get meta data from section %s", sectionName.c_str());
     std::vector<char> rawData = elf.ReadAllRawData(sectionName);
     metaData.assign(rawData.begin(), rawData.end());
     return metaData.size();
