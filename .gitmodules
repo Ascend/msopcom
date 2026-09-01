@@ -1,7 +1,9 @@
 [submodule "thirdparty/json"]
 	path = thirdparty/json
 	url = https://gitcode.com/GitHub_Trending/js/json.git
-	branch = v3.11.3
+	ignore = all
 [submodule "thirdparty/mockcpp"]
 	path = thirdparty/mockcpp
 	url = https://gitcode.com/Ascend/mockcpp.git
+	branch = ascend_mindstudio_mockcpp_master
+	ignore = all

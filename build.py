@@ -55,6 +55,8 @@ class BuildManager:
         # 支持解析版本号参数但实际不使用，防止因参数多余导致构建失败
         argument_parser.add_argument('--build-version', type=str, default=None, help='Build version for run/exe/dmg packages')
         argument_parser.add_argument('--whl-version', type=str, default=None, help='WHL version for Python wheel packages')
+        argument_parser.add_argument('-e', '--extra', metavar='KEY=VALUE', action='append', default=[],
+                                     help='Extra build options in KEY=VALUE format, can be specified multiple times')
         self.parsed_arguments = argument_parser.parse_args()
 
     def _execute_command(self, command_sequence, timeout_seconds=36000, cwd=None, env=None):
@@ -63,19 +65,17 @@ class BuildManager:
 
     def run(self):
         os.chdir(self.project_root)
-
         # 在非 local 场景下按需更新依赖；在 local 场景下仅使用本地已有代码，不更新依赖。
         if 'local' not in self.parsed_arguments.command:
             from download_dependencies import DependencyManager
             DependencyManager(self.parsed_arguments).run()
-
         if 'test' in self.parsed_arguments.command:
             # -------------------- 单元测试 --------------------
             unit_test_build_dir = self.project_root / "build_ut"
             unit_test_build_dir.mkdir(exist_ok=True)
             os.chdir(unit_test_build_dir)
 
-            self._execute_command(["cmake", "..", "-DBUILD_TESTS=ON", "-DCMAKE_BUILD_TYPE=Debug"])
+            self._execute_command(["cmake", "..", "-DBUILD_TESTS=ON", "-DCMAKE_BUILD_TYPE=Debug","-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"])
             self._execute_command(["make", "-j", str(self.build_jobs), "injectionTest"])
 
             test_dir = unit_test_build_dir / "test"
@@ -87,7 +87,7 @@ class BuildManager:
             product_build_dir.mkdir(exist_ok=True)
             os.chdir(product_build_dir)
 
-            self._execute_command(["cmake", ".."])
+            self._execute_command(["cmake", "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", ".."])
             self._execute_command(["make", "-j", str(self.build_jobs)])
             self._execute_command(["make", "install"])
 

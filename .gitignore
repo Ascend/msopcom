@@ -1,7 +1,13 @@
-.vscode/
+# devcontainer相关配置，不忽略vscode配置
+#.vscode/
 .idea
 .codemate
+#build
 build/
 build_ut/
 output/
+__pycache__
 cmake-build-debug
+#others
+thirdparty
+.devcontainer/.host-gitconfig
