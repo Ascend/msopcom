@@ -83,6 +83,7 @@ static std::map<std::string, L2CacheClearTiling> l2CacheClearTilingMap = {
     {"Ascend910_9382", {8388608, 24}},
     {"Ascend910_9372", {10485760, 20}},
     {"Ascend910_9362", {10485760, 20}},
+    {"Ascend910_9363", {10485760, 20}},
     {"Ascend310P1", {2097152, 10}},
     {"Ascend310P3", {2097152, 8}},
     {"Ascend310P5", {2097152, 8}},

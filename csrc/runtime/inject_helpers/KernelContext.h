@@ -76,6 +76,7 @@ const std::map<std::string, uint32_t> CORE_NUM = {
     {"Ascend910_9382",    24},
     {"Ascend910_9372",    20},
     {"Ascend910_9362",    20},
+    {"Ascend910_9363",    20},
     {"Ascend950DT_950x",  8},
     {"Ascend950DT_950y",  8},
     {"Ascend950PR_950z",  8},
