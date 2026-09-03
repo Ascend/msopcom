@@ -285,6 +285,7 @@ inline bool InAclNewLaunchCallStack() {
         HijackedLayerManager::Instance().InCallStack("aclrtLaunchKernelV2Impl") ||
         HijackedLayerManager::Instance().InCallStack("aclrtLaunchKernelWithConfigImpl") ||
         HijackedLayerManager::Instance().InCallStack("aclrtLaunchKernelWithHostArgsImpl") ||
+        HijackedLayerManager::Instance().InCallStack("aclrtLaunchKernelWithArgsArrayImpl") ||
         HijackedLayerManager::Instance().InCallStack("aclrtLaunchSIMTKernelWithHostArgsImpl") ||
         HijackedLayerManager::Instance().InCallStack("aclrtLaunchSIMTKernelWithArgsArrayImpl");
 }

@@ -84,6 +84,7 @@ void AscendclImplOriginCtor()
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtFunctionGetParamCountImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtFunctionGetParamInfoImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtGetFuncBySymbolImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtLaunchKernelWithArgsArrayImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtLaunchSIMTKernelWithHostArgsImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtLaunchSIMTKernelWithArgsArrayImpl);
 }
@@ -364,6 +365,11 @@ aclError aclrtGetFuncBySymbolImplOrigin(const void *symbol, aclrtFuncHandle *fun
 aclError aclrtFunctionGetParamInfoImplOrigin(const void *func, size_t paramIndex, size_t *paramOffset, size_t *paramSize)
 {
     LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtFunctionGetParamInfoImpl, func, paramIndex, paramOffset, paramSize);
+}
+
+aclError aclrtLaunchKernelWithArgsArrayImplOrigin(
+    void *func, uint32_t numBlocks, aclrtStream stream, aclrtLaunchKernelCfg *cfg, void **args) {
+    LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtLaunchKernelWithArgsArrayImpl, func, numBlocks, stream, cfg, args);
 }
 
 aclError aclrtLaunchSIMTKernelWithHostArgsImplOrigin(void *func, dim3 gridDim, dim3 blockDim, size_t dynUbufSize,

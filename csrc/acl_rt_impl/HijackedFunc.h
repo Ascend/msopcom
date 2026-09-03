@@ -582,6 +582,33 @@ private:
     ArgsContextSP argsCtx_{nullptr};
 };
 
+class HijackedFuncOfAclrtLaunchKernelWithArgsArrayImpl
+    : public decltype(AscendclImpHijackedType(&aclrtLaunchKernelWithArgsArrayImpl)),
+      protected AclLaunchKernelMixin {
+public:
+    explicit HijackedFuncOfAclrtLaunchKernelWithArgsArrayImpl();
+    aclError Call(void *func, uint32_t numBlocks, aclrtStream stream, aclrtLaunchKernelCfg *cfg, void **args) override;
+    void Pre(void *func, uint32_t numBlocks, aclrtStream stream, aclrtLaunchKernelCfg *cfg, void **args) override;
+    aclError Post(aclError ret) override;
+
+private:
+    bool InitParam(void *func, uint32_t numBlocks, aclrtStream stream, aclrtLaunchKernelCfg *cfg, void **args);
+    void ProfPre(const std::function<bool(void)> &func, const std::function<void(const std::string &)> &bbCountTask,
+        aclrtStream stm);
+    void ProfPreForInstrProf(const std::function<bool(void)> &func,
+        const std::function<void(const std::string &)> &bbCountTask, rtStream_t stream);
+    bool PrepareDbiTask(ProfDBIType mode, uint64_t memSize);
+    void ProfPost();
+    void RunDbiRecordTask(ProfDBIType mode, const char *failedLog);
+    void SanitizerPre();
+    void SanitizerPost();
+
+private:
+    uint32_t numBlocks_{0};
+    aclrtLaunchKernelCfg *cfg_{nullptr};
+    ArgsContextSP argsCtx_{nullptr};
+};
+
 class HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl
     : public decltype(AscendclImpHijackedType(&aclrtLaunchSIMTKernelWithArgsArrayImpl)),
     protected AclLaunchKernelMixin {
@@ -609,7 +636,7 @@ private:
     size_t dynUbufSize_{0};
     dim3 gridDim_{};
     aclrtLaunchKernelCfg *cfg_{nullptr};
-    ArgsArrayContextSP argsCtx_{nullptr};
+    ArgsContextSP argsCtx_{nullptr};
 };
 
 class HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsImpl

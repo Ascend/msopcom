@@ -43,30 +43,25 @@
 #include "runtime/inject_helpers/LocalDevice.h"
 #include "runtime/inject_helpers/SyncStreamWithInterrupt.h"
 
-HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl()
-    : HijackedFuncType(AclRuntimeLibName(), "aclrtLaunchSIMTKernelWithArgsArrayImpl") {}
+HijackedFuncOfAclrtLaunchKernelWithArgsArrayImpl::HijackedFuncOfAclrtLaunchKernelWithArgsArrayImpl()
+    : HijackedFuncType(AclRuntimeLibName(), "aclrtLaunchKernelWithArgsArrayImpl") {}
 
-static void ReportKernelBinary(const RegisterContextSP& regCtx)
-{
+static void ReportKernelBinary(const RegisterContextSP &regCtx) {
     auto const &elfData = regCtx->GetElfData();
-    PacketHead head { PacketType::KERNEL_BINARY };
+    PacketHead head{PacketType::KERNEL_BINARY};
     std::string buffer(elfData.cbegin(), elfData.cend());
     int32_t deviceId = 0;
     aclrtGetDeviceImplOrigin(&deviceId);
     LocalDevice::GetInstance(deviceId).Notify(Serialize(head, buffer.size()) + std::move(buffer));
 }
 
-bool HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::InitParam(
-    void *func, dim3 gridDim, dim3 blockDim, size_t dynUbufSize, aclrtStream stream,
-    aclrtLaunchKernelCfg *cfg, void **args)
-{
+bool HijackedFuncOfAclrtLaunchKernelWithArgsArrayImpl::InitParam(
+    void *func, uint32_t numBlocks, aclrtStream stream, aclrtLaunchKernelCfg *cfg, void **args) {
     // 归一化入参 func：可能是核函数符号，统一转成 func handle，后续都用它
     aclrtFuncHandle resolvedFunc = ResolveFuncHandle(func);
-    refreshParamFunc_ = [this, resolvedFunc, gridDim, blockDim, dynUbufSize, stream, cfg, args]() {
+    refreshParamFunc_ = [this, resolvedFunc, numBlocks, stream, cfg, args]() {
         funcHandle_ = resolvedFunc;
-        gridDim_ = gridDim;
-        blockDim_ = blockDim;
-        dynUbufSize_ = dynUbufSize;
+        numBlocks_ = numBlocks;
         stream_ = stream;
         cfg_ = cfg;
         newArgsCtx_ = nullptr;
@@ -93,16 +88,10 @@ bool HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::InitParam(
         DEBUG_LOG("Pack args array failed, stop hijack this launch.");
         return false;
     }
-    blockNum_ = gridDim.x * gridDim.y * gridDim.z;
-    launchCtx_ = LaunchManager::Local().CreateContext(funcHandle_, blockNum_, stream, cfg, argsCtx_);
+    launchCtx_ = LaunchManager::Local().CreateContext(funcHandle_, numBlocks, stream, cfg, argsCtx_);
     if (launchCtx_ == nullptr) {
         DEBUG_LOG("Create launch context failed");
         return false;
-    }
-    if (IsSanitizer()) {
-        // SIMT launch 接口的 dynUbufSize 参数优先级高于从 cfg/args 解析的 localMemorySize，
-        // sanitizer 检测需要以此为准
-        LaunchManager::Local().SetSimtUbDynamicSize(dynUbufSize_);
     }
     funcCtx_ = launchCtx_->GetFuncContext();
     regId_ = funcCtx_->GetRegisterContext()->GetRegisterId();
@@ -119,9 +108,8 @@ bool HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::InitParam(
     return true;
 }
 
-void HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::ProfPre(const std::function<bool(void)> &func,
-    const std::function<void(const std::string &)> &bbCountTask, aclrtStream stm)
-{
+void HijackedFuncOfAclrtLaunchKernelWithArgsArrayImpl::ProfPre(const std::function<bool(void)> &func,
+    const std::function<void(const std::string &)> &bbCountTask, aclrtStream stm) {
     profObj_->ProfInit(nullptr, nullptr, false); // pc_start落盘txt文件
     profObj_->ProfData(stm, func);
     if (profObj_->IsBBCountNeedGen() && bbCountTask != nullptr) {
@@ -130,8 +118,7 @@ void HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::ProfPre(const std::fu
     }
 }
 
-void HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::SanitizerPre()
-{
+void HijackedFuncOfAclrtLaunchKernelWithArgsArrayImpl::SanitizerPre() {
     // mssanitizer SIGINT 信号处理接管
     BindSigIntHandler();
 
@@ -140,10 +127,12 @@ void HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::SanitizerPre()
     if (skipSanitizer_) {
         return;
     }
-    if (isSink_) { return; }
+    if (isSink_) {
+        return;
+    }
     ReportKernelSummary(launchCtx_);
     ReportKernelBinary(launchCtx_->GetFuncContext()->GetRegisterContext());
-    memInfo_ = __sanitizer_init(blockNum_);
+    memInfo_ = __sanitizer_init(numBlocks_);
     if (memInfo_ == nullptr) {
         return;
     }
@@ -164,9 +153,8 @@ void HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::SanitizerPre()
         funcHandle_ = funcCtx_->GetFuncHandle();
     }
 }
-
 // 调优自定义插桩统一调用此函数
-bool HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::PrepareDbiTask(ProfDBIType mode, uint64_t memSize) {
+bool HijackedFuncOfAclrtLaunchKernelWithArgsArrayImpl::PrepareDbiTask(ProfDBIType mode, uint64_t memSize) {
     // 每次调用插桩前需要清理插桩用到的成员变量，保证不被上次插桩污染
     refreshParamFunc_();
     KernelMatcher::Config matchConfig;
@@ -198,14 +186,13 @@ bool HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::PrepareDbiTask(ProfDB
     return false;
 }
 
-void HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::ProfPreForInstrProf(const std::function<bool(void)> &func,
-    const std::function<void(const std::string &)> &bbCountTask, rtStream_t stream)
-{
+void HijackedFuncOfAclrtLaunchKernelWithArgsArrayImpl::ProfPreForInstrProf(const std::function<bool(void)> &func,
+    const std::function<void(const std::string &)> &bbCountTask, rtStream_t stream) {
     auto funcStub = [this]() {
         auto argsArrayCtx = std::static_pointer_cast<ArgsArrayContext>(
             newArgsCtx_ != nullptr ? newArgsCtx_ : argsCtx_);
-        return (aclrtLaunchSIMTKernelWithArgsArrayImplOrigin(funcHandle_, gridDim_, blockDim_, dynUbufSize_, stream_,
-                    cfg_, argsArrayCtx->GetArgsArray()) == ACL_SUCCESS);
+        return (aclrtLaunchKernelWithArgsArrayImplOrigin(
+                    funcHandle_, numBlocks_, stream_, cfg_, argsArrayCtx->GetArgsArray()) == ACL_SUCCESS);
     };
     if (profObj_->IsPCSamplingNeedGen() && launchCtx_->GetFuncContext()->GetRegisterContext()->HasSimtSymbol()) {
         if (PrepareDbiTask(ProfDBIType::INSTR_PROF_START, INSTR_PROF_MEMSIZE)) {
@@ -230,10 +217,9 @@ void HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::ProfPreForInstrProf(c
     ProfPre(func, bbCountTask, stream);
 }
 
-void HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::Pre(void *func, dim3 gridDim, dim3 blockDim, size_t dynUbufSize, aclrtStream stream,
-    aclrtLaunchKernelCfg *cfg, void **args)
-{
-    if (!InitParam(func, gridDim, blockDim, dynUbufSize, stream, cfg, args)) {
+void HijackedFuncOfAclrtLaunchKernelWithArgsArrayImpl::Pre(
+    void *func, uint32_t numBlocks, aclrtStream stream, aclrtLaunchKernelCfg *cfg, void **args) {
+    if (!InitParam(func, numBlocks, stream, cfg, args)) {
         DEBUG_LOG("Invalid param, stop hijack this launch.");
         return;
     }
@@ -264,9 +250,8 @@ void HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::Pre(void *func, dim3 
         if (ProfConfig::Instance().IsSimulator()) {
             profObj_->ProfInit(nullptr, nullptr, false); // 完全切换至aclrt接口时需要删除该函数入参
         } else {
-            auto function = [func, gridDim, blockDim, dynUbufSize, stream, cfg, args]() {
-                return (aclrtLaunchSIMTKernelWithArgsArrayImplOrigin(func, gridDim, blockDim, dynUbufSize, stream, cfg,
-                   args) == ACL_SUCCESS);
+            auto function = [func, numBlocks, stream, cfg, args]() {
+                return (aclrtLaunchKernelWithArgsArrayImplOrigin(func, numBlocks, stream, cfg, args) == ACL_SUCCESS);
             };
             ProfPreForInstrProf(function, bbCountTask, stream);
         }
@@ -275,10 +260,9 @@ void HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::Pre(void *func, dim3 
         this->SanitizerPre();
     }
 }
-aclError HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::Call(void *func, dim3 gridDim, dim3 blockDim, size_t dynUbufSize, aclrtStream stream,
-    aclrtLaunchKernelCfg *cfg, void **args)
-{
-    Pre(func, gridDim, blockDim, dynUbufSize, stream, cfg, args);
+aclError HijackedFuncOfAclrtLaunchKernelWithArgsArrayImpl::Call(
+    void *func, uint32_t numBlocks, aclrtStream stream, aclrtLaunchKernelCfg *cfg, void **args) {
+    Pre(func, numBlocks, stream, cfg, args);
     if (originfunc_ == nullptr) {
         ERROR_LOG("%s Hijacked func pointer is nullptr.", __FUNCTION__);
         return EmptyFunc();
@@ -289,12 +273,11 @@ aclError HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::Call(void *func, 
     // InitParam 失败时无可用参数数组，回退使用原始参数数组
     auto argsArrayCtx = std::static_pointer_cast<ArgsArrayContext>(
         newArgsCtx_ != nullptr ? newArgsCtx_ : argsCtx_);
-    return Post(originfunc_(funcHandle_, gridDim_, blockDim_, dynUbufSize_, stream_, cfg_,
+    return Post(originfunc_(funcHandle_, numBlocks_, stream_, cfg_,
         (argsArrayCtx != nullptr && argsArrayCtx->GetArgsArray() != nullptr) ? argsArrayCtx->GetArgsArray() : args));
 }
 
-void HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::SanitizerPost()
-{
+void HijackedFuncOfAclrtLaunchKernelWithArgsArrayImpl::SanitizerPost() {
     if (skipSanitizer_) {
         // 对于 <<<>>> 场景，编译器也会在算子调用符处插入 __sanitizer_finalize，因此为了防止
         // 编译器插入的 __sanitizer_finalize 生效，需要在此处将记录内存状态设置为失效
@@ -339,10 +322,10 @@ void HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::SanitizerPost()
             auto allocHeaders = GetAllocSectionHeaders(headers);
             auto startPC = funcCtx_->GetStartPC();
             ReportSectionsMalloc(startPC, allocHeaders);
-            __sanitizer_finalize(memInfo_, blockNum_);
+            __sanitizer_finalize(memInfo_, numBlocks_);
             ReportSectionsFree(startPC, allocHeaders);
         } else {
-            __sanitizer_finalize(memInfo_, blockNum_);
+            __sanitizer_finalize(memInfo_, numBlocks_);
         }
 
         ReportOpFreeInfo(LaunchManager::Local().GetCurrentMemInfo());
@@ -350,8 +333,7 @@ void HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::SanitizerPost()
     }
 }
 
-void HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::RunDbiRecordTask(ProfDBIType mode, const char *failedLog)
-{
+void HijackedFuncOfAclrtLaunchKernelWithArgsArrayImpl::RunDbiRecordTask(ProfDBIType mode, const char *failedLog) {
     if (!DbiRecordTaskHelper::IsNeedGen(profObj_.get(), mode)) {
         return;
     }
@@ -361,14 +343,14 @@ void HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::RunDbiRecordTask(Prof
     if (!ProfConfig::Instance().IsAppReplay() && !MemoryContext::Instance().Restore()) {
         WARN_LOG("Restore input data before DBI record task failed, mode=%u", static_cast<uint32_t>(mode));
     }
-    uint64_t memSize = DbiRecordTaskHelper::GetDbiRecordMemSize(mode, blockNum_, MAX_BLOCK);
+    uint64_t memSize = DbiRecordTaskHelper::GetDbiRecordMemSize(mode, numBlocks_);
     if (!PrepareDbiTask(mode, memSize) || originfunc_ == nullptr) {
         return;
     }
     auto argsArrayCtx = std::static_pointer_cast<ArgsArrayContext>(
         newArgsCtx_ != nullptr ? newArgsCtx_ : argsCtx_);
-    originfunc_(funcHandle_, gridDim_, blockDim_, dynUbufSize_, stream_, cfg_,
-        argsArrayCtx != nullptr ? argsArrayCtx->GetArgsArray() : nullptr);
+    originfunc_(
+        funcHandle_, numBlocks_, stream_, cfg_, argsArrayCtx != nullptr ? argsArrayCtx->GetArgsArray() : nullptr);
     aclError ret = aclrtSynchronizeStreamImplOrigin(stream_);
     if (ret == ACL_SUCCESS) {
         DbiRecordTaskHelper::CollectData(profObj_.get(), mode, memSize_, memInfo_);
@@ -377,8 +359,7 @@ void HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::RunDbiRecordTask(Prof
     WARN_LOG("%s", failedLog);
 }
 
-void HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::ProfPost()
-{
+void HijackedFuncOfAclrtLaunchKernelWithArgsArrayImpl::ProfPost() {
     if (profObj_->IsBBCountNeedGen()) {
         aclrtSynchronizeStreamImplOrigin(stream_);
         profObj_->GenBBcountFile(regId_, memSize_, memInfo_);
@@ -389,8 +370,7 @@ void HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::ProfPost()
     profObj_->PostProcess();
 }
 
-aclError HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::Post(aclError ret)
-{
+aclError HijackedFuncOfAclrtLaunchKernelWithArgsArrayImpl::Post(aclError ret) {
     if (ret != ACL_SUCCESS) {
         return ret;
     }

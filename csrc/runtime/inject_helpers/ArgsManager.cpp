@@ -15,6 +15,7 @@
  * ------------------------------------------------------------------------- */
 
 #include "ArgsManager.h"
+#include "ArgsArrayContext.h"
 #include "ArgsHandleContext.h"
 #include "ArgsRawContext.h"
 #include "KernelMetaDataParser.h"
@@ -160,6 +161,21 @@ ArgsContextSP ArgsManager::CreateContext(void *args, uint32_t argsSize, const st
     }
     SetArgsSize(argsSize);
     auto ctx = make_shared<ArgsRawContext>(args, argsSize, placeHolderArray);
+    contexts_[args] = ctx;
+    return ctx;
+}
+
+ArgsContextSP ArgsManager::CreateContext(void **args, size_t paramCount, const std::vector<size_t> &paramOffsets,
+    const std::vector<size_t> &paramSizes)
+{
+    if (args == nullptr) {
+        return nullptr;
+    }
+    auto ctx = ArgsArrayContext::Create(args, paramCount, paramOffsets, paramSizes);
+    if (ctx == nullptr) {
+        return nullptr;
+    }
+    SetArgsSize(ctx->GetPackedArgsSize());
     contexts_[args] = ctx;
     return ctx;
 }

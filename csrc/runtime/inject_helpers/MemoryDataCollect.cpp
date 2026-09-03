@@ -410,6 +410,24 @@ void ReportOpMallocInfo(const AclrtLaunchArgsInfo &launchArgs, OpMemInfo &opMemI
     }
     // 为0时认为没有tiling信息，提前返回
     if (launchArgs.placeHolderNum == 0U) {
+        // ArgsArray 路径无 placeholder，但若 meta 解析出 tiling 的 paramsNo，
+        // 调用方会把 tiling 指针在 hostArgs 中的偏移填入 tilingAddrOffset，
+        // 此时仍需上报 tiling；否则确实没有 tiling 信息。
+        if (launchArgs.tilingAddrOffset == 0U) {
+            return;
+        }
+        uint64_t tilingAddr = buff[launchArgs.tilingAddrOffset / sizeof(uintptr_t)];
+        if (tilingAddr == 0U || opMemInfo.tilingDataSize == 0U) {
+            return;
+        }
+        // ArgsArray 的 hostArgs 只含各参数指针值，不含 tiling 数据区，
+        // 因此 tiling 长度只能取 meta 解析出的 tilingDataSize（对齐 32B）。
+        uint64_t tilingSize = (opMemInfo.tilingDataSize + 31U) / 32U * 32U;
+        MemInfoSrc memInfoSrc = MemInfoSrc::BYPASS;
+        ReportMalloc(tilingAddr, tilingSize, memInfoSrc, MemInfoDesc::TILING);
+        ReportMemset(tilingAddr, tilingSize, memInfoSrc, MemInfoDesc::TILING);
+        opMemInfo.uniqueAddrInfos.insert(
+            opMemInfo.uniqueAddrInfos.begin(), {tilingAddr, tilingSize, memInfoSrc, MemInfoDesc::TILING});
         return;
     }
     /// 所有placeHolderArray中最大的addrOffset对应的是tilingAddr地址偏移，此时的dataOffset为tilingData偏移

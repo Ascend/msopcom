@@ -66,6 +66,7 @@ struct OpMemInfo {
     uint32_t inputNum{};
     uint32_t skipNum{};
     uint64_t tilingDataSize{};
+    uint64_t tilingParamsNo{}; // tiling 在算子入参中的序号(1-based)，0 表示未知
     bool isForSetException = false;
     bool isTik = false;
     bool hasMc2Ctx = false;
@@ -81,6 +82,7 @@ struct OpMemInfo {
         inputNum = 0;
         skipNum = 0;
         tilingDataSize = 0;
+        tilingParamsNo = 0;
         isForSetException = false;
         isTik = false;
         hasMc2Ctx = false;

@@ -152,7 +152,6 @@ void KernelMetaDataParser::ParseMetaFfts(uint32_t &index, uint32_t paramsNo)
 
 void KernelMetaDataParser::ParseMetaTiling(uint32_t &index, uint32_t paramsNo)
 {
-    (void)paramsNo;
     if (metaData_.size() < (U64_BYTE_SIZE + index)) {
         WARN_LOG("Can not Parse Meta tiling data, index error");
         return;
@@ -163,7 +162,9 @@ void KernelMetaDataParser::ParseMetaTiling(uint32_t &index, uint32_t paramsNo)
         memInfo_.tilingDataSize |=
             static_cast<uint64_t>(metaData_[i + index]) << ((U64_BYTE_SIZE - 1 - i) * U64_BYTE_SIZE);
     }
-    DEBUG_LOG("Get tiling data, data length is %lu", static_cast<uint64_t>(memInfo_.tilingDataSize));
+    memInfo_.tilingParamsNo = paramsNo;
+    DEBUG_LOG("Get tiling data, data length is %lu, paramsNo is %lu",
+        static_cast<uint64_t>(memInfo_.tilingDataSize), static_cast<uint64_t>(memInfo_.tilingParamsNo));
 }
 
 void KernelMetaDataParser::ParseKernelArgs(uint32_t &index)

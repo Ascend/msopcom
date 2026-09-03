@@ -327,6 +327,57 @@ TEST(MemoryDataCollect, report_op_malloc_info_with_tiling_expect_get_correct_mem
     ASSERT_EQ(opMemInfo.uniqueAddrInfos[2].length, SIZE1);
 }
 
+TEST(MemoryDataCollect, report_op_malloc_info_with_launch_args_tiling_by_offset_expect_get_correct_mem_info)
+{
+    MOCKER(IsSanitizer).stubs().will(returnValue(true));
+    MOCKER(ReportMalloc).stubs();
+    MOCKER(ReportMemset).stubs();
+
+    // 模拟 ArgsArray 路径：无 placeholder，但通过 tilingAddrOffset 指明 tiling 指针位置
+    OpMemInfo opMemInfo = CreateOpMemInfoFunc();
+    opMemInfo.tilingDataSize = SIZE2;
+    // hostArgs 布局：[input0指针][input1指针][tiling指针]，tiling 在偏移 16 字节处
+    std::string args = Serialize(ADDR0, ADDR1, ADDR2);
+    AclrtLaunchArgsInfo launchArgs{};
+    launchArgs.hostArgs = const_cast<char *>(args.data());
+    launchArgs.argsSize = args.size();
+    launchArgs.placeHolderArray = nullptr;
+    launchArgs.placeHolderNum = 0;
+    launchArgs.tilingAddrOffset = sizeof(uint64_t) * 2; // 第 3 个参数（偏移 16）
+
+    ReportOpMallocInfo(launchArgs, opMemInfo);
+    GlobalMockObject::verify();
+
+    // 2 个 input + 1 个 tiling，tiling 插入到最前面
+    ASSERT_EQ(opMemInfo.uniqueAddrInfos.size(), 3UL);
+    ASSERT_EQ(opMemInfo.uniqueAddrInfos[0].addr, ADDR2);
+    ASSERT_EQ(opMemInfo.uniqueAddrInfos[0].length, (SIZE2 + 31U) / 32U * 32U);
+    ASSERT_EQ(opMemInfo.uniqueAddrInfos[0].memInfoDesc, MemInfoDesc::TILING);
+}
+
+TEST(MemoryDataCollect, report_op_malloc_info_with_launch_args_no_tiling_offset_expect_skip_tiling)
+{
+    MOCKER(IsSanitizer).stubs().will(returnValue(true));
+    MOCKER(ReportMalloc).stubs();
+    MOCKER(ReportMemset).stubs();
+
+    // 无 placeholder 且未填 tilingAddrOffset，即使 tilingDataSize 非零也不应上报 tiling
+    OpMemInfo opMemInfo = CreateOpMemInfoFunc();
+    opMemInfo.tilingDataSize = SIZE2;
+    std::string args = Serialize(ADDR0, ADDR1);
+    AclrtLaunchArgsInfo launchArgs{};
+    launchArgs.hostArgs = const_cast<char *>(args.data());
+    launchArgs.argsSize = args.size();
+    launchArgs.placeHolderNum = 0;
+    launchArgs.tilingAddrOffset = 0;
+
+    ReportOpMallocInfo(launchArgs, opMemInfo);
+    GlobalMockObject::verify();
+
+    // 仅 2 个 input，无 tiling
+    ASSERT_EQ(opMemInfo.uniqueAddrInfos.size(), 2UL);
+}
+
 TEST(MemoryDataCollect, report_op_malloc_info_with_empty_host_input_info_expect_get_zero_mem_size)
 {
     MOCKER(IsSanitizer).stubs().will(returnValue(true));

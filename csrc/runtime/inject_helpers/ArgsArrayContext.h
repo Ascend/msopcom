@@ -60,6 +60,11 @@ public:
 
     uint32_t GetPackedArgsSize() const { return static_cast<uint32_t>(packedArgs_.size()); }
 
+    // 按算子入参序号(1-based)获取该参数在 packedArgs_ 中的字节偏移。
+    // ArgsArray 路径无 placeholder，tiling 等参数的位置只能由 meta 解析出的
+    // paramsNo 配合 paramOffsets_ 推得。paramsNo 越界时返回 false。
+    bool GetParamOffsetByParamsNo(uint64_t paramsNo, size_t &offset) const;
+
 private:
     ArgsArrayContext(size_t paramCount, const std::vector<size_t> &paramOffsets, const std::vector<size_t> &paramSizes);
 

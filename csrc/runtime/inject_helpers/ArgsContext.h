@@ -59,6 +59,10 @@ struct AclrtLaunchArgsInfo {
     size_t argsSize{};
     aclrtPlaceHolderInfo *placeHolderArray{};
     size_t placeHolderNum{};
+    // ArgsArray 路径无 placeholder，当 meta 解析出 tiling 的 paramsNo 时，
+    // 由调用方据此推算 tiling 指针在 hostArgs 中的字节偏移并填入此处；
+    // 0 表示未知，按无 tiling 处理。
+    uint32_t tilingAddrOffset{};
 };
 
 /*

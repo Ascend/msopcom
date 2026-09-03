@@ -91,6 +91,15 @@ uint32_t ArgsArrayContext::GetLastParamOffset() {
     return static_cast<uint32_t>((packedArgs_.size() + ALIGN_SIZE - 1) / ALIGN_SIZE * ALIGN_SIZE);
 }
 
+bool ArgsArrayContext::GetParamOffsetByParamsNo(uint64_t paramsNo, size_t &offset) const
+{
+    if (paramsNo == 0 || paramsNo > paramCount_) {
+        return false;
+    }
+    offset = paramOffsets_[paramsNo - 1];
+    return true;
+}
+
 bool ArgsArrayContext::Save(const std::string &outputPath, DumperContext &config, OpMemInfo &memInfo, bool isSink) {
     (void)isSink;
     for (size_t i = 0; i < memInfo.inputParamsAddrInfos.size(); i++) {

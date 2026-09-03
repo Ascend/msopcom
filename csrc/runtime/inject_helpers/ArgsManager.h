@@ -45,6 +45,11 @@ public:
     ArgsContextSP CreateContext(void *args, uint32_t argsSize, bool isDeviceArgs = false);
 
     ArgsContextSP CreateContext(void *args, uint32_t argsSize, const std::vector<aclrtPlaceHolderInfo> &placeHolderArray);
+
+    // ArgsArray 路径：args 为参数指针数组，需配合 kernel 参数布局打包成连续 buffer
+    ArgsContextSP CreateContext(void **args, size_t paramCount, const std::vector<size_t> &paramOffsets,
+        const std::vector<size_t> &paramSizes);
+
     // aclrt接口里的ArgsHandleContext获取
     ArgsContextSP GetContext(aclrtArgsHandle argsHandle) const;
 

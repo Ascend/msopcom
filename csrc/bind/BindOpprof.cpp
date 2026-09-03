@@ -112,6 +112,7 @@ void RegisterAscendCl()
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtBinaryLoadImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtLaunchSIMTKernelWithHostArgsImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtLaunchSIMTKernelWithArgsArrayImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtLaunchKernelWithArgsArrayImpl);
 }
 
 // 上板注册libruntime.so，仿真注册libruntime_camodel.so
@@ -745,6 +746,14 @@ aclError aclrtLaunchSIMTKernelWithArgsArrayImpl(void *func, dim3 gridDim, dim3 b
     HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl instance;
     return instance.Call(func, gridDim, blockDim, dynUbufSize,
         stream, cfg, args);
+}
+
+aclError aclrtLaunchKernelWithArgsArrayImpl(
+    void *func, uint32_t numBlocks, aclrtStream stream, aclrtLaunchKernelCfg *cfg, void **args) {
+    PRINT_ENTER_INSTRUMENTOR;
+    LayerGuard guard(HijackedLayerManager::Instance(), __func__);
+    HijackedFuncOfAclrtLaunchKernelWithArgsArrayImpl instance;
+    return instance.Call(func, numBlocks, stream, cfg, args);
 }
 
 aclError aclrtBinaryLoadImpl(const aclrtBinary binary, aclrtBinHandle *binHandle)

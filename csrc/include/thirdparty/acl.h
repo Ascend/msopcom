@@ -311,6 +311,8 @@ aclError aclrtSubscribeReportImpl(uint64_t threadId, aclrtStream stream);
 aclError aclrtGetFuncBySymbolImpl(const void *symbol, aclrtFuncHandle *funcHandle);
 aclError aclrtFunctionGetParamCountImpl(const void *func, size_t *paramCount);
 aclError aclrtFunctionGetParamInfoImpl(const void *func, size_t paramIndex, size_t *paramOffset, size_t *paramSize);
+aclError aclrtLaunchKernelWithArgsArrayImpl(
+    void *func, uint32_t numBlocks, aclrtStream stream, aclrtLaunchKernelCfg *cfg, void **args);
 aclError aclrtLaunchSIMTKernelWithHostArgsImpl(void *func, dim3 gridDim, dim3 blockDim, size_t dynUbufSize,
     aclrtStream stream, aclrtLaunchKernelCfg *cfg, void *hostArgs, size_t argsSize,
     aclrtPlaceHolderInfo *placeHolderArray, size_t placeHolderNum);
