@@ -552,30 +552,29 @@ TEST(ProfTask, instr_config_uses_legacy_abi_when_hal_api_version_query_fails)
 /* | 用例集 | ProfTask
 /* |测试函数| InstrProfTask::GetTask(int mode, prof_start_para_t &instrProfStartPara)
 /* | 用例名 | instr_config_uses_legacy_abi_before_report_data_loss_version
-/* |用例描述| HAL API版本低于0x072419时，使用16字节旧版InstrProfile配置
+/* |用例描述| HAL API版本低于0x07241a时，使用16字节旧版InstrProfile配置
 */
 TEST(ProfTask, instr_config_uses_legacy_abi_before_report_data_loss_version)
 {
-    CheckInstrConfigForHalVersion(DRV_ERROR_NONE, 0x072418, LEGACY_INSTR_CONFIG_SIZE, false);
+    CheckInstrConfigForHalVersion(DRV_ERROR_NONE, 0x072419, LEGACY_INSTR_CONFIG_SIZE, false);
 }
 
 /**
 /* | 用例集 | ProfTask
 /* |测试函数| InstrProfTask::GetTask(int mode, prof_start_para_t &instrProfStartPara)
 /* | 用例名 | instr_config_enables_report_data_loss_at_supported_version
-/* |用例描述| HAL API版本等于0x072419时，使用17字节配置并启用数据丢失上报
+/* |用例描述| HAL API版本等于0x07241a时，使用17字节配置并启用数据丢失上报
 */
 TEST(ProfTask, instr_config_enables_report_data_loss_at_supported_version)
 {
-    CheckInstrConfigForHalVersion(
-        DRV_ERROR_NONE, 0x072419, REPORT_DATA_LOSS_INSTR_CONFIG_SIZE, true);
+    CheckInstrConfigForHalVersion(DRV_ERROR_NONE, 0x07241a, REPORT_DATA_LOSS_INSTR_CONFIG_SIZE, true);
 }
 
 /**
 /* | 用例集 | ProfTask
 /* |测试函数| InstrProfTask::GetTask(int mode, prof_start_para_t &instrProfStartPara)
 /* | 用例名 | instr_config_enables_report_data_loss_after_supported_version
-/* |用例描述| HAL API版本高于0x072419时，使用17字节配置并启用数据丢失上报
+/* |用例描述| HAL API版本高于0x07241a时，使用17字节配置并启用数据丢失上报
 */
 TEST(ProfTask, instr_config_enables_report_data_loss_after_supported_version)
 {

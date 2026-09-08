@@ -46,7 +46,7 @@ constexpr int FFTS_PROF_AIC_SCALE_PARTIAL = 1;
 constexpr int INSTR_PROF_PERIOD = 32;
 constexpr uint16_t INSTR_PROF_MODE_BIU_PERF = 0;
 constexpr uint16_t INSTR_PROF_MODE_PC_SAMPLING = 1;
-constexpr int32_t HAL_API_VERSION_REPORT_DATA_LOSS = 0x072419;
+constexpr int32_t HAL_API_VERSION_REPORT_DATA_LOSS = 0x07241a;
 constexpr int32_t INSTR_PROF_DATA_LOSS_ERR = 2326;
 
 // ts data code
