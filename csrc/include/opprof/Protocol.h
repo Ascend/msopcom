@@ -16,7 +16,6 @@
 #ifndef __PROTOCOL_H__
 #define __PROTOCOL_H__
 
-#include <cstddef>
 #include <cstdint>
 #include "BasicDefs.h"
 enum class ProfPacketType : uint32_t {

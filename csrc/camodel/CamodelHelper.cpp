@@ -14,10 +14,6 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
-#include <algorithm>
-
-#include "utils/Serialize.h"
-#include "Camodel.h"
 #include "CamodelHelper.h"
 
 void CamodelHelper::SendCaLog(std::unique_ptr<DataHolderBase> data) {
@@ -40,24 +36,6 @@ void CamodelHelper::PopMessage() {
             data = std::move(queue_.front());
             queue_.pop();
         }
-        std::string mes;
-        if (data->GetType() == ProfPacketType::ICACHE_LOG) {
-            ProfPacketHead head{data->GetType(), static_cast<uint32_t>(sizeof(DvciCacheLog))};
-            auto *icacheLog = static_cast<CaLogMessageHolder<DvciCacheLog> *>(data.get());
-            mes = Serialize(head, icacheLog->GetData());
-        } else if (data->GetType() == ProfPacketType::INSTR_LOG || data->GetType() == ProfPacketType::POPPED_LOG) {
-            auto *instrLog = static_cast<CaLogMessageHolder<DvcInstrLog> *>(data.get());
-            ProfPacketHead head{data->GetType(), static_cast<uint32_t>(sizeof(DvcInstrLog))};
-            mes = Serialize(head, instrLog->GetData());
-        } else if (data->GetType() == ProfPacketType::MTE_LOG) {
-            auto *mteLog = static_cast<CaLogMessageHolder<DvcMteLog> *>(data.get());
-            ProfPacketHead head{data->GetType(), static_cast<uint32_t>(sizeof(DvcMteLog))};
-            mes = Serialize(head, mteLog->GetData());
-        } else if (data->GetType() == ProfPacketType::CCU_LOG) {
-            auto *ccuLog = static_cast<CaLogMessageHolder<DvcCcuLog> *>(data.get());
-            ProfPacketHead head{data->GetType(), static_cast<uint32_t>(sizeof(DvcCcuLog))};
-            mes = Serialize(head, ccuLog->GetData());
-        }
-        ProfConfig::Instance().SendMsg(mes);
+        ProfConfig::Instance().SendMsg(data->SerializeMessage());
     }
 }

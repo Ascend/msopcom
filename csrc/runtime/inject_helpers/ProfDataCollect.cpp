@@ -43,6 +43,7 @@
 #include "hccl/HcclOrigin.h"
 #include "DBITask.h"
 #include "camodel/CamodelHelper.h"
+#include "camodel/CamodelRawInstrDumper.h"
 #include "runtime/inject_helpers/RegisterContext.h"
 #include "acl_rt_impl/AscendclImplOrigin.h"
 #include "profapi/ProfOriginal.h"
@@ -61,6 +62,7 @@ constexpr uint32_t PROF_INVALID_MODE_ID = 0xFFFFFFFFUL;
 constexpr int32_t SYNCHRONIZE_TIME_OUT = 10000; // 设置MC2算子同步超时时间为10000ms
 constexpr int32_t WAIT_DATA_READ_TIME = 100; // 设置MC2算子等待时间为100us
 constexpr char const *CAMODEL_LOG_PATH_ENV = "CAMODEL_LOG_PATH";
+constexpr char const *ENABLE_CA_RAW_INSTR_DUMP_ENV = "ENABLE_CA_RAW_INSTR_DUMP";
 constexpr char const *MSOPPROF_INJECTION_LIB_PATH_FROM_MSOPPROF = "lib64/libmsopprof_injection.so";
 constexpr char const *MSOPPROF_OUTPUT_DUMP_PATH_ENV = "MSOPPROF_OUTPUT_DUMP_PATH";
 constexpr char const *AICORE_KERNEL_NAME = "aicore_binary.o";
@@ -489,6 +491,7 @@ SimulatorLauncher::SimulatorLauncher() {
 
 void DataCollectWithSimulator::ProfInit(const void *hdl, const void *stubFunc, bool type) {
     DEBUG_LOG("Kernel running, kernel name is %s", kernelName_.c_str());
+    CamodelRawInstrDumper::Instance().Stop();
     if (outputPath_.empty()) {
         CamodelHelper::Instance().Disable();
         return;
@@ -529,6 +532,9 @@ void DataCollectWithSimulator::ProfInit(const void *hdl, const void *stubFunc, b
     // 需要先复制aicore.o到dump下
     if (GetEnv("ENABLE_CA_LOG_TRANS") == "true") {
         if (ProfConfig::Instance().IsEnableLogTrans()) {
+            if (GetEnv(ENABLE_CA_RAW_INSTR_DUMP_ENV) == "true") {
+                CamodelRawInstrDumper::Instance().Start(outputPath_);
+            }
             CamodelHelper::Instance().Enable();
             ProfConfig::Instance().RequestLogTranslate(outputPath_, kernelName_);
         } else {
@@ -594,16 +600,21 @@ void DataCollectWithSimulator::ClearCaFile(const std::string &fileName) const {
 
 bool DataCollectWithSimulator::HandleDumpLogAfterLaunch() {
     using namespace std::experimental::filesystem;
-    if (ProfConfig::Instance().IsEnableLogTrans() && CamodelHelper::Instance().IsEnable()) {
+    const bool isLogTransEnabled = ProfConfig::Instance().IsEnableLogTrans();
+    if (isLogTransEnabled && CamodelHelper::Instance().IsEnable()) {
         CamodelHelper::Instance().SendSync();
         ProfConfig::Instance().NotifyStopTransLog();
     }
+    CamodelRawInstrDumper::Instance().Stop();
     std::string tmpDumpPath = SharedRecord::Instance().GetTmpDumpPath();
     if (tmpDumpPath.empty() || !IsExist(tmpDumpPath)) {
         WARN_LOG("Tmp dump file path is not Exist, path is [%s]", tmpDumpPath.c_str());
         return false;
     }
-    if (!outputPath_.empty() && IsExist(outputPath_)) {
+    // 在线解析模式下仿真器dump文件默认不落盘，仅用户显式指定--dump=on时保留；
+    // 离线模式（log trans未使能）仍需要dump文件做事后解析，保持原有拷贝行为
+    const bool keepDumpFiles = !isLogTransEnabled || GetEnv(ENABLE_CA_RAW_INSTR_DUMP_ENV) == "true";
+    if (keepDumpFiles && !outputPath_.empty() && IsExist(outputPath_)) {
         for (auto const &dirEntry : directory_iterator(tmpDumpPath)) {
             if (IsDir(dirEntry.path()) || IsSoftLink(dirEntry.path())) {
                 continue;

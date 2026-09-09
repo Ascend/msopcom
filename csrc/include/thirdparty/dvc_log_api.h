@@ -31,6 +31,15 @@ typedef struct DvcInstrLogEntry {
     const char* exec_descr;
 } DvcInstrLogEntry_t;
 
+typedef struct DvcInstrLogEntryV2 {
+    uint32_t core_id;
+    uint32_t sub_core_id;
+    uint64_t pc;
+    const char *decode_descr;
+    const char *exec_descr;
+    const char *extend_params_json;
+} DvcInstrLogEntryV2_t;
+
 typedef struct DvcMteLogEntry {
     uint32_t core_id;
     uint32_t sub_core_id; // for mte, sub_core_id is 0
@@ -345,6 +354,7 @@ typedef struct DvcIfuLogEntry {
 // Callback function types
 // Arguments: time, entry
 typedef void (*DvcInstrLogCb_t)(uint64_t, const DvcInstrLogEntry_t*);
+typedef void (*DvcInstrLogCbV2_t)(uint64_t, const DvcInstrLogEntryV2_t *);
 typedef void (*DvcMteLogCb_t)(uint64_t, const DvcMteLogEntry_t*);
 typedef void (*DvcIcacheLogCb_t)(uint64_t, const DvcIcacheLogEntry_t*);
 typedef void (*DvcIfuLogCb_t)(uint64_t, const DvcIfuLogEntry_t*);
@@ -362,6 +372,7 @@ typedef enum DvcLogType {
 
 typedef union DvcLogCbFnUnion {
     DvcInstrLogCb_t instrLogCb;
+    DvcInstrLogCbV2_t instrLogCbV2;
     DvcMteLogCb_t mteLogCb;
     DvcIcacheLogCb_t icacheLogCb;
     DvcIfuLogCb_t ifuLogCb;

@@ -16,16 +16,19 @@
 
 #ifndef FUNC_INJECTION_CAMODELHELPER_H
 #define FUNC_INJECTION_CAMODELHELPER_H
+#include <type_traits>
 #include <thread>
 #include <mutex>
 #include <queue>
 #include "runtime/inject_helpers/ProfConfig.h"
 #include "utils/Future.h"
+#include "utils/Serialize.h"
 // 基类（用于类型擦除）
 class DataHolderBase {
 public:
     virtual ~DataHolderBase() = default;
     virtual ProfPacketType GetType() const = 0;
+    virtual std::string SerializeMessage() const = 0;
 };
 
 // 模板派生类（存储具体类型）
@@ -34,6 +37,12 @@ public:
     CaLogMessageHolder(T &&value, ProfPacketType t) : type(t), logContent(std::move(value)) {}
 
     ProfPacketType GetType() const override { return type; }
+
+    std::string SerializeMessage() const override {
+        static_assert(std::is_trivially_copyable<T>::value, "Camodel log payload must be trivially copyable");
+        ProfPacketHead head{type, static_cast<uint32_t>(sizeof(T))};
+        return Serialize(head, logContent);
+    }
 
     const T &GetData() const { return logContent; }
 

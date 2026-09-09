@@ -54,6 +54,7 @@ file(GLOB SOURCE
     injectors/DBITaskTest.cpp
     injectors/ConfigManager.cpp
     injectors/CamodelTest.cpp
+    injectors/CamodelRawInstrDumperTest.cpp
     injectors/DFXKernelLauncherTest.cpp
     injectors/MemGuardTest.cpp
     injectors/SyncStreamWithInterruptTest.cpp
