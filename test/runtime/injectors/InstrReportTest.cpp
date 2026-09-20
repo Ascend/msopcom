@@ -22,6 +22,7 @@
 #include "acl_rt_impl/AscendclImplOrigin.h"
 #include "core/Communication.h"
 #include "core/DomainSocket.h"
+#include "core/HijackedLayerManager.h"
 #include "core/LocalProcess.h"
 #include "acl.h"
 #include "mockcpp/mockcpp.hpp"
@@ -105,7 +106,6 @@ aclError MallocMemoryStub(DevMemManager *, void **memPtr, uint64_t size)
     *memPtr = malloc(size);
     return ACL_ERROR_NONE;
 }
-
 aclError MemcpySomeRecordStub(void *dst, size_t destMax, const void *src, size_t count, aclrtMemcpyKind kind)
 {
     RecordBlockHead recordBlockHead {};
@@ -367,4 +367,54 @@ TEST_F(InstrReportTest, init_with_valid_cache_size_expect_return_success)
     DevMemManager::Instance().SetMemoryInitFlag(false);
     ASSERT_NE(__sanitizer_init(1), nullptr);
     GlobalMockObject::verify();
+}
+
+/**
+ * | 用例集  | InstrReportTest
+ * | 测试函数 | __sanitizer_finalize → ReportParaBase
+ * | 用例名  | finalize_with_simt_launch_stack_expect_register_implicit_param
+ * | 用例描述 | 当处于 SIMT launch 调用栈（LayerGuard 含 aclrtLaunchSIMTKernelWithHostArgsImpl）时，
+ * |          | paraBase.addr 有效，ReportParaBase 应额外注册 32B 隐式参数区：
+ * |          | ReportMalloc 调 2 次（隐式参数区 + paraBase 本体），ReportMemset 同，
+ * |          | ReportFree 调 2 次（隐式参数区 + paraBase 本体）。
+ */
+/**
+ * | 用例集  | InstrReportTest
+ * | 测试函数 | __sanitizer_finalize → ReportParaBase (IsSimtLaunchCallStack)
+ * | 用例名  | simt_launch_stack_in_call_stack_expect_true
+ * | 用例描述 | 当处于 SIMT launch 调用栈（LayerGuard 含 aclrtLaunchSIMTKernelWithHostArgsImpl）时，
+ * |          | HijackedLayerManager::InCallStack 应返回 true，
+ * |          | 从而使 ReportParaBase 走 32B 隐式参数补偿分支。
+ * |          | 注：ReportParaBase 在 LaunchInitFinalize.cpp 匿名 namespace 内，跨编译单元 mock ReportMalloc
+ * |          | 不可行，故此处验证 IsSimtLaunchCallStack 的判定依据——HijackedLayerManager 栈状态。
+ */
+TEST_F(InstrReportTest, simt_launch_stack_in_call_stack_expect_true)
+{
+    auto &layerMgr = HijackedLayerManager::Instance();
+    layerMgr.Layers().clear();
+    layerMgr.Push("aclrtLaunchSIMTKernelWithHostArgsImpl");
+    ASSERT_TRUE(layerMgr.InCallStack("aclrtLaunchSIMTKernelWithHostArgsImpl"));
+    ASSERT_TRUE(layerMgr.InCallStack("aclrtLaunchSIMTKernelWithArgsArrayImpl") == false);
+    layerMgr.Pop();
+    ASSERT_FALSE(layerMgr.InCallStack("aclrtLaunchSIMTKernelWithHostArgsImpl"));
+}
+
+/**
+ * | 用例集  | InstrReportTest
+ * | 测试函数 | __sanitizer_finalize → ReportParaBase (IsSimtLaunchCallStack)
+ * | 用例名  | non_simt_launch_stack_in_call_stack_expect_false
+ * | 用例描述 | 当处于非 SIMT launch 调用栈（LayerGuard 含 aclrtLaunchKernelImpl，C310 设备）时，
+ * |          | HijackedLayerManager::InCallStack 对两个 SIMT launch 接口名均返回 false，
+ * |          | 从而使 ReportParaBase 不走 32B 隐式参数补偿分支。
+ * |          | 回归 isSimtLaunch 与 supportSimt 解耦：C310 设备但走普通 launch，不应触发 32B 补偿。
+ */
+TEST_F(InstrReportTest, non_simt_launch_stack_in_call_stack_expect_false)
+{
+    auto &layerMgr = HijackedLayerManager::Instance();
+    layerMgr.Layers().clear();
+    layerMgr.Push("aclrtLaunchKernelImpl");
+    ASSERT_FALSE(layerMgr.InCallStack("aclrtLaunchSIMTKernelWithHostArgsImpl"));
+    ASSERT_FALSE(layerMgr.InCallStack("aclrtLaunchSIMTKernelWithArgsArrayImpl"));
+    ASSERT_TRUE(layerMgr.InCallStack("aclrtLaunchKernelImpl"));
+    layerMgr.Pop();
 }

@@ -143,22 +143,15 @@ void HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsImpl::SanitizerPre() {
     }
     ReportKernelSummary(launchCtx_);
     ReportKernelBinary(launchCtx_->GetFuncContext()->GetRegisterContext());
-    memInfo_ = __sanitizer_init(blockNum_);
-    if (memInfo_ == nullptr) {
-        return;
-    }
-    // expand args
-    auto argsCtx = launchCtx_->GetArgsContext();
-    if (!argsCtx->ExpandArgs(&memInfo_, sizeof(uintptr_t), DBITaskConfig::Instance().argsSize_)) {
-        WARN_LOG("Expand sanitizer kernel args failed.");
-        return;
-    }
-    auto argsRawCtx = std::static_pointer_cast<ArgsRawContext>(argsCtx);
+
+    // 获取原始参数信息（DBI 不需要 expanded args）
+    auto argsRawCtx = std::static_pointer_cast<ArgsRawContext>(launchCtx_->GetArgsContext());
     hostArgs_ = argsRawCtx->GetArgs();
     argsSize_ = argsRawCtx->GetArgsSize();
     placeHolderArray_ = argsRawCtx->GetPlaceholderInfo();
+    placeHolderNum_ = static_cast<uint32_t>(placeHolderArray_.size());
+
     auto newFuncCtx = RunDBITask(launchCtx_);
-    // 似乎动态插桩的argsHandle不需要更新funcHandle也能行，先这样吧
     if (newFuncCtx) {
         DEBUG_LOG("SIMT-HostArgs SanitizerPre DBI: oldHandle=%p newHandle=%p oldName=%s newName=%s",
             static_cast<void *>(funcHandle_), static_cast<void *>(newFuncCtx->GetFuncHandle()),
@@ -167,6 +160,40 @@ void HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsImpl::SanitizerPre() {
         launchCtx_->SetDBIFuncCtx(funcCtx_);
         funcHandle_ = funcCtx_->GetFuncHandle();
     }
+
+    // 注册 section 内存和 input 内存（必须在 __sanitizer_init 之前，
+    // 这样 hostMemoryInfoPtr 才能在 device 侧在线检测时包含 section）
+    if (funcCtx_ && !funcCtx_->isAiCpu) {
+        auto const &elfData = funcCtx_->GetRegisterContext()->GetElfData();
+        std::map<std::string, Elf64_Shdr> headers;
+        if (GetSectionHeaders(elfData, headers)) {
+            sections_ = GetAllocSectionHeaders(headers);
+            auto startPC = funcCtx_->GetStartPC();
+            ReportSectionsMalloc(startPC, sections_);
+        }
+    }
+
+    AclrtLaunchArgsInfo launchInfo{};
+    launchInfo.hostArgs = hostArgs_;
+    launchInfo.argsSize = argsSize_;
+    launchInfo.placeHolderArray = reinterpret_cast<aclrtPlaceHolderInfo *>(placeHolderArray_.data());
+    launchInfo.placeHolderNum = placeHolderNum_;
+    ReportOpMallocInfo(launchInfo, LaunchManager::Local().GetCurrentMemInfo());
+
+    memInfo_ = __sanitizer_init(blockNum_);
+    if (memInfo_ == nullptr) {
+        return;
+    }
+
+    // expand args（必须在 __sanitizer_init 之后，因为需要 memInfo_ 指针）
+    auto argsCtx = launchCtx_->GetArgsContext();
+    if (!argsCtx->ExpandArgs(&memInfo_, sizeof(uintptr_t), DBITaskConfig::Instance().argsSize_)) {
+        WARN_LOG("Expand sanitizer kernel args failed.");
+        return;
+    }
+    argsRawCtx = std::static_pointer_cast<ArgsRawContext>(argsCtx);
+    hostArgs_ = argsRawCtx->GetArgs();
+    argsSize_ = argsRawCtx->GetArgsSize();
 }
 
 // 调优自定义插桩统一调用此函数
@@ -318,25 +345,10 @@ void HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsImpl::SanitizerPost() {
         // wait for kernel execution done, and catch potential exception
         SyncStreamWithInterrupt(stream_);
 
-        auto const &elfData = funcCtx_->GetRegisterContext()->GetElfData();
-        std::map<std::string, Elf64_Shdr> headers;
-        if (!GetSectionHeaders(elfData, headers)) {
-            return;
-        }
-
-        AclrtLaunchArgsInfo launchInfo{};
-        launchInfo.hostArgs = hostArgs_;
-        launchInfo.argsSize = argsSize_;
-        launchInfo.placeHolderArray = reinterpret_cast<aclrtPlaceHolderInfo *>(placeHolderArray_.data());
-        launchInfo.placeHolderNum = placeHolderNum_;
-        ReportOpMallocInfo(launchInfo, LaunchManager::Local().GetCurrentMemInfo());
-
         if (!funcCtx_->isAiCpu) {
-            auto allocHeaders = GetAllocSectionHeaders(headers);
             auto startPC = funcCtx_->GetStartPC();
-            ReportSectionsMalloc(startPC, allocHeaders);
             __sanitizer_finalize(memInfo_, blockNum_);
-            ReportSectionsFree(startPC, allocHeaders);
+            ReportSectionsFree(startPC, sections_);
         } else {
             __sanitizer_finalize(memInfo_, blockNum_);
         }

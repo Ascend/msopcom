@@ -631,6 +631,7 @@ private:
     void RunDbiRecordTask(ProfDBIType mode, const char *failedLog);
     void SanitizerPre();
     void SanitizerPost();
+    std::vector<Elf64_Shdr> sections_;
     uint32_t blockNum_{0};
     dim3 blockDim_{};
     size_t dynUbufSize_{0};
@@ -663,6 +664,7 @@ private:
     void RunDbiRecordTask(ProfDBIType mode, const char *failedLog);
     void SanitizerPre();
     void SanitizerPost();
+    std::vector<Elf64_Shdr> sections_;
     uint32_t blockNum_{0};
     dim3 blockDim_{};
     size_t dynUbufSize_{0};
