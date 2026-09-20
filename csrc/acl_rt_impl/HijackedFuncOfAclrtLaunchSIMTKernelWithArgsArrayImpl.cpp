@@ -143,26 +143,64 @@ void HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::SanitizerPre()
     if (isSink_) { return; }
     ReportKernelSummary(launchCtx_);
     ReportKernelBinary(launchCtx_->GetFuncContext()->GetRegisterContext());
-    memInfo_ = __sanitizer_init(blockNum_);
-    if (memInfo_ == nullptr) {
-        return;
-    }
-    // 追加 memInfo 指针并重建参数数组
+
+    // 获取原始参数大小（DBI 不需要 expanded args）
     uint32_t paramOffset = 0;
     newArgsCtx_ = argsCtx_->Clone();
-    if (newArgsCtx_ == nullptr || !newArgsCtx_->ExpandArgs(&memInfo_, sizeof(uintptr_t), paramOffset)) {
-        WARN_LOG("Append memInfo to args failed.");
+    if (newArgsCtx_ == nullptr) {
+        WARN_LOG("Clone args context failed.");
         return;
     }
-    DBITaskConfig::Instance().argsSize_ = paramOffset;
+    // 先用原始参数跑 DBI
+    auto origArgsArrayCtx = std::static_pointer_cast<ArgsArrayContext>(newArgsCtx_);
+    DBITaskConfig::Instance().argsSize_ = origArgsArrayCtx->GetPackedArgsSize();
     DbiRecordTaskHelper::AppendHbmOutParamInfoToConfig();
     auto newFuncCtx = RunDBITask(launchCtx_);
-    // 似乎动态插桩的argsHandle不需要更新funcHandle也能行，先这样吧
     if (newFuncCtx) {
         funcCtx_ = newFuncCtx;
         launchCtx_->SetDBIFuncCtx(funcCtx_);
         funcHandle_ = funcCtx_->GetFuncHandle();
     }
+
+    // 注册 section 内存和 input 内存（必须在 __sanitizer_init 之前，
+    // 这样 hostMemoryInfoPtr 才能在 device 侧在线检测时包含 section）
+    if (funcCtx_ && !funcCtx_->isAiCpu) {
+        auto const &elfData = funcCtx_->GetRegisterContext()->GetElfData();
+        std::map<std::string, Elf64_Shdr> headers;
+        if (GetSectionHeaders(elfData, headers)) {
+            sections_ = GetAllocSectionHeaders(headers);
+            auto startPC = funcCtx_->GetStartPC();
+            ReportSectionsMalloc(startPC, sections_);
+        }
+    }
+
+    auto argsArrayCtx = std::static_pointer_cast<ArgsArrayContext>(
+        newArgsCtx_ != nullptr ? newArgsCtx_ : argsCtx_);
+    AclrtLaunchArgsInfo launchInfo{};
+    launchInfo.hostArgs = argsArrayCtx != nullptr ? argsArrayCtx->GetPackedArgs() : nullptr;
+    launchInfo.argsSize = argsArrayCtx != nullptr ? argsArrayCtx->GetPackedArgsSize() : 0;
+    launchInfo.placeHolderArray = nullptr;
+    launchInfo.placeHolderNum = 0;
+    auto &opMemInfo = LaunchManager::Local().GetCurrentMemInfo();
+    if (argsArrayCtx != nullptr && opMemInfo.tilingParamsNo != 0U) {
+        size_t tilingOffset = 0;
+        if (argsArrayCtx->GetParamOffsetByParamsNo(opMemInfo.tilingParamsNo, tilingOffset)) {
+            launchInfo.tilingAddrOffset = static_cast<uint32_t>(tilingOffset);
+        }
+    }
+    ReportOpMallocInfo(launchInfo, opMemInfo);
+
+    memInfo_ = __sanitizer_init(blockNum_);
+    if (memInfo_ == nullptr) {
+        return;
+    }
+
+    // 追加 memInfo 指针并重建参数数组（必须在 __sanitizer_init 之后，因为需要 memInfo_ 指针）
+    if (!newArgsCtx_->ExpandArgs(&memInfo_, sizeof(uintptr_t), paramOffset)) {
+        WARN_LOG("Append memInfo to args failed.");
+        return;
+    }
+    DBITaskConfig::Instance().argsSize_ = paramOffset;
 }
 
 // 调优自定义插桩统一调用此函数
@@ -310,37 +348,10 @@ void HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::SanitizerPost()
         // wait for kernel execution done, and catch potential exception
         SyncStreamWithInterrupt(stream_);
 
-        auto argsArrayCtx = std::static_pointer_cast<ArgsArrayContext>(
-            newArgsCtx_ != nullptr ? newArgsCtx_ : argsCtx_);
-        AclrtLaunchArgsInfo launchInfo{};
-        launchInfo.hostArgs = argsArrayCtx != nullptr ? argsArrayCtx->GetPackedArgs() : nullptr;
-        launchInfo.argsSize = argsArrayCtx != nullptr ? argsArrayCtx->GetPackedArgsSize() : 0;
-        launchInfo.placeHolderArray = nullptr;
-        launchInfo.placeHolderNum = 0;
-        // ArgsArray 路径无 placeholder，这里用 meta 解析出的 tilingParamsNo
-        // 结合 ArgsArrayContext 的 paramOffsets_ 推算 tiling 指针在 hostArgs 中的偏移，
-        // 供 ReportOpMallocInfo 上报 tiling 的 malloc/memset/free。
-        auto &opMemInfo = LaunchManager::Local().GetCurrentMemInfo();
-        if (argsArrayCtx != nullptr && opMemInfo.tilingParamsNo != 0U) {
-            size_t tilingOffset = 0;
-            if (argsArrayCtx->GetParamOffsetByParamsNo(opMemInfo.tilingParamsNo, tilingOffset)) {
-                launchInfo.tilingAddrOffset = static_cast<uint32_t>(tilingOffset);
-            }
-        }
-        ReportOpMallocInfo(launchInfo, opMemInfo);
-
-        auto const &elfData = funcCtx_->GetRegisterContext()->GetElfData();
-        std::map<std::string, Elf64_Shdr> headers;
-        if (!GetSectionHeaders(elfData, headers)) {
-            return;
-        }
-
         if (!funcCtx_->isAiCpu) {
-            auto allocHeaders = GetAllocSectionHeaders(headers);
             auto startPC = funcCtx_->GetStartPC();
-            ReportSectionsMalloc(startPC, allocHeaders);
             __sanitizer_finalize(memInfo_, blockNum_);
-            ReportSectionsFree(startPC, allocHeaders);
+            ReportSectionsFree(startPC, sections_);
         } else {
             __sanitizer_finalize(memInfo_, blockNum_);
         }

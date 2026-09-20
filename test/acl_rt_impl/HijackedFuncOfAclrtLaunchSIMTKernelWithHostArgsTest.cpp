@@ -16,6 +16,7 @@
 
 #include <gtest/gtest.h>
 #include <cstdlib>
+#include <vector>
 #include "mockcpp/mockcpp.hpp"
 #define private public
 #define protected public
@@ -28,6 +29,10 @@
 #include "runtime/inject_helpers/ProfConfig.h"
 #include "core/FuncSelector.h"
 #include "runtime/inject_helpers/DBITask.h"
+#include "runtime/inject_helpers/InstrReport.h"
+#include "runtime/inject_helpers/MemoryDataCollect.h"
+#include "runtime/inject_helpers/SyncStreamWithInterrupt.h"
+#include "runtime/inject_helpers/RegisterContext.h"
 using namespace std;
 
 class HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsTest : public ContextMockHelper {};
@@ -121,27 +126,99 @@ TEST_F(HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsTest, prof_gen_bbfile_and_
  * |          | 校验SIMT劫持OperandRecord插桩在ExpandArgs失败路径下打印错误日志且不崩溃
  */
 TEST_F(HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsTest, test_operand_record_expand_args_failed) {
-    FuncSelector::Instance().Set(ToolType::PROF);
-    ProfConfig::Instance().profConfig_.isSimulator = false;
-    MOCKER(&ProfDataCollect::IsOperandRecordNeedGen).stubs().will(returnValue(true));
-    MOCKER(&RunDBITask, FuncContextSP(*)(const LaunchContextSP &)).stubs().will(returnValue(false));
-    uint8_t *testBuffer = nullptr;
-    MOCKER(&InitMemory, uint8_t * (*)(uint64_t)).stubs().will(returnValue(testBuffer));
-    MOCKER(&rtGetL2CacheOffsetOrigin).stubs().will(returnValue(ACL_SUCCESS));
+   FuncSelector::Instance().Set(ToolType::PROF);
+   ProfConfig::Instance().profConfig_.isSimulator = false;
+   MOCKER(&ProfDataCollect::IsOperandRecordNeedGen).stubs().will(returnValue(true));
+   MOCKER(&RunDBITask, FuncContextSP(*)(const LaunchContextSP &)).stubs().will(returnValue(false));
+   uint8_t *testBuffer = nullptr;
+   MOCKER(&InitMemory, uint8_t * (*)(uint64_t)).stubs().will(returnValue(testBuffer));
+   MOCKER(&rtGetL2CacheOffsetOrigin).stubs().will(returnValue(ACL_SUCCESS));
+   HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsImpl inst;
+   aclrtLaunchKernelCfg cfg{};
+   uint32_t aaa = 10;
+   aclrtPlaceHolderInfo placeHolderArray{10, 10};
+   auto func = []() -> void {};
+   inst.refreshParamFunc_ = func;
+   aclrtStream stream = &placeholder_;
+   inst.profObj_ = std::make_shared<ProfDataCollect>(nullptr);
+   dim3 gridDim{2, 1, 1};
+   dim3 blockDim{8, 1, 1};
+   inst.Pre(funcHandle_, gridDim, blockDim, 0, stream, &cfg, &aaa, sizeof(aaa), &placeHolderArray, 1);
+   testing::internal::CaptureStdout();
+   inst.ProfPost();
+   string capture = testing::internal::GetCapturedStdout();
+   ASSERT_NE(capture.find("ExpandArgs failed"), std::string::npos);
+   GlobalMockObject::verify();
+}
+
+struct SectionOrderCounter {
+    uint32_t sectionsCallSeq = 0;
+    uint32_t sanitizerInitCallSeq = 0;
+    uint32_t callSeq = 0;
+    void Reset() { sectionsCallSeq = 0; sanitizerInitCallSeq = 0; callSeq = 0; }
+};
+
+static SectionOrderCounter g_sectionOrder;
+
+using GetSectionHeadersVecFn = bool (*)(std::vector<char> const &, std::map<std::string, Elf64_Shdr> &);
+
+static bool GetSectionHeadersStub(std::vector<char> const &binary, std::map<std::string, Elf64_Shdr> &headers)
+{
+    Elf64_Shdr header{};
+    header.sh_flags = SHF_ALLOC;
+    headers[".text"] = header;
+    return true;
+}
+
+static void ReportSectionsMallocStub(uint64_t pcStartAddr, std::vector<Elf64_Shdr> const &headers)
+{
+    (void)pcStartAddr;
+    (void)headers;
+    g_sectionOrder.sectionsCallSeq = ++g_sectionOrder.callSeq;
+}
+
+static uint8_t *SanitizerInitStub(uint64_t blockDim)
+{
+    (void)blockDim;
+    g_sectionOrder.sanitizerInitCallSeq = ++g_sectionOrder.callSeq;
+    return nullptr;
+}
+
+/**
+ * | 用例集  | HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsTest
+ * | 测试函数 | SanitizerPre
+ * | 用例名  | sanitizer_pre_expect_sections_malloc_before_sanitizer_init
+ * | 用例描述 | 工具类型为SANITIZER时，校验SIMT-HostArgs劫持SanitizerPre中
+ * |          | ReportSectionsMalloc 在 __sanitizer_init 之前调用，
+ * |          | 确保 hostMemoryInfoPtr 在 __sanitizer_init 时已包含 section（Issue 5 回归）。
+ */
+TEST_F(HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsTest, sanitizer_pre_expect_sections_malloc_before_sanitizer_init) {
+    FuncSelector::Instance().Set(ToolType::SANITIZER);
+    g_sectionOrder.Reset();
+
+    MOCKER(&BindSigIntHandler).stubs();
+    MOCKER(&SkipSanitizer).stubs().will(returnValue(false));
+    MOCKER(&ReportKernelSummary, void(*)(LaunchContextSP)).stubs();
+    MOCKER(&aclrtGetDeviceImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
+    MOCKER(&LocalDevice::Notify).stubs().will(returnValue(0));
+    MOCKER(&aclrtMemcpyImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(&RunDBITask, FuncContextSP(*)(const LaunchContextSP &)).stubs().will(returnValue(FuncContextSP{}));
+    MOCKER(&ReportOpMallocInfo, void(*)(const AclrtLaunchArgsInfo &, OpMemInfo &)).stubs();
+    GetSectionHeadersVecFn getSectionHeadersFn = &GetSectionHeaders;
+    MOCKER(getSectionHeadersFn).stubs().will(invoke(GetSectionHeadersStub));
+    MOCKER(ReportSectionsMalloc).stubs().will(invoke(ReportSectionsMallocStub));
+    MOCKER(__sanitizer_init).stubs().will(invoke(SanitizerInitStub));
+
     HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsImpl inst;
     aclrtLaunchKernelCfg cfg{};
     uint32_t aaa = 10;
     aclrtPlaceHolderInfo placeHolderArray{10, 10};
-    auto func = []() -> void {};
-    inst.refreshParamFunc_ = func;
-    aclrtStream stream = &placeholder_;
-    inst.profObj_ = std::make_shared<ProfDataCollect>(nullptr);
     dim3 gridDim{2, 1, 1};
     dim3 blockDim{8, 1, 1};
-    inst.Pre(funcHandle_, gridDim, blockDim, 0, stream, &cfg, &aaa, sizeof(aaa), &placeHolderArray, 1);
-    testing::internal::CaptureStdout();
-    inst.ProfPost();
-    string capture = testing::internal::GetCapturedStdout();
-    ASSERT_NE(capture.find("ExpandArgs failed"), std::string::npos);
+    inst.Pre(funcHandle_, gridDim, blockDim, 0, &placeholder_, &cfg, &aaa, sizeof(aaa), &placeHolderArray, 1);
+
+    ASSERT_NE(g_sectionOrder.sectionsCallSeq, 0U);
+    ASSERT_NE(g_sectionOrder.sanitizerInitCallSeq, 0U);
+    ASSERT_LT(g_sectionOrder.sectionsCallSeq, g_sectionOrder.sanitizerInitCallSeq);
     GlobalMockObject::verify();
 }

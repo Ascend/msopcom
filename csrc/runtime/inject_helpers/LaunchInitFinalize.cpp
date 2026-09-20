@@ -78,6 +78,8 @@ std::mutex g_instrMutex;
 
 using namespace OnlineShadowMemory;
 
+constexpr uint64_t SIMT_IMPLICIT_PARAM_SIZE = 32U;
+
 inline bool InAclNewLaunchCallStack();
 
 inline bool IsC220Arch(DeviceType deviceType) {
@@ -91,6 +93,12 @@ inline bool IsC310Arch(DeviceType deviceType) {
 inline bool HasSubBlocks(DeviceType deviceType) { return IsC220Arch(deviceType) || IsC310Arch(deviceType); }
 
 inline bool SupportSimt(DeviceType deviceType) { return IsC310Arch(deviceType); }
+
+inline bool IsSimtLaunchCallStack()
+{
+    return HijackedLayerManager::Instance().InCallStack("aclrtLaunchSIMTKernelWithHostArgsImpl") ||
+        HijackedLayerManager::Instance().InCallStack("aclrtLaunchSIMTKernelWithArgsArrayImpl");
+}
 
 inline uint64_t GetAllThreadSize(RecordGlobalHead const &globalHead) {
     return (globalHead.offsetInfo.simtErrorInfo.size + sizeof(SimtRecordBlockHead)) * SIMT_THREAD_MAX_SIZE;
@@ -177,6 +185,20 @@ void SendKernelBlock(const std::string &body, int curBlkIdx, int totalBlkIdx) {
 void ReportParaBase(RecordBlockHead const &head, ParaBaseRegister &paraBase, bool &isReportParaBase) {
     const auto &paraBaseInfo = head.paraBase;
     if (!isReportParaBase && paraBaseInfo.addr != ILLEGAL_ADDR && paraBaseInfo.size != 0) {
+        // SIMT launch（aclrtLaunchSIMTKernelWithHostArgsImpl / aclrtLaunchSIMTKernelWithArgsArrayImpl）
+        // 时 runtime 会在用户参数前插入隐式参数（sync_counter 8B + dim 参数 24B = 32B），
+        // get_para_base() 指向用户参数起始（隐式参数之后），kernel 读取隐式参数时会访问 para_base 之前的区域，
+        // 需要额外注册隐式参数区，否则会误报 illegal read。
+        // 注意：32B 隐式参数仅由 SIMT launch 接口插入，普通 launch 路径无此区，
+        // 故按 launch 路径（IsSimtLaunchCallStack）判定而非 supportSimt（设备能力）。
+        // finalize 与 init 同处 hijacked 入口的 LayerGuard 作用域内，此处查询结果与 init 时一致。
+        if (IsSimtLaunchCallStack()) {
+            if (paraBaseInfo.addr > SIMT_IMPLICIT_PARAM_SIZE) {
+                uint64_t implicitStart = paraBaseInfo.addr - SIMT_IMPLICIT_PARAM_SIZE;
+                ReportMalloc(implicitStart, SIMT_IMPLICIT_PARAM_SIZE, MemInfoSrc::BYPASS, MemInfoDesc::PARA_BASE);
+                ReportMemset(implicitStart, SIMT_IMPLICIT_PARAM_SIZE, MemInfoSrc::BYPASS, MemInfoDesc::PARA_BASE);
+            }
+        }
         ReportMalloc(paraBaseInfo.addr, paraBaseInfo.size, MemInfoSrc::BYPASS, MemInfoDesc::PARA_BASE);
         ReportMemset(paraBaseInfo.addr, paraBaseInfo.size, MemInfoSrc::BYPASS, MemInfoDesc::PARA_BASE);
         paraBase = paraBaseInfo;
@@ -716,8 +738,11 @@ void SanitizerLaunchFinalize::ReportBlockInfo() {
         SendKernelBlock(body, blockIdx, totalBlockDim);
         ResetOffsetStatus(blockIdx);
     }
-    // 算子信息上报结束后，free掉para base地址
+    // 算子信息上报结束后，free掉para base地址（含隐式参数区）
     if (isReportParaBase) {
+        if (IsSimtLaunchCallStack() && paraBase.addr > SIMT_IMPLICIT_PARAM_SIZE) {
+            ReportFree(paraBase.addr - SIMT_IMPLICIT_PARAM_SIZE, MemInfoSrc::BYPASS, MemInfoDesc::PARA_BASE);
+        }
         ReportFree(paraBase.addr, MemInfoSrc::BYPASS, MemInfoDesc::PARA_BASE);
     }
 }
