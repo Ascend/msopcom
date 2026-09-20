@@ -43,15 +43,24 @@ protected:
         return FuncManager::Instance().CreateContext(binHandle, funcName.c_str(), funcHandle);
     }
     // 归一化 launch 接口第一个入参 func：可能是核函数符号，也可能是 func handle。
-    // 先尝试 aclrtGetFuncBySymbol(func, &fh)：成功 → func 是核函数符号，用解析出的 handle；
-    // 失败 → func 本身就是 handle，直接使用。
+    // 新版本 runtime 不区分二者，核函数名称与 func handle 均可直接用于下发，此时 func 可原样使用；
+    // 旧版本仅接受 func handle，传入核函数名称会报错。
+    // 用 aclrtFunctionGetBinaryImplOrigin 探测当前版本新旧：成功 → 新版本（或 func 本身就是 handle），
+    // func 可原样使用；失败 → 旧版本且 func 为核函数名称，用 aclrtGetFuncBySymbol 转成 handle。
     aclrtFuncHandle ResolveFuncHandle(void *func) {
-        aclrtFuncHandle fh = nullptr;
-        if (func != nullptr && aclrtGetFuncBySymbolImplOrigin(func, &fh) == ACL_SUCCESS) {
-            DEBUG_LOG("Receive param is kernel name");
-            return fh;
+        if (func != nullptr) {
+            aclrtBinHandle binHandle = nullptr;
+            if (aclrtFunctionGetBinaryImplOrigin(func, &binHandle) == ACL_SUCCESS) {
+                DEBUG_LOG("Runtime version is new, use func directly");
+                return static_cast<aclrtFuncHandle>(func);
+            }
+            aclrtFuncHandle fh = nullptr;
+            if (aclrtGetFuncBySymbolImplOrigin(func, &fh) == ACL_SUCCESS) {
+                DEBUG_LOG("Runtime version is old, resolve kernel name to funchandle");
+                return fh;
+            }
         }
-        DEBUG_LOG("Receive param is funhandle");
+        DEBUG_LOG("Receive param is nullptr");
         return static_cast<aclrtFuncHandle>(func);
     }
     aclrtFuncHandle funcHandle_{nullptr};
