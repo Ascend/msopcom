@@ -58,6 +58,7 @@ file(GLOB SOURCE
     injectors/DFXKernelLauncherTest.cpp
     injectors/MemGuardTest.cpp
     injectors/SyncStreamWithInterruptTest.cpp
+    injectors/ArgsArrayContextTest.cpp
     injectors/ArgsContextTest.cpp
 
     BinaryLoadFromFileTest.cpp

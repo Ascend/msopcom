@@ -37,7 +37,8 @@ using ArgsArrayContextSP = std::shared_ptr<ArgsArrayContext>;
 class ArgsArrayContext : public ArgsContext {
 public:
     static ArgsArrayContextSP Create(
-        void **args, size_t paramCount, const std::vector<size_t> &paramOffsets, const std::vector<size_t> &paramSizes);
+        void **args, size_t paramCount, const std::vector<size_t> &paramOffsets, const std::vector<size_t> &paramSizes,
+        bool isStaticStub = false);
 
     // 在打包缓冲末尾对齐处追加 param，原地修改 packedArgs_ 并重建参数指针数组
     bool ExpandArgs(void *param, size_t paramSize, uint32_t &paramOffset) override;
@@ -66,11 +67,14 @@ public:
     bool GetParamOffsetByParamsNo(uint64_t paramsNo, size_t &offset) const;
 
 private:
-    ArgsArrayContext(size_t paramCount, const std::vector<size_t> &paramOffsets, const std::vector<size_t> &paramSizes);
+    ArgsArrayContext(size_t paramCount, const std::vector<size_t> &paramOffsets, const std::vector<size_t> &paramSizes,
+        bool isStaticStub);
 
     bool Init(void **args);
 
     void RebuildArgsArray();
+
+    bool SetLastParam(void *param, size_t paramSize, uint32_t &paramOffset);
 
     std::vector<uint8_t> packedArgs_; // 连续打包缓冲（可能已追加 memInfo）
     std::vector<void *> argsArray_; // launch 用的参数指针数组
@@ -78,4 +82,5 @@ private:
     std::vector<size_t> paramSizes_;
     size_t paramCount_{0};
     size_t memInfoOffset_{0}; // memInfo 在 packedArgs_ 中的偏移，0 表示未追加
+    bool isStaticStub_{false};
 };
