@@ -82,8 +82,9 @@ bool HijackedFuncOfAclrtLaunchKernelWithArgsArrayImpl::InitParam(
         DEBUG_LOG("Query kernel param info failed, stop hijack this launch.");
         return false;
     }
+    const bool isStaticStub = funcCtx->GetRegisterContext()->HasStaticStub();
     argsCtx_ = ArgsManager::Instance().CreateContext(
-        args, funcCtx->GetParamCount(), funcCtx->GetParamOffsets(), funcCtx->GetParamSizes());
+        args, funcCtx->GetParamCount(), funcCtx->GetParamOffsets(), funcCtx->GetParamSizes(), isStaticStub);
     if (argsCtx_ == nullptr) {
         DEBUG_LOG("Pack args array failed, stop hijack this launch.");
         return false;

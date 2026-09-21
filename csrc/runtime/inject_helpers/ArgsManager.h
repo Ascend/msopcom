@@ -48,7 +48,7 @@ public:
 
     // ArgsArray 路径：args 为参数指针数组，需配合 kernel 参数布局打包成连续 buffer
     ArgsContextSP CreateContext(void **args, size_t paramCount, const std::vector<size_t> &paramOffsets,
-        const std::vector<size_t> &paramSizes);
+        const std::vector<size_t> &paramSizes, bool isStaticStub = false);
 
     // aclrt接口里的ArgsHandleContext获取
     ArgsContextSP GetContext(aclrtArgsHandle argsHandle) const;

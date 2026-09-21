@@ -166,12 +166,12 @@ ArgsContextSP ArgsManager::CreateContext(void *args, uint32_t argsSize, const st
 }
 
 ArgsContextSP ArgsManager::CreateContext(void **args, size_t paramCount, const std::vector<size_t> &paramOffsets,
-    const std::vector<size_t> &paramSizes)
+    const std::vector<size_t> &paramSizes, bool isStaticStub)
 {
     if (args == nullptr) {
         return nullptr;
     }
-    auto ctx = ArgsArrayContext::Create(args, paramCount, paramOffsets, paramSizes);
+    auto ctx = ArgsArrayContext::Create(args, paramCount, paramOffsets, paramSizes, isStaticStub);
     if (ctx == nullptr) {
         return nullptr;
     }
