@@ -15,8 +15,10 @@
  * ------------------------------------------------------------------------- */
 
 #pragma once
-#include <mutex>
+#include <cstdint>
 #include <map>
+#include <memory>
+#include <mutex>
 
 #include "runtime.h"
 #include "acl_rt_impl/AscendclImplOrigin.h"
@@ -27,6 +29,10 @@
  * 2. 为程序所使用的内存创建快照备份，
  * 3. 把内存恢复为快照备份的版本。
  *
+ * 该类为全局单例(进程级共享)，内部按 device 分桶管理：不同 device 的内存
+ * 申请/释放/备份/恢复互不干扰。这样即便算子在申请内存与 launch 不在同一
+ * 线程时，仍能正确完成数据备份与恢复。
+ *
  * 约束：
  * 1. 仅支持保存一个快照版本
  * 2. 仅支持HBM内存
@@ -36,7 +42,7 @@ class MemoryContext {
 public:
     static MemoryContext &Instance()
     {
-        static thread_local MemoryContext inst; // 线程局部
+        static MemoryContext inst; // 全局单例
         return inst;
     }
 
@@ -45,8 +51,6 @@ public:
     *
     * @param  addr [IN] 内存地址
     * @param  size [IN] 内存大小
-    * @param  type [IN] 内存类型
-    * @param  moduleId [IN] 内存所属module id
     * @retval NA
     */
     void Append(const MemAddr addr, uint64_t size);
@@ -60,7 +64,7 @@ public:
     void Discard(MemAddr addr);
 
     /**
-    * @brief 为所有被记录的内存区域创造一份快照保存，若已有旧备份，则更新之
+    * @brief 为当前 device 下所有被记录的内存区域创造一份快照保存，若已有旧备份，则更新之
     *
     * @retval success return true
     * @retval failure return false
@@ -68,7 +72,7 @@ public:
     bool Backup();
 
     /**
-    * @brief 把所有被记录的内存区域恢复为保存的快照版本
+    * @brief 把当前 device 下所有被记录的内存区域恢复为保存的快照版本
     *
     * @retval success return true
     * @retval failure return false
@@ -80,7 +84,7 @@ private:
     MemoryContext() = default;
     ~MemoryContext();
 
-    // 移除所有已记录的内存信息
+    // 移除所有已记录的内存信息(含所有 device)
     void DiscardAll();
 
     struct MemSection {
@@ -95,6 +99,17 @@ private:
         SNAPSHOT_TO_ORIGIN,
     };
 
+    // 每个 device 一组独立的内存记录/快照/流，互不影响
+    struct DeviceBucket {
+        std::map<MemAddr, MemSection> memSectionMap; // key: origin mem addr, val: mem section
+        std::mutex mapMtx;
+        std::mutex streamMtx;
+        aclrtStream stream{}; // 用于异步拷贝+流同步
+    };
+
+    // 获取当前线程所属 device 对应的桶(不存在则创建)
+    DeviceBucket &GetBucket();
+
     // 为指定的内存块创建快照，若已有旧快照，则更新之
     bool CreateSnapshot(MemSection &section, aclrtStream stream = nullptr) const;
 
@@ -108,10 +123,8 @@ private:
     // 在快照内存与原始内存间搬运内存，同步拷贝
     bool MemCopySync(const MemSection &section, MemCopyDirection dir) const;
 
-    aclrtStream GetCurrentStream();
+    aclrtStream GetCurrentStream(DeviceBucket &bucket);
 
-    std::map<MemAddr, MemSection> memSectionMap_; // key: origin mem addr, val: mem section
-    std::mutex mapMtx_;
-    std::mutex streamMtx_;
-    aclrtStream stream_{}; // 用于异步拷贝+流同步
+    std::map<int32_t, std::unique_ptr<DeviceBucket>> buckets_; // key: device id
+    std::mutex bucketsMtx_;
 };

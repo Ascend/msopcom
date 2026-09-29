@@ -18,40 +18,56 @@
 
 #include <string>
 
+#include "runtime/inject_helpers/DeviceContext.h"
 #include "utils/InjectLogger.h"
+MemoryContext::DeviceBucket &MemoryContext::GetBucket() {
+    int32_t devId = DeviceContext::GetRunningDeviceId();
+    std::lock_guard<std::mutex> lock(bucketsMtx_);
+    auto it = buckets_.find(devId);
+    if (it == buckets_.end()) {
+        auto p = std::unique_ptr<DeviceBucket>(new DeviceBucket());
+        auto *ptr = p.get();
+        buckets_[devId] = std::move(p);
+        return *ptr;
+    }
+    return *it->second;
+}
 
 void MemoryContext::Append(const MemAddr addr, uint64_t size)
 {
-    std::lock_guard<std::mutex> mapLock(mapMtx_);
+    auto &bucket = GetBucket();
+    std::lock_guard<std::mutex> mapLock(bucket.mapMtx);
     if (addr == nullptr) {
         WARN_LOG("Failed to add memory map, devPtr is nullptr.");
         return;
     }
-    memSectionMap_[addr] = {addr, nullptr, size, aclrtMemMallocPolicy::ACL_MEM_MALLOC_HUGE_FIRST};
+    bucket.memSectionMap[addr] = {addr, nullptr, size, aclrtMemMallocPolicy::ACL_MEM_MALLOC_HUGE_FIRST};
 }
 
 void MemoryContext::Discard(MemAddr addr)
 {
     // record memory free in aclrtFreeImpl
-    std::lock_guard<std::mutex> mapLock(mapMtx_);
-    auto it = memSectionMap_.find(addr);
-    if (it == memSectionMap_.end()) {
+    auto &bucket = GetBucket();
+    std::lock_guard<std::mutex> mapLock(bucket.mapMtx);
+    auto it = bucket.memSectionMap.find(addr);
+    if (it == bucket.memSectionMap.end()) {
         return;
     }
 
     if (it->second.snapshotAddr != nullptr) {
         (void)aclrtFreeImplOrigin(it->second.snapshotAddr);
     }
-    memSectionMap_.erase(addr);
+    bucket.memSectionMap.erase(addr);
 }
 
 bool MemoryContext::Backup()
 {
     // 1. 优先获取当前stream，使用异步拷贝+流同步进行备份
     // 2. 若获取stream失败，则使用同步拷贝进行备份
-    std::lock_guard<std::mutex> mapLock(mapMtx_);
-    for (auto &p : memSectionMap_) {
-        auto ret = CreateSnapshot(p.second, GetCurrentStream());
+    auto &bucket = GetBucket();
+    std::lock_guard<std::mutex> mapLock(bucket.mapMtx);
+    for (auto &p : bucket.memSectionMap) {
+        auto ret = CreateSnapshot(p.second, GetCurrentStream(bucket));
         if (!ret) {
             return false;
         }
@@ -61,13 +77,15 @@ bool MemoryContext::Backup()
 
 bool MemoryContext::Restore()
 {
-    std::lock_guard<std::mutex> mapLock(mapMtx_);
+    auto &bucket = GetBucket();
+    std::lock_guard<std::mutex> mapLock(bucket.mapMtx);
     // 1. 优先获取当前stream，使用异步拷贝+流同步进行备份
     // 2. 若获取stream失败，则使用同步拷贝进行备份
-    for (const auto &p : memSectionMap_) {
-        auto ret = RestoreFromSnapshot(p.second, GetCurrentStream());
+    for (const auto &p : bucket.memSectionMap) {
+        auto ret = RestoreFromSnapshot(p.second, GetCurrentStream(bucket));
         if (!ret) {
-            return false;
+            DEBUG_LOG("Restore memory failed for 0x%lx, continue restoring remaining regions",
+                reinterpret_cast<uint64_t>(p.second.originAddr));
         }
     }
     return true;
@@ -80,14 +98,20 @@ MemoryContext::~MemoryContext()
 
 void MemoryContext::DiscardAll()
 {
-    for (const auto &p : memSectionMap_) {
-        if (p.second.snapshotAddr != nullptr) {
-            (void)aclrtFreeImplOrigin(p.second.snapshotAddr);
+    // 释放所有 device 桶下记录的快照内存
+    std::lock_guard<std::mutex> bucketsLock(bucketsMtx_);
+    for (auto &p : buckets_) {
+        auto &bucket = *p.second;
+        for (const auto &m : bucket.memSectionMap) {
+            if (m.second.snapshotAddr != nullptr) {
+                (void)aclrtFreeImplOrigin(m.second.snapshotAddr);
+            }
         }
+        std::lock_guard<std::mutex> mapLock(bucket.mapMtx);
+        bucket.memSectionMap.clear();
+        bucket.stream = nullptr;
     }
-    std::lock_guard<std::mutex> mapLock(mapMtx_);
-    memSectionMap_.clear();
-    stream_ = nullptr;
+    buckets_.clear();
 }
 
 bool MemoryContext::CreateSnapshot(MemSection &section, aclrtStream stream) const
@@ -126,7 +150,7 @@ bool MemoryContext::RestoreFromSnapshot(const MemSection &section, aclrtStream s
     }
 
     if (section.snapshotAddr == nullptr) {
-        ERROR_LOG("there is no snapshot memory allocated for 0x%lx",
+        DEBUG_LOG("there is no snapshot memory allocated for 0x%lx, skip restoring",
             reinterpret_cast<uint64_t>(section.originAddr));
         return false;
     }
@@ -142,19 +166,18 @@ bool MemoryContext::RestoreFromSnapshot(const MemSection &section, aclrtStream s
     return MemCopyWithStream(section, stream, dir);
 }
 
-aclrtStream MemoryContext::GetCurrentStream()
-{
-    std::lock_guard<std::mutex> lock(streamMtx_);
-    if (stream_ != nullptr) {
-        return stream_;
+aclrtStream MemoryContext::GetCurrentStream(DeviceBucket &bucket) {
+    std::lock_guard<std::mutex> lock(bucket.streamMtx);
+    if (bucket.stream != nullptr) {
+        return bucket.stream;
     }
 
-    aclError ret = aclrtCtxGetCurrentDefaultStreamImplOrigin(&stream_);
+    aclError ret = aclrtCtxGetCurrentDefaultStreamImplOrigin(&bucket.stream);
     if (ret != ACL_SUCCESS) {
-        stream_ = nullptr;
+        bucket.stream = nullptr;
         DEBUG_LOG("aclrtCtxGetCurrentDefaultStreamImplOrigin failed. ret=%d", ret);
     }
-    return stream_;
+    return bucket.stream;
 }
 
 bool MemoryContext::MemCopyWithStream(const MemSection &section, aclrtStream stream, MemCopyDirection dir) const

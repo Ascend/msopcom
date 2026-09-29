@@ -14,8 +14,13 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
+#include <chrono>
+#include <sstream>
+#include <unistd.h>
+#include <sys/syscall.h>
 
 #define private public
+#include "utils/InjectLogger.h"
 #include "runtime/inject_helpers/MemoryContext.h"
 #undef private
 
@@ -42,19 +47,19 @@ TEST(MemoryContext, record_and_discard_multiple_normal_memory_section)
     uint32_t count = 0U;
     MemoryContext::Instance().Append(reinterpret_cast<void *>(MEM_ADDR), MEM_SIZE);
     count++;
-    ASSERT_EQ(inst.memSectionMap_.size(), count);
+    ASSERT_EQ(inst.GetBucket().memSectionMap.size(), count);
 
     MemoryContext::Instance().Append(reinterpret_cast<void *>(MEM_ADDR + MEM_SIZE), 2 * MEM_SIZE);
     count++;
-    ASSERT_EQ(inst.memSectionMap_.size(), count);
+    ASSERT_EQ(inst.GetBucket().memSectionMap.size(), count);
 
     MemoryContext::Instance().Discard(reinterpret_cast<void *>(MEM_ADDR));
     count--;
-    ASSERT_EQ(inst.memSectionMap_.size(), count);
+    ASSERT_EQ(inst.GetBucket().memSectionMap.size(), count);
 
     MemoryContext::Instance().Discard(reinterpret_cast<void *>(MEM_ADDR + MEM_SIZE));
     count--;
-    ASSERT_EQ(inst.memSectionMap_.size(), count);
+    ASSERT_EQ(inst.GetBucket().memSectionMap.size(), count);
 }
 
 TEST(MemoryContext, record_null_memory_section)
@@ -63,7 +68,7 @@ TEST(MemoryContext, record_null_memory_section)
     MemoryContext::Instance().DiscardAll();
     uint32_t count = 0U;
     MemoryContext::Instance().Append(nullptr, MEM_SIZE);
-    ASSERT_EQ(inst.memSectionMap_.size(), count);
+    ASSERT_EQ(inst.GetBucket().memSectionMap.size(), count);
 }
 
 TEST(MemoryContext, record_and_discard_the_same_memory_section)
@@ -72,21 +77,21 @@ TEST(MemoryContext, record_and_discard_the_same_memory_section)
     uint32_t count = 0U;
     MemoryContext::Instance().Append(reinterpret_cast<void *>(MEM_ADDR), MEM_SIZE);
     count++;
-    ASSERT_EQ(inst.memSectionMap_.size(), count);
+    ASSERT_EQ(inst.GetBucket().memSectionMap.size(), count);
     MemoryContext::Instance().Append(reinterpret_cast<void *>(MEM_ADDR), MEM_SIZE * 2);
-    ASSERT_EQ(inst.memSectionMap_.size(), count);
+    ASSERT_EQ(inst.GetBucket().memSectionMap.size(), count);
 
     MemoryContext::Instance().Discard(reinterpret_cast<void *>(MEM_ADDR));
     count--;
-    ASSERT_EQ(inst.memSectionMap_.size(), count);
+    ASSERT_EQ(inst.GetBucket().memSectionMap.size(), count);
 
     MemoryContext::Instance().Append(reinterpret_cast<void *>(MEM_ADDR), MEM_SIZE);
     count++;
-    ASSERT_EQ(inst.memSectionMap_.size(), count);
+    ASSERT_EQ(inst.GetBucket().memSectionMap.size(), count);
 
     MemoryContext::Instance().DiscardAll();
     count = 0U;
-    ASSERT_EQ(inst.memSectionMap_.size(), count);
+    ASSERT_EQ(inst.GetBucket().memSectionMap.size(), count);
 }
 
 TEST(MemoryContext, record_and_discard_all_memory_section)
@@ -96,15 +101,15 @@ TEST(MemoryContext, record_and_discard_all_memory_section)
 
     MemoryContext::Instance().Append(reinterpret_cast<void *>(MEM_ADDR), MEM_SIZE);
     count++;
-    ASSERT_EQ(inst.memSectionMap_.size(), count);
+    ASSERT_EQ(inst.GetBucket().memSectionMap.size(), count);
 
     MemoryContext::Instance().Append(reinterpret_cast<void *>(MEM_ADDR + MEM_SIZE), MEM_SIZE * 2);
     count++;
-    ASSERT_EQ(inst.memSectionMap_.size(), count);
+    ASSERT_EQ(inst.GetBucket().memSectionMap.size(), count);
 
     MemoryContext::Instance().DiscardAll();
     count = 0U;
-    ASSERT_EQ(inst.memSectionMap_.size(), count);
+    ASSERT_EQ(inst.GetBucket().memSectionMap.size(), count);
 }
 
 TEST(MemoryContext, create_snapshot_for_memory_without_stream_and_restore_success)
@@ -115,11 +120,11 @@ TEST(MemoryContext, create_snapshot_for_memory_without_stream_and_restore_succes
 
     MemoryContext::Instance().Append(reinterpret_cast<void *>(MEM_ADDR), MEM_SIZE);
     count++;
-    ASSERT_EQ(inst.memSectionMap_.size(), count);
+    ASSERT_EQ(inst.GetBucket().memSectionMap.size(), count);
 
     MemoryContext::Instance().Append(reinterpret_cast<void *>(MEM_ADDR + MEM_SIZE), MEM_SIZE * 2);
     count++;
-    ASSERT_EQ(inst.memSectionMap_.size(), count);
+    ASSERT_EQ(inst.GetBucket().memSectionMap.size(), count);
 
     bool ret = false;
     void *addr = reinterpret_cast<void *>(MEM_ADDR);
@@ -144,7 +149,7 @@ TEST(MemoryContext, create_snapshot_for_memory_without_stream_and_restore_succes
 
     MemoryContext::Instance().DiscardAll();
     count = 0U;
-    ASSERT_EQ(inst.memSectionMap_.size(), count);
+    ASSERT_EQ(inst.GetBucket().memSectionMap.size(), count);
     GlobalMockObject::verify();
 }
 
@@ -156,11 +161,11 @@ TEST(MemoryContext, create_snapshot_for_memory_with_stream_and_restore_success)
 
     MemoryContext::Instance().Append(reinterpret_cast<void *>(MEM_ADDR), MEM_SIZE);
     count++;
-    ASSERT_EQ(inst.memSectionMap_.size(), count);
+    ASSERT_EQ(inst.GetBucket().memSectionMap.size(), count);
 
     MemoryContext::Instance().Append(reinterpret_cast<void *>(MEM_ADDR + MEM_SIZE), MEM_SIZE * 2);
     count++;
-    ASSERT_EQ(inst.memSectionMap_.size(), count);
+    ASSERT_EQ(inst.GetBucket().memSectionMap.size(), count);
 
     bool ret = false;
     void *addr = reinterpret_cast<void *>(MEM_ADDR);
@@ -188,7 +193,7 @@ TEST(MemoryContext, create_snapshot_for_memory_with_stream_and_restore_success)
 
     MemoryContext::Instance().DiscardAll();
     count = 0U;
-    ASSERT_EQ(inst.memSectionMap_.size(), count);
+    ASSERT_EQ(inst.GetBucket().memSectionMap.size(), count);
     GlobalMockObject::verify();
 }
 
@@ -200,7 +205,7 @@ TEST(MemoryContext, create_snapshot_failed_for_invalid_addr)
     int a = 10;
     MemoryContext::Instance().Append(&a, MEM_SIZE);
     count++;
-    ASSERT_EQ(inst.memSectionMap_.size(), count);
+    ASSERT_EQ(inst.GetBucket().memSectionMap.size(), count);
 
     bool ret = false;
     ret = inst.Backup();
@@ -208,7 +213,7 @@ TEST(MemoryContext, create_snapshot_failed_for_invalid_addr)
 
     MemoryContext::Instance().DiscardAll();
     count = 0U;
-    ASSERT_EQ(inst.memSectionMap_.size(), count);
+    ASSERT_EQ(inst.GetBucket().memSectionMap.size(), count);
 }
 
 TEST(MemoryContext, create_snapshot_failed_for_invalid_section)
@@ -229,7 +234,7 @@ TEST(MemoryContext, create_snapshot_failed_due_to_alloc_failure)
 
     MemoryContext::Instance().Append(reinterpret_cast<void *>(MEM_ADDR), MEM_SIZE);
     count++;
-    ASSERT_EQ(inst.memSectionMap_.size(), count);
+    ASSERT_EQ(inst.GetBucket().memSectionMap.size(), count);
 
     bool ret = false;
     MOCKER(aclrtMallocImplOrigin)
@@ -240,7 +245,7 @@ TEST(MemoryContext, create_snapshot_failed_due_to_alloc_failure)
 
     MemoryContext::Instance().DiscardAll();
     count = 0U;
-    ASSERT_EQ(inst.memSectionMap_.size(), count);
+    ASSERT_EQ(inst.GetBucket().memSectionMap.size(), count);
     GlobalMockObject::verify();
 }
 
@@ -252,7 +257,7 @@ TEST(MemoryContext, create_snapshot_without_stream_failed_due_to_memcpy_failure)
 
     MemoryContext::Instance().Append(reinterpret_cast<void *>(MEM_ADDR), MEM_SIZE);
     count++;
-    ASSERT_EQ(inst.memSectionMap_.size(), count);
+    ASSERT_EQ(inst.GetBucket().memSectionMap.size(), count);
 
     bool ret = false;
     void *addr = reinterpret_cast<void *>(MEM_ADDR);
@@ -271,7 +276,7 @@ TEST(MemoryContext, create_snapshot_without_stream_failed_due_to_memcpy_failure)
 
     MemoryContext::Instance().DiscardAll();
     count = 0U;
-    ASSERT_EQ(inst.memSectionMap_.size(), count);
+    ASSERT_EQ(inst.GetBucket().memSectionMap.size(), count);
     GlobalMockObject::verify();
 }
 
@@ -283,7 +288,7 @@ TEST(MemoryContext, create_snapshot_with_stream_failed_due_to_memcpy_failure)
 
     MemoryContext::Instance().Append(reinterpret_cast<void *>(MEM_ADDR), MEM_SIZE);
     count++;
-    ASSERT_EQ(inst.memSectionMap_.size(), count);
+    ASSERT_EQ(inst.GetBucket().memSectionMap.size(), count);
 
     bool ret = false;
     void *addr = reinterpret_cast<void *>(MEM_ADDR);
@@ -304,7 +309,7 @@ TEST(MemoryContext, create_snapshot_with_stream_failed_due_to_memcpy_failure)
 
     MemoryContext::Instance().DiscardAll();
     count = 0U;
-    ASSERT_EQ(inst.memSectionMap_.size(), count);
+    ASSERT_EQ(inst.GetBucket().memSectionMap.size(), count);
     GlobalMockObject::verify();
 }
 
@@ -439,7 +444,7 @@ TEST(MemoryContext, restore_failed_due_to_memcpy_failure)
 
     MemoryContext::Instance().Append(reinterpret_cast<void *>(MEM_ADDR), MEM_SIZE);
     count++;
-    ASSERT_EQ(inst.memSectionMap_.size(), count);
+    ASSERT_EQ(inst.GetBucket().memSectionMap.size(), count);
 
     bool ret = false;
     void *addr = reinterpret_cast<void *>(MEM_ADDR);
@@ -468,12 +473,20 @@ TEST(MemoryContext, restore_failed_due_to_memcpy_failure)
     MOCKER(&aclrtMemcpyAsyncImplOrigin)
         .expects(once())
         .will(returnValue(ACL_ERROR_BAD_ALLOC));
+    auto &logger = InjectLogger::Instance();
+    auto origLv = logger.GetLogLv();
+    logger.lv_ = LogLv::DEBUG;
+    testing::internal::CaptureStdout();
     ret = inst.Restore();
-    ASSERT_EQ(ret, false);
+    std::string output = testing::internal::GetCapturedStdout();
+    logger.lv_ = origLv;
+    ASSERT_EQ(ret, true);
+    ASSERT_TRUE(output.find("[DEBUG]") != std::string::npos);
+    ASSERT_TRUE(output.find("continue restoring remaining regions") != std::string::npos);
 
     MemoryContext::Instance().DiscardAll();
     count = 0U;
-    ASSERT_EQ(inst.memSectionMap_.size(), count);
+    ASSERT_EQ(inst.GetBucket().memSectionMap.size(), count);
     GlobalMockObject::verify();
 }
 
@@ -483,11 +496,58 @@ TEST(MemoryContext, restore_failed_due_to_invalid_addr)
     MemoryContext::MemSection section = {nullptr,
         reinterpret_cast<void *>(MEM_ADDR + MEM_SIZE), MEM_SIZE};
     bool ret = false;
-    ret = inst.RestoreFromSnapshot(section);
-    ASSERT_EQ(ret, false);
 
+    auto &logger = InjectLogger::Instance();
+    auto origLv = logger.GetLogLv();
+    logger.lv_ = LogLv::DEBUG;
+
+    // originAddr == nullptr → ERROR_LOG, return false
+    testing::internal::CaptureStdout();
+    ret = inst.RestoreFromSnapshot(section);
+    std::string output = testing::internal::GetCapturedStdout();
+    ASSERT_EQ(ret, false);
+    ASSERT_TRUE(output.find("[ERROR]") != std::string::npos);
+    ASSERT_TRUE(output.find("failed to restore an invalid addr") != std::string::npos);
+
+    // snapshotAddr == nullptr → DEBUG_LOG, return false
     section.originAddr = reinterpret_cast<void *>(MEM_ADDR);
     section.snapshotAddr = nullptr;
+    testing::internal::CaptureStdout();
     ret = inst.RestoreFromSnapshot(section);
+    output = testing::internal::GetCapturedStdout();
     ASSERT_EQ(ret, false);
+    ASSERT_TRUE(output.find("[DEBUG]") != std::string::npos);
+    ASSERT_TRUE(output.find("there is no snapshot memory allocated") != std::string::npos);
+
+    logger.lv_ = origLv;
+}
+
+TEST(MemoryContext, restore_skip_unbackup_memory_and_continue) {
+    GlobalMockObject::verify();
+    auto &inst = MemoryContext::Instance();
+    MemoryContext::Instance().DiscardAll();
+
+    // Append memory but do not call Backup, so snapshotAddr remains nullptr
+    MemoryContext::Instance().Append(reinterpret_cast<void *>(MEM_ADDR), MEM_SIZE);
+    MemoryContext::Instance().Append(reinterpret_cast<void *>(MEM_ADDR + MEM_SIZE), MEM_SIZE * 2);
+    ASSERT_EQ(inst.GetBucket().memSectionMap.size(), 2U);
+
+    auto &logger = InjectLogger::Instance();
+    auto origLv = logger.GetLogLv();
+    logger.lv_ = LogLv::DEBUG;
+
+    testing::internal::CaptureStdout();
+    bool ret = inst.Restore();
+    std::string output = testing::internal::GetCapturedStdout();
+    logger.lv_ = origLv;
+
+    // Restore should not be interrupted and return true
+    ASSERT_EQ(ret, true);
+    // Should have printed DEBUG log for unbacked memory regions
+    ASSERT_TRUE(output.find("[DEBUG]") != std::string::npos);
+    ASSERT_TRUE(output.find("there is no snapshot memory allocated") != std::string::npos);
+    ASSERT_TRUE(output.find("continue restoring remaining regions") != std::string::npos);
+
+    MemoryContext::Instance().DiscardAll();
+    GlobalMockObject::verify();
 }
