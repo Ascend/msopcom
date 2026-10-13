@@ -25,6 +25,18 @@
 #include "core/FuncSelector.h"
 #include "core/DomainSocket.h"
 #include "core/LocalProcess.h"
+#include "runtime/inject_helpers/SimulatorCoreInfo.h"
+
+TEST(SimulatorCoreInfo, finds_existing_and_a5_core_counts_without_310p) {
+    uint32_t coreNum = 0;
+    EXPECT_TRUE(SimulatorSoc::TryGetSimulatorAiCoreNum("Ascend910B1", coreNum));
+    EXPECT_EQ(coreNum, 24U);
+    EXPECT_TRUE(SimulatorSoc::TryGetSimulatorAiCoreNum("Ascend950DT_958_future", coreNum));
+    EXPECT_EQ(coreNum, 32U);
+    EXPECT_FALSE(SimulatorSoc::TryGetSimulatorAiCoreNum("Ascend310P1", coreNum));
+    EXPECT_FALSE(SimulatorSoc::TryGetSimulatorAiCoreNum("Ascend950PR_956_future", coreNum));
+    EXPECT_EQ(coreNum, 32U);
+}
 
 TEST(rtGetAiCoreCount, call_function_not_in_prof_logical)
 {
@@ -68,9 +80,31 @@ TEST(rtGetAiCoreCount, call_function_in_prof_logical)
     ProfConfig::Instance().socVersion_ = "Ascend910B1";
     instance.Call(&aiCoreCnt);
     EXPECT_EQ(aiCoreCnt, 24);
-    ProfConfig::Instance().socVersion_ = "Ascend950PR_9599";
-    instance.Call(&aiCoreCnt);
-    EXPECT_EQ(aiCoreCnt, 36);
+    auto expectCoreNum = [&instance, &aiCoreCnt](const char *socVersion, uint32_t expected) {
+        ProfConfig::Instance().socVersion_ = socVersion;
+        aiCoreCnt = 0;
+        EXPECT_EQ(instance.Call(&aiCoreCnt), RT_ERROR_NONE) << socVersion;
+        EXPECT_EQ(aiCoreCnt, expected) << socVersion;
+    };
+
+    // 已登记型号保持原行为。
+    expectCoreNum("Ascend950PR_9599", 36);
+    expectCoreNum("Ascend950DT_950x", 8);
+    expectCoreNum("Ascend950DT_95A1", 36);
+
+    // 使用未登记的后缀，证明不是全字符串精确匹配。
+    expectCoreNum("Ascend950PR_957_future", 28);
+    expectCoreNum("Ascend950DT_957_future", 28);
+    expectCoreNum("Ascend950PR_958_future", 32);
+    expectCoreNum("Ascend950DT_958_future", 32);
+    expectCoreNum("Ascend950PR_959_future", 36);
+    expectCoreNum("Ascend950DT_959_future", 36);
+
+    // 未定义的 95 系列不能错误落入某个默认核数。
+    ProfConfig::Instance().socVersion_ = "Ascend950PR_956_future";
+    aiCoreCnt = 123;
+    EXPECT_EQ(instance.Call(&aiCoreCnt), RT_ERROR_RESERVED);
+    EXPECT_EQ(aiCoreCnt, 123);
     ProfConfig::Instance().socVersion_ = "";
     GlobalMockObject::verify();
 }

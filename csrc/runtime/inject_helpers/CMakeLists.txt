@@ -36,6 +36,7 @@ file(GLOB COMMON_SOURCE
     LaunchInitFinalize.cpp
     MemGuard.cpp
     SyncStreamWithInterrupt.cpp
+    SimulatorCoreInfo.cpp
 )
 list(SORT COMMON_SOURCE)
 target_sources(msopprof_injection PUBLIC ${COMMON_SOURCE})

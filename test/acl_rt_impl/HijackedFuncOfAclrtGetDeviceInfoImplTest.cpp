@@ -52,6 +52,13 @@ TEST_F(HijackedFuncOfAclrtGetDeviceInfoImplTest, prof_simulator_get_device_info_
     ASSERT_EQ(value, 36);
     ASSERT_EQ(inst.Call(0, ACL_DEV_ATTR_VECTOR_CORE_NUM, &value), ACL_SUCCESS);
     ASSERT_EQ(value, 72);
+
+    ProfConfig::Instance().socVersion_ = "Ascend950DT_958_future";
+    ASSERT_EQ(inst.Call(0, ACL_DEV_ATTR_AICORE_CORE_NUM, &value), ACL_SUCCESS);
+    ASSERT_EQ(value, 32);
+    ASSERT_EQ(inst.Call(0, ACL_DEV_ATTR_VECTOR_CORE_NUM, &value), ACL_SUCCESS);
+    ASSERT_EQ(value, 64);
+    ProfConfig::Instance().socVersion_ = "";
     FuncSelector::Instance().Set(ToolType::NONE);
     ProfConfig::Instance().profConfig_.isSimulator = false;
 }
