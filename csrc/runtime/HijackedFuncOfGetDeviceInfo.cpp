@@ -16,8 +16,8 @@
 
 #include "HijackedFunc.h"
 #include "RuntimeConfig.h"
-#include "runtime/inject_helpers/KernelContext.h"
 #include "runtime/inject_helpers/ProfConfig.h"
+#include "runtime/inject_helpers/SimulatorCoreInfo.h"
 #include "core/FuncSelector.h"
 #include "utils/InjectLogger.h"
 #include "runtime.h"
@@ -32,18 +32,19 @@ rtError_t HijackedFuncOfGetDeviceInfo::Call(uint32_t deviceId, int32_t moduleTyp
 {
     DEBUG_LOG("enter HijackedFuncOfGetDeviceInfo deviceId:%u moduleType:%d, infoType:%d",
         deviceId, moduleType, infoType);
-    if (IsOpProf() && ProfConfig::Instance().IsSimulator()) {
+    if (IsOpProf() && ProfConfig::Instance().IsSimulator() && val != nullptr) {
         deviceId = 0;
         std::string simSocVersion = ProfConfig::Instance().GetSocVersion();
-        if (CORE_NUM.count(simSocVersion) != 0 && val != nullptr) {
-            if (moduleType == static_cast<int32_t>(tagRtDeviceModuleType::RT_MODULE_TYPE_AICORE)) {
-                *val = CORE_NUM.at(simSocVersion);
-                return RT_ERROR_NONE;
-            }
-            if (moduleType == static_cast<int32_t>(tagRtDeviceModuleType::RT_MODULE_TYPE_VECTOR_CORE)) {
-                *val = CORE_NUM.at(simSocVersion) * 2;
-                return RT_ERROR_NONE;
-            }
+        uint32_t coreNum = 0;
+        const bool coreNumFound = SimulatorSoc::TryGetSimulatorAiCoreNum(simSocVersion, coreNum);
+
+        if (coreNumFound && moduleType == static_cast<int32_t>(tagRtDeviceModuleType::RT_MODULE_TYPE_AICORE)) {
+            *val = coreNum;
+            return RT_ERROR_NONE;
+        }
+        if (coreNumFound && moduleType == static_cast<int32_t>(tagRtDeviceModuleType::RT_MODULE_TYPE_VECTOR_CORE)) {
+            *val = coreNum * 2;
+            return RT_ERROR_NONE;
         }
     }
 

@@ -22,6 +22,7 @@
 #include "inject_helpers/ProfConfig.h"
 #include "core/FuncSelector.h"
 #include "utils/InjectLogger.h"
+#include "runtime/inject_helpers/SimulatorCoreInfo.h"
 // 被aclrt废弃，用aclrtGetDeviceInfo
 HijackedFuncOfGetAiCoreCount::HijackedFuncOfGetAiCoreCount()
     : HijackedFuncType(RuntimeLibName(), "rtGetAiCoreCount") {}
@@ -30,15 +31,20 @@ rtError_t HijackedFuncOfGetAiCoreCount::Call(uint32_t *aiCoreCnt)
 {
     if (IsOpProf() && ProfConfig::Instance().IsSimulator()) {
         std::string simSocVersion = ProfConfig::Instance().GetSocVersion();
-        if (!simSocVersion.empty() && CORE_NUM_OF_310P.count(simSocVersion) != 0 && aiCoreCnt != nullptr) {
-            *aiCoreCnt = CORE_NUM_OF_310P.at(simSocVersion);
-            DEBUG_LOG("Replace AiCore count with [%" PRIu32 "]", *aiCoreCnt);
-            return RT_ERROR_NONE;
-        }
-        if (!simSocVersion.empty() && CORE_NUM.count(simSocVersion) != 0 && aiCoreCnt != nullptr) {
-            *aiCoreCnt = CORE_NUM.at(simSocVersion);
-            DEBUG_LOG("Replace AiCore count with [%" PRIu32 "]", *aiCoreCnt);
-            return RT_ERROR_NONE;
+        if (!simSocVersion.empty() && aiCoreCnt != nullptr) {
+            auto iter310p = CORE_NUM_OF_310P.find(simSocVersion);
+            if (iter310p != CORE_NUM_OF_310P.end()) {
+                *aiCoreCnt = iter310p->second;
+                DEBUG_LOG("Replace AiCore count with [%" PRIu32 "]", *aiCoreCnt);
+                return RT_ERROR_NONE;
+            }
+
+            uint32_t coreNum = 0;
+            if (SimulatorSoc::TryGetSimulatorAiCoreNum(simSocVersion, coreNum)) {
+                *aiCoreCnt = coreNum;
+                DEBUG_LOG("Replace AiCore count with [%" PRIu32 "]", *aiCoreCnt);
+                return RT_ERROR_NONE;
+            }
         }
     }
     if (originfunc_ != nullptr) {

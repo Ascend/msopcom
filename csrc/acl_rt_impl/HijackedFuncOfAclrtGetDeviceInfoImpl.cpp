@@ -15,8 +15,8 @@
  * ------------------------------------------------------------------------- */
 
 #include "HijackedFunc.h"
-#include "runtime/inject_helpers/KernelContext.h"
 #include "runtime/inject_helpers/ProfConfig.h"
+#include "runtime/inject_helpers/SimulatorCoreInfo.h"
 #include "core/FuncSelector.h"
 #include "utils/InjectLogger.h"
 #include "runtime.h"
@@ -30,18 +30,19 @@ HijackedFuncOfAclrtGetDeviceInfoImpl::HijackedFuncOfAclrtGetDeviceInfoImpl()
 aclError HijackedFuncOfAclrtGetDeviceInfoImpl::Call(uint32_t deviceId, aclrtDevAttr attr, int64_t *value)
 {
     DEBUG_LOG("enter HijackedFuncOfGetDeviceInfo deviceId:%u aclrtDevAttr:%u", deviceId, static_cast<uint32_t>(attr));
-    if (IsOpProf() && ProfConfig::Instance().IsSimulator()) {
+    if (IsOpProf() && ProfConfig::Instance().IsSimulator() && value != nullptr) {
         deviceId = 0;
         std::string simSocVersion = ProfConfig::Instance().GetSocVersion();
-        if (CORE_NUM.count(simSocVersion) != 0 && value != nullptr) {
-            if (attr == static_cast<int32_t>(ACL_DEV_ATTR_AICORE_CORE_NUM)) {
-                *value = CORE_NUM.at(simSocVersion);
-                return ACL_SUCCESS;
-            }
-            if (attr == static_cast<int32_t>(ACL_DEV_ATTR_VECTOR_CORE_NUM)) {
-                *value = CORE_NUM.at(simSocVersion) * 2;
-                return ACL_SUCCESS;
-            }
+        uint32_t coreNum = 0;
+        const bool coreNumFound = SimulatorSoc::TryGetSimulatorAiCoreNum(simSocVersion, coreNum);
+
+        if (coreNumFound && attr == static_cast<int32_t>(ACL_DEV_ATTR_AICORE_CORE_NUM)) {
+            *value = coreNum;
+            return ACL_SUCCESS;
+        }
+        if (coreNumFound && attr == static_cast<int32_t>(ACL_DEV_ATTR_VECTOR_CORE_NUM)) {
+            *value = coreNum * 2;
+            return ACL_SUCCESS;
         }
     }
 
