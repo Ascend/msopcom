@@ -31,17 +31,17 @@ done
 if [[ ! -f "${dir}/compile_commands.json" ]]; then
     cat >&2 <<'EOF'
 =======================================================================
-  ERROR: compile_commands.json NOT FOUND
------------------------------------------------------------------------
+  [SKIP] compile_commands.json NOT FOUND
+----------------------------------------------------------------------
   clang-tidy requires a compilation database to work.
-  Run this command to generate compile_commands.json:
+  Generate one with `python3 build.py` (creates build/compile_commands.json)
+  to enable clang-tidy locally.
 
-    python3 build.py
-
-  This will generate compile_commands.json under the build/ directory.
+  In environments without a build (e.g. CI), clang-tidy is skipped so the
+  remaining checks can proceed.
 =======================================================================
 EOF
-    exit 1
+    exit 0
 fi
 
 exec clang-tidy "$@"

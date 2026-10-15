@@ -14,7 +14,6 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
- 
 #include <gtest/gtest.h>
 #include <cstdlib>
 #include <vector>
@@ -37,20 +36,17 @@ public:
     }
 };
 
-static bool GetValidNameFromBinary(const char *data,
-                            uint64_t length,
-                            std::vector<std::string> &kernelNames,
-                            std::vector<uint64_t> &kernelOffsets)
-{
+static bool GetValidNameFromBinary(const char *data, uint64_t length, std::vector<std::string> &kernelNames,
+    std::vector<uint64_t> &kernelOffsets, bool &hasSimt) {
+    hasSimt = false;
     kernelNames.emplace_back("valid_kernel_1234_mix_aic");
     kernelOffsets.emplace_back(0);
     return true;
 }
 
-
 TEST_F(RegisterManagerTest, mock_sym_info_then_test_create_with_file_path_expect_get_success)
 {
-    MOCKER(&GetSymInfoFromBinary).stubs().will(invoke(GetValidNameFromBinary));
+    MOCKER(&ScanKernelSymbols).stubs().will(invoke(GetValidNameFromBinary));
     MOCKER(&HasStaticStub).stubs().will(returnValue(true));
     const char *path = "empty.o";
     uint32_t data{};
@@ -65,7 +61,7 @@ TEST_F(RegisterManagerTest, mock_sym_info_then_test_create_with_file_path_expect
 
 TEST_F(RegisterManagerTest, mock_register_context_then_test_create_with_file_path_expect_get_success)
 {
-    MOCKER(&GetSymInfoFromBinary).stubs().will(invoke(GetValidNameFromBinary));
+    MOCKER(&ScanKernelSymbols).stubs().will(invoke(GetValidNameFromBinary));
     MOCKER(&HasStaticStub).stubs().will(returnValue(true));
 
     vector<char> elfData(100, 1);
@@ -81,7 +77,7 @@ TEST_F(RegisterManagerTest, mock_register_context_then_test_create_with_file_pat
 
 TEST_F(RegisterManagerTest, mock_register_context_then_test_create_from_data_expect_get_success)
 {
-    MOCKER(&GetSymInfoFromBinary).stubs().will(invoke(GetValidNameFromBinary));
+    MOCKER(&ScanKernelSymbols).stubs().will(invoke(GetValidNameFromBinary));
     MOCKER(&HasStaticStub).stubs().will(returnValue(true));
 
     vector<char> elfData(100, 1);

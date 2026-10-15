@@ -218,6 +218,7 @@ public:
     bool Connect() override;
     ssize_t Read(std::string &msg) override;
     ssize_t Write(std::string const& msg) override;
+    ssize_t WriteWithFd(std::string const &msg, int fd) override;
 
 protected:
     std::unique_ptr<DomainSocketClient> socket_;
@@ -265,6 +266,15 @@ ssize_t SocketClient::Write(const std::string &msg)
 
     size_t sendBytes = 0;
     return socket_->Write(msg, sendBytes) ? static_cast<ssize_t>(sendBytes) : -1;
+}
+
+ssize_t SocketClient::WriteWithFd(const std::string &msg, int fd) {
+    if (socket_ == nullptr) {
+        return -1;
+    }
+
+    size_t sendBytes = 0;
+    return socket_->WriteWithFd(msg, fd, sendBytes) ? static_cast<ssize_t>(sendBytes) : -1;
 }
 
 } // namespace
@@ -371,4 +381,11 @@ ssize_t Client::Write(std::string const &msg)
         len = socketClient_->Write(msg);
     }
     return len;
+}
+
+ssize_t Client::WriteWithFd(std::string const &msg, int fd) {
+    if (type_ == CommType::SOCKET && socketClient_ != nullptr) {
+        return socketClient_->WriteWithFd(msg, fd);
+    }
+    return -1; // 内存模式不支持 fd，调用方回退到字节流
 }

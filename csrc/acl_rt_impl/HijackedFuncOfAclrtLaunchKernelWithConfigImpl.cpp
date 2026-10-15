@@ -45,9 +45,7 @@ namespace {
 void ReportKernelBinary(RegisterContextSP regCtx)
 {
     auto const &elfData = regCtx->GetElfData();
-    PacketHead head { PacketType::KERNEL_BINARY };
-    std::string buffer(elfData.cbegin(), elfData.cend());
-    LocalDevice::Local().Notify(Serialize(head, buffer.size()) + std::move(buffer));
+    LocalDevice::Local().NotifyKernelBinary(elfData);
 }
 
 } // namespace [Dummy]

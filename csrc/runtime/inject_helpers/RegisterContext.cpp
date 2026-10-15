@@ -16,6 +16,7 @@
 
 #include "RegisterContext.h"
 
+#include <algorithm>
 #include <map>
 #include <thread>
 #include <string>
@@ -30,7 +31,6 @@
 #include "utils/ElfLoader.h"
 #include "utils/FileSystem.h"
 #include "utils/InjectLogger.h"
-#include "utils/PipeCall.h"
 #include "utils/TypeTraits.h"
 #include "utils/Ustring.h"
 
@@ -60,24 +60,54 @@ bool EndsWithMixAivOrAic(const std::string &kernelName)
     return (endPart == MIX_AIC_TAIL) || (endPart == MIX_AIV_TAIL);
 }
 
+// 直接解析 ELF .symtab 得到的内核符号信息
+struct ElfKernelSymbols {
+    std::vector<std::string> names; // .text 中的 global FUNC 符号名
+    std::vector<uint64_t> offsets; // 与 names 一一对应的 st_value
+    bool hasSimt{false}; // 是否存在 .text 中的局部 $t.* SIMT 符号
+};
+
+// 遍历符号表，收集 .text 中的 global FUNC 符号与局部 $t.* SIMT 标记
+bool CollectKernelSymbols(const char *data, uint64_t length, const Elf64_Shdr &symtab, const Elf64_Shdr &strtab,
+    std::size_t textIndex, bool foundText, ElfKernelSymbols &out) {
+    const char *strings = data + strtab.sh_offset;
+    const uint64_t symCount = symtab.sh_size / sizeof(Elf64_Sym);
+    for (uint64_t i = 0; i < symCount; ++i) {
+        Elf64_Sym sym{};
+        if (!elf::ReadValue<Elf64_Sym>(data, length, symtab.sh_offset + i * sizeof(Elf64_Sym), sym)) {
+            return false;
+        }
+        if (sym.st_name >= strtab.sh_size || !foundText || sym.st_shndx != textIndex) {
+            continue;
+        }
+        const char *name = strings + sym.st_name;
+        const std::size_t nameBytes = static_cast<std::size_t>(strtab.sh_size - sym.st_name);
+        const unsigned char bind = ELF64_ST_BIND(sym.st_info);
+        if (bind == STB_GLOBAL && ELF64_ST_TYPE(sym.st_info) == STT_FUNC) {
+            out.offsets.push_back(sym.st_value);
+            const std::size_t nameLen = static_cast<std::size_t>(std::find(name, name + nameBytes, '\0') - name);
+            out.names.emplace_back(name, nameLen);
+        } else if (bind == STB_LOCAL && nameBytes >= 2 && name[0] == '$' && name[1] == 't') {
+            out.hasSimt = true;
+        }
+    }
+    return true;
 }
 
-inline bool GetObjdumpOutput(std::string const &binaryData, std::string &output)
-{
-    std::string objdumpOutput;
-    bool ret = PipeCall({"llvm-objdump", "-t", "-"}, objdumpOutput, binaryData);
-    if (!ret) {
-        DEBUG_LOG("Call llvm-objdump failed");
+// 用进程内 ELF 解析替代 `llvm-objdump -t` 文本导出。
+// 静态插桩后的内核可达 GB 级（.symtab 数百 MB），此前实现把整个二进制经 stdin 喂给 objdump，
+// 再物化全部符号文本、fork grep、逐行 istringstream 分词，且同一份二进制解析两次，开销极大。
+// 这里直接遍历 SHT_SYMTAB，一次扫描即可同时得到 kernel 符号与 SIMT 标记。
+bool ScanElfKernelSymbols(const char *data, uint64_t length, ElfKernelSymbols &out) {
+    Elf64_Shdr symtab{};
+    Elf64_Shdr strtab{};
+    std::size_t textIndex = 0;
+    bool foundText = false;
+    if (!ElfLoader::LocateKernelSymtab(data, length, symtab, strtab, textIndex, foundText)) {
         return false;
     }
-
-    ret = PipeCall({"grep", "g     F .text"}, output, objdumpOutput);
-    if (!ret) {
-        DEBUG_LOG("Grep global function symbols from objdump output failed. Fallback to original objdump output");
-        output = std::move(objdumpOutput);
-    }
-
-    return true;
+    return CollectKernelSymbols(data, length, symtab, strtab, textIndex, foundText, out);
+}
 }
 
 RegisterParam::RegisterParam(uint64_t regId, uint32_t magic,
@@ -103,73 +133,41 @@ RegisterParam::RegisterParam(uint64_t regId, uint32_t magic,
     options.options = optionData.data();
 }
 
-bool GetSymInfoFromBinary(const char *data, uint64_t length, vector<string> &kernelNames,
-                          vector<uint64_t> &kernelOffsets)
-{
+bool ScanKernelSymbols(
+    const char *data, uint64_t length, vector<string> &kernelNames, vector<uint64_t> &kernelOffsets, bool &hasSimt) {
     if (data == nullptr) {
         return false;
     }
 
-    std::string binaryData(data, length);
-    std::string output;
-    if (!GetObjdumpOutput(binaryData, output)) {
+    ElfKernelSymbols symbols;
+    if (!ScanElfKernelSymbols(data, length, symbols)) {
         return false;
     }
-
-    vector<string> lines;
-    SplitString(output, '\n', lines);
-    constexpr size_t kernelNameCol = 5;
-    constexpr size_t kernelOffsetCol = 0;
-    int badLineCnt = 0;
-    for (string &line: lines) {
-        istringstream iss(line);
-        auto lineVec = vector<string>(istream_iterator<string>{iss},
-                istream_iterator<string>());
-        // dump info like this:
-        // address      symbol   segment   type    size     kernelname
-        // 0                1 2 3     4                5
-        // 0000000000000000 g F .text 00000000000000a8 Abs_d2db1a80c523e7e59a032c95969880af_high_performance_2147483647
-        if (lineVec.size() == 6 && lineVec.at(1) == "g" && lineVec.at(2) == "F" && lineVec.at(3) == ".text") {
-            stringstream ss2(lineVec[kernelOffsetCol]);
-            uint64_t offset {};
-            ss2 >> std::hex >> offset;
-            if (!ss2.fail()) {
-                kernelOffsets.push_back(offset);
-                kernelNames.push_back(lineVec.at(kernelNameCol));
-            } else {
-                badLineCnt++;
-            }
-        }
-    }
-    if (badLineCnt > 0) {
-        WARN_LOG("%d lines had unparseable hex offset", badLineCnt);
-    }
+    kernelNames = std::move(symbols.names);
+    kernelOffsets = std::move(symbols.offsets);
+    hasSimt = symbols.hasSimt;
     return true;
+}
+
+bool GetSymInfoFromBinary(
+    const char *data, uint64_t length, vector<string> &kernelNames, vector<uint64_t> &kernelOffsets) {
+    bool hasSimt = false;
+    return ScanKernelSymbols(data, length, kernelNames, kernelOffsets, hasSimt);
 }
 
 bool GetSectionHeaders(rtDevBinary_t const &binary, map<string, Elf64_Shdr> &headers)
 {
-    if (binary.data == nullptr) {
+    if (binary.data == nullptr || binary.length == 0) {
         ERROR_LOG("empty dev binary info");
         return false;
     }
 
-    auto binData = static_cast<char const *>(binary.data);
-    vector<char> buffer(binData, binData + binary.length);
-    return GetSectionHeaders(buffer, headers);
+    return ElfLoader::ScanSectionHeaders(static_cast<char const *>(binary.data), binary.length, headers);
 }
 
 bool GetSectionHeaders(std::vector<char> const &binary, std::map<std::string, Elf64_Shdr> &headers)
 {
-    ElfLoader loader;
-    if (!loader.FromBuffer(binary)) {
-        ERROR_LOG("load elf from binary failed");
-        return false;
-    }
-
-    Elf elf = loader.Load();
-    headers = elf.GetSectionHeaders();
-    return true;
+    return ElfLoader::ScanSectionHeaders(binary.data(), binary.size(), headers);
 }
 
 bool HasStaticStub(const rtDevBinary_t &binary)
@@ -232,16 +230,15 @@ uint64_t GetMetaSection(const rtDevBinary_t &binary, const string &kernelName, v
         WARN_LOG("Get meta section failed: binary data is null or empty");
         return 0;
     }
-    auto binData = static_cast<const char *>(binary.data);
-    std::vector<char> buffer(binData, binData + binary.length);
-    ElfLoader loader;
-    if (!loader.FromBuffer(buffer)) {
-        WARN_LOG("Get meta section failed: unable to load ELF from binary buffer");
+    const char *binData = static_cast<const char *>(binary.data);
+    // 原地解析段表，避免此前 vector<char> buffer(...) + ElfLoader::FromBuffer 对整块二进制的两次全量拷贝
+    std::map<std::string, Elf64_Shdr> headers;
+    std::multimap<std::string, Elf64_Shdr> allSections;
+    if (!ElfLoader::ScanSectionHeaders(binData, binary.length, headers, &allSections)) {
+        WARN_LOG("Get meta section failed: unable to parse section headers from binary");
         return 0;
     }
-    Elf elf = loader.Load();
     std::string sectionName = ".ascend.meta." + kernelName;
-    const auto &headers = elf.GetSectionHeaders();
     bool found = headers.find(sectionName) != headers.end();
     if (!found) {
         // MIX 二进制的 meta 段名带有 _mix_aic/_mix_aiv 尾缀，与 kernelName（.text 符号）不一致，
@@ -260,8 +257,11 @@ uint64_t GetMetaSection(const rtDevBinary_t &binary, const string &kernelName, v
         return 0;
     }
     DEBUG_LOG("Get meta data from section %s", sectionName.c_str());
-    std::vector<char> rawData = elf.ReadAllRawData(sectionName);
-    metaData.assign(rawData.begin(), rawData.end());
+    // 只拷贝目标 meta 段（可能同名多个，按段表顺序拼接）本身的字节
+    if (!elf::ReadAllRawData(binData, binary.length, allSections, sectionName, metaData)) {
+        WARN_LOG("Get meta section failed: invalid range for section %s", sectionName.c_str());
+        return 0;
+    }
     return metaData.size();
 }
 
@@ -270,24 +270,11 @@ bool GetSimtSymbolFromBinary(const char *data, uint64_t length)
     if (data == nullptr) {
         return false;
     }
-    std::string binaryData(data, length);
-    std::string objdumpOutput;
-    if (!PipeCall({"llvm-objdump", "-t", "-"}, objdumpOutput, binaryData)) {
-        DEBUG_LOG("Call llvm-objdump failed");
+    ElfKernelSymbols symbols;
+    if (!ScanElfKernelSymbols(data, length, symbols)) {
         return false;
     }
-    vector<string> lines;
-    SplitString(objdumpOutput, '\n', lines);
-    for (string &line: lines) {
-        istringstream iss(line);
-        auto lineVec = vector<string>(istream_iterator<string>{iss}, istream_iterator<string>());
-        // Simt symbol dump info like this:
-        // 00000000000000d0 l   .text 0000000000000000 $t.1
-        if (lineVec.size() == 5 && lineVec.at(1) == "l" && lineVec.at(2) == ".text" && StartsWith(lineVec.at(4), "$t")) {
-            return true;
-        }
-    }
-    return false;
+    return symbols.hasSimt;
 }
 
 RegisterContext::~RegisterContext()
@@ -297,21 +284,24 @@ RegisterContext::~RegisterContext()
     }
 }
 
-bool RegisterContext::Init(const vector<char> &elfData, aclrtBinHandle binHandle, const RegisterParam &param)
-{
-    elfData_ = elfData;
+bool RegisterContext::Init(vector<char> elfData, aclrtBinHandle binHandle, const RegisterParam &param) {
+    // 值传递 + move，避免对 GB 级内核二进制再做一次 elfData_ = elfData 的全量拷贝
+    elfData_ = std::move(elfData);
     param_ = param;
-    if (!GetSymInfoFromBinary(elfData_.data(), elfData_.size(), kernelSymbolNames_, kernelOffsets_)) {
+    // 一次遍历符号表同时得到 kernelNames/kernelOffsets/hasSimt（此前调用两次各扫描一遍 3000 万符号）
+    bool hasSimt = false;
+    if (!ScanKernelSymbols(elfData_.data(), elfData_.size(), kernelSymbolNames_, kernelOffsets_, hasSimt)) {
         DEBUG_LOG("Get symbol info from binary failed.");
         return false;
     }
     DEBUG_LOG("Get total %lu kernelNames", kernelSymbolNames_.size());
-    hasSimt_ = GetSimtSymbolFromBinary(elfData_.data(), elfData_.size());
-    rtDevBinary_t tempDevBin{};
-    tempDevBin.data = elfData_.data();
-    tempDevBin.length = elfData_.size();
-    hasStaticStub_ = ::HasStaticStub(tempDevBin);
-    hasDebugLine_ = ::HasDebugLine(tempDevBin);
+    hasSimt_ = hasSimt;
+    // 一次解析节头表同时判定 static stub / debug_line（此前 HasStaticStub/HasDebugLine 各扫描一次）
+    std::map<std::string, Elf64_Shdr> sectionHeaders;
+    if (ElfLoader::ScanSectionHeaders(elfData_.data(), elfData_.size(), sectionHeaders)) {
+        hasStaticStub_ = sectionHeaders.find(".init_array_sanitizer_file_mapping") != sectionHeaders.cend();
+        hasDebugLine_ = sectionHeaders.find(".debug_line") != sectionHeaders.cend();
+    }
     hdl_ = binHandle;
     return true;
 }
@@ -327,7 +317,7 @@ bool RegisterContext::Init(const char *binPath, aclrtBinHandle binHandle, const 
     }
     binPath_ = binPath;
     isFromFile_ = true;
-    return Init(elfData, binHandle, param);
+    return Init(std::move(elfData), binHandle, param);
 }
 
 bool RegisterContext::Save(const string &outputPath) const
@@ -337,20 +327,23 @@ bool RegisterContext::Save(const string &outputPath) const
         ERROR_LOG("Read elf header failed when load elf from buffer");
         return false;
     }
-    auto elfData = elfData_;
     // 编译算子时没有指定target， flag值会为这个
     if (header.e_flags == FLAG_DEFAULT_VALUE) {
         auto correctFlag = GetFlagByMagic(param_.magic);
         if (correctFlag > 0) {
             header.e_flags = correctFlag;
             const char *base = static_cast<const char*>(static_cast<const void *>(&header));
+            // 仅在需要改写头部的分支做一次拷贝，常规路径直接写 elfData_，避免 GB 级全量拷贝
+            auto elfData = elfData_;
             std::copy(base, base + sizeof(Elf64_Ehdr), elfData.data());
             DEBUG_LOG("default flag of op is forced set to %u", correctFlag);
+            size_t written = WriteBinary(outputPath, elfData.data(), elfData.size());
+            return written == elfData.size();
         }
     }
 
-    size_t written = WriteBinary(outputPath, elfData.data(), elfData.size());
-    return written == elfData.size();
+    size_t written = WriteBinary(outputPath, elfData_.data(), elfData_.size());
+    return written == elfData_.size();
 }
 
 uint64_t RegisterContext::GetKernelOffsetByName(const std::string &kernelName) const
@@ -409,7 +402,7 @@ std::shared_ptr<RegisterContext> RegisterContext::CloneFromBin(const std::string
     }
     auto newRegCtx = make_shared<RegisterContext>();
     RegisterParam newParam(param_.regId, param_.magic, &param_.options, true, param_.optionsIsNull);
-    if (!newRegCtx->Init(data, binHandle, newParam)) {
+    if (!newRegCtx->Init(std::move(data), binHandle, newParam)) {
         DEBUG_LOG("Init register context from data failed when clone");
         return nullptr;
     }

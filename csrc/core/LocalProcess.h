@@ -20,6 +20,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 #include <csignal>
 #include "Communication.h"
 
@@ -46,6 +47,9 @@ public:
     ~LocalProcess();
     void Log(LogLevel level, std::string msg) const;
     ssize_t Notify(std::string const &msg) const;
+
+    /** 上报内核二进制：优先走 memfd + SCM_RIGHTS 零拷贝 fd 路径，失败回退字节流 */
+    ssize_t NotifyKernelBinary(std::vector<char> const &elfData) const;
     ssize_t Wait(std::string& msg, uint32_t timeOut = 10) const;
     int TerminateWithSignal(int signo = SIGINT) const;
 

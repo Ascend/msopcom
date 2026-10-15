@@ -74,7 +74,11 @@ template <>
 inline void InteractHelper::Notify(int32_t deviceId, PacketType type, const std::string &record)
 {
         PacketHead head = {type};
-        LocalDevice::GetInstance(deviceId).Notify(Serialize(head) + record);
+        // 一次性构造「包头 + 记录」，避免 operator+ 对 GB 级 record 的全量拷贝
+        std::string msg = Serialize(head);
+        msg.reserve(msg.size() + record.size());
+        msg.append(record);
+        LocalDevice::GetInstance(deviceId).Notify(msg);
 }
 
 // 用于几个IPC接口的参数和响应发送

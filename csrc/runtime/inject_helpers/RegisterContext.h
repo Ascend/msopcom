@@ -35,6 +35,9 @@ constexpr uint32_t FLAG_DEFAULT_VALUE = 0x810000;
 
 bool GetSymInfoFromBinary(const char *data, uint64_t length, std::vector<std::string> &kernelNames,
                           std::vector<uint64_t> &kernelOffsets);
+// 一次扫描同时得到 kernelNames/kernelOffsets/hasSimt，避免对同一二进制重复遍历符号表
+bool ScanKernelSymbols(const char *data, uint64_t length, std::vector<std::string> &kernelNames,
+    std::vector<uint64_t> &kernelOffsets, bool &hasSimt);
 bool HasStaticStub(const rtDevBinary_t &binary);
 bool HasDebugLine(const rtDevBinary_t &binary);
 
@@ -108,7 +111,7 @@ public:
 
     bool Init(const char *binPath, aclrtBinHandle binHandle, const RegisterParam &param);
 
-    bool Init(const std::vector<char> &elfData, aclrtBinHandle binHandle, const RegisterParam &param);
+    bool Init(std::vector<char> elfData, aclrtBinHandle binHandle, const RegisterParam &param);
 
     bool Save(const std::string &outputPath) const;
 
