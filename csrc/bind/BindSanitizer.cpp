@@ -116,6 +116,7 @@ void __attribute__ ((constructor)) HijackedCtor()
     REGISTER_FUNCTION("runtime", rtCtxGetOverflowAddr);
     REGISTER_FUNCTION("runtime", rtDeviceSetLimit);
     REGISTER_FUNCTION("ascend_dump", AdumpGetDFXInfoAddrForDynamic);
+    REGISTER_FUNCTION("ascend_dump", AdumpGetDFXInfoAddrForStatic);
     RuntimeOriginCtor();
     AscendclOriginCtor();
     AscendclImplOriginCtor();
@@ -286,6 +287,18 @@ void *AdumpGetDFXInfoAddrForDynamic(uint32_t space, uint64_t &atomicIndex)
         HijackedCtor();
     }
     HijackedFuncOfAdumpGetDFXInfoAddrForDynamic instance;
+    return instance.Call(space, atomicIndex);
+}
+
+void *AdumpGetDFXInfoAddrForStatic(uint32_t space, uint64_t &atomicIndex)
+{
+    PRINT_ENTER_INSTRUMENTOR;
+    if (!g_isCtorDone) {
+        // In "ACL_RT_KERNEL_LAUNCH" scenario rtDevBinaryRegister() is invoked before main() and HijackedCtor().
+        // HijackedCtor() needs to be invoked manually before rtDevBinaryRegister()
+        HijackedCtor();
+    }
+    HijackedFuncOfAdumpGetDFXInfoAddrForStatic instance;
     return instance.Call(space, atomicIndex);
 }
 

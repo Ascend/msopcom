@@ -1,6 +1,7 @@
 # 如果所有都需要，则放入core中
 file(GLOB INJECTION_SRC
         HijackedFuncOfAdumpGetDFXInfoAddrForDynamic.cpp
+        HijackedFuncOfAdumpGetDFXInfoAddrForStatic.cpp
         )
 
 list(SORT INJECTION_SRC)

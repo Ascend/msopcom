@@ -72,6 +72,7 @@ void RegisterAscendDump()
     std::string soName = "ascend_dump";
     REGISTER_LIBRARY(soName);
     REGISTER_FUNCTION(soName, AdumpGetDFXInfoAddrForDynamic);
+    REGISTER_FUNCTION(soName, AdumpGetDFXInfoAddrForStatic);
 }
 
 void RegisterAscendCl()
@@ -210,6 +211,18 @@ void *AdumpGetDFXInfoAddrForDynamic(uint32_t space, uint64_t &atomicIndex)
         HijackedCtor();
     }
     HijackedFuncOfAdumpGetDFXInfoAddrForDynamic instance;
+    return instance.Call(space, atomicIndex);
+}
+
+void *AdumpGetDFXInfoAddrForStatic(uint32_t space, uint64_t &atomicIndex)
+{
+    PRINT_ENTER_INSTRUMENTOR;
+    if (!g_isCtorDone) {
+        // In "ACL_RT_KERNEL_LAUNCH" scenario rtDevBinaryRegister() is invoked before main() and HijackedCtor().
+        // HijackedCtor() needs to be invoked manually before rtDevBinaryRegister()
+        HijackedCtor();
+    }
+    HijackedFuncOfAdumpGetDFXInfoAddrForStatic instance;
     return instance.Call(space, atomicIndex);
 }
 rtError_t rtMapMem(void *devPtr, size_t size, size_t offset, rtDrvMemHandle_t *handle, uint64_t flags)

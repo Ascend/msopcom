@@ -51,6 +51,7 @@ enum class DfxType : uint16_t {
     TIK_TYPE = 6
 };
 void *AdumpGetDFXInfoAddrForDynamic(uint32_t space, uint64_t &atomicIndex);
+void *AdumpGetDFXInfoAddrForStatic(uint32_t space, uint64_t &atomicIndex);
 
 #ifdef __cplusplus
 } // extern "C"

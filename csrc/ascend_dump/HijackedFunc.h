@@ -31,4 +31,11 @@ public:
 
 }; // class HijackedFuncOfAdumpGetDFXInfoAddrForDynamic
 
+class HijackedFuncOfAdumpGetDFXInfoAddrForStatic : public decltype(HijackedFuncHelper(&AdumpGetDFXInfoAddrForStatic)) {
+public:
+    explicit HijackedFuncOfAdumpGetDFXInfoAddrForStatic();
+    void *Call(uint32_t space, uint64_t & atomicIndex) override;
+
+}; // class HijackedFuncOfAdumpGetDFXInfoAddrForStatic
+
 #endif //__ASCEND_DUMP_HIJACKED_FUNC_H__
