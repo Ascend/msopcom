@@ -37,6 +37,7 @@ file(GLOB SOURCE
     CtxCreateV2Test.cpp
     CtxCreateExTest.cpp
     DeviceResetTest.cpp
+    DeviceResetExTest.cpp
     DeviceStatusQueryTest.cpp
 
     injectors/KernelContextTest.cpp

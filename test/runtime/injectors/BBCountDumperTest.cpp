@@ -16,6 +16,7 @@
 
 
 #include <gtest/gtest.h>
+#include <fstream>
 #include "mockcpp/mockcpp.hpp"
 
 #define private public
@@ -139,4 +140,39 @@ TEST(BBCountDumper, SaveBlockMapFile_expect_failed)
     MOCKER(Chmod).stubs().will(returnValue(true));
     BBCountDumper::Instance().SaveBlockMapFile(0, 0, path);
     GlobalMockObject::verify();
+}
+
+TEST(BBCountDumper, saved_block_maps_keep_versions_and_preserve_aligned_count) {
+    BBCountDumper::Instance().Reset();
+    DBITaskConfig::Instance().Reset();
+    const std::string root = "./bbcount_copy_test";
+    const std::string firstOutputDir = JoinPath({root, "output0"});
+    const std::string secondOutputDir = JoinPath({root, "output1"});
+    DBITaskConfig::Instance().SetTmpRootDir(JoinPath({root, "dbi"}));
+    const std::string dbiDir = DBITaskConfig::Instance().GetOutputDir(5);
+    ASSERT_TRUE(MkdirRecusively(dbiDir));
+    ASSERT_TRUE(MkdirRecusively(firstOutputDir));
+    ASSERT_TRUE(MkdirRecusively(secondOutputDir));
+    {
+        std::ofstream map(JoinPath({dbiDir, "kernel7Stub.o.bbbmap"}));
+        map << "BBB id 0\nother metadata\nBBB id 1\nBBB id 2\n";
+        std::ofstream kernel(JoinPath({dbiDir, "kernel7.o"}));
+        kernel << "binary";
+    }
+    BBCountDumper::Instance().SaveBlockMapFile(5, 7, firstOutputDir);
+    BBCountDumper::Instance().SaveBlockMapFile(5, 7, secondOutputDir);
+    EXPECT_TRUE(IsPathExists(JoinPath({firstOutputDir, "kernel7Stub.o.bbbmap.0"})));
+    EXPECT_TRUE(IsPathExists(JoinPath({secondOutputDir, "kernel7Stub.o.bbbmap.1"})));
+    EXPECT_TRUE(IsPathExists(JoinPath({firstOutputDir, "kernel7.o"})));
+    EXPECT_TRUE(IsPathExists(JoinPath({secondOutputDir, "kernel7.o"})));
+    MOCKER(&CheckInputFileValid).stubs().will(returnValue(true));
+    const uint64_t expectedBytes = 256 * C220_MIX_SUB_BLOCKDIM * MAX_BLOCKDIM_NUMS;
+    EXPECT_EQ(BBCountDumper::Instance().GetMemSize(7, secondOutputDir), expectedBytes);
+    uint64_t launchCount = 0;
+    ASSERT_TRUE(BBCountDumper::Instance().GetLaunchCount(7, launchCount));
+    EXPECT_EQ(launchCount, 1U);
+    GlobalMockObject::verify();
+    RemoveAll(root);
+    DBITaskConfig::Instance().Reset();
+    BBCountDumper::Instance().Reset();
 }

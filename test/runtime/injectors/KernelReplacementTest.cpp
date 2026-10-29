@@ -16,12 +16,15 @@
 
 
 #include <gtest/gtest.h>
+#include <cstring>
 #include "mockcpp/mockcpp.hpp"
 #define private public
 #include "runtime/inject_helpers/KernelReplacement.h"
 #undef private
 
 #include "runtime/inject_helpers/KernelContext.h"
+#include "runtime/inject_helpers/LaunchManager.h"
+#include "acl_rt_impl/AscendclImplOrigin.h"
 #include "runtime/RuntimeOrigin.h"
 #include "utils/FileSystem.h"
 
@@ -122,6 +125,56 @@ TEST(KernelDumper, set_match_config_test_dump_expect_success)
     config.launchId = 0;
     KernelDumper::Instance().Init("./", config);
     EXPECT_TRUE(KernelDumper::Instance().Dump(0));
+    KernelDumper::Instance() = KernelDumper();
+    GlobalMockObject::verify();
+}
+
+namespace {
+rtStream_t registeredDumpStream = nullptr;
+bool registeredCallbackBlocks = false;
+aclrtCallback registeredAclCallback = nullptr;
+void *registeredAclCallbackData = nullptr;
+rtError_t CaptureDumpCallback(rtCallback_t callback, void *data, rtStream_t stream, bool isBlock) {
+    EXPECT_EQ(callback, &KernelDumper::DumpDataCallback);
+    EXPECT_NE(data, nullptr);
+    registeredDumpStream = stream;
+    registeredCallbackBlocks = isBlock;
+    return RT_ERROR_NONE;
+}
+aclError CaptureAclDumpCallback(aclrtCallback callback, void *data, aclrtCallbackBlockType blockType,
+    aclrtStream stream) {
+    EXPECT_EQ(blockType, ACL_CALLBACK_BLOCK);
+    EXPECT_EQ(stream, registeredDumpStream);
+    registeredAclCallback = callback;
+    registeredAclCallbackData = data;
+    return ACL_SUCCESS;
+}
+}
+
+TEST(KernelDumper, launch_dump_task_registers_runtime_and_acl_callbacks) {
+    KernelDumper::Instance() = KernelDumper();
+    MOCKER(&KernelContext::DeviceContext::SubscribeReport).stubs().will(returnValue(true));
+    MOCKER(rtCallbackLaunchOrigin).stubs().will(invoke(CaptureDumpCallback));
+    auto launchCtx = std::make_shared<LaunchContext>(nullptr, nullptr, LaunchParam{1, nullptr, false, 7});
+    MOCKER(&LaunchManager::GetLastContext).stubs().will(returnValue(launchCtx));
+    MOCKER(aclrtLaunchCallbackImplOrigin).stubs().will(invoke(CaptureAclDumpCallback));
+    int streamStorage = 0;
+    auto stream = static_cast<rtStream_t>(&streamStorage);
+    registeredDumpStream = nullptr;
+    registeredCallbackBlocks = false;
+    EXPECT_TRUE(KernelDumper::Instance().LaunchDumpTask(stream));
+    EXPECT_EQ(registeredDumpStream, stream);
+    EXPECT_TRUE(registeredCallbackBlocks);
+    registeredAclCallback = nullptr;
+    registeredAclCallbackData = nullptr;
+    EXPECT_TRUE(KernelDumper::Instance().LaunchDumpTask(stream, true));
+    ASSERT_NE(registeredAclCallback, nullptr);
+    ASSERT_NE(registeredAclCallbackData, nullptr);
+    struct CallbackData { uint64_t launchId; bool aclNew; } callbackData{};
+    std::memcpy(&callbackData, registeredAclCallbackData, sizeof(callbackData));
+    EXPECT_EQ(callbackData.launchId, 7U);
+    EXPECT_TRUE(callbackData.aclNew);
+    registeredAclCallback(registeredAclCallbackData);
     KernelDumper::Instance() = KernelDumper();
     GlobalMockObject::verify();
 }

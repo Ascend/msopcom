@@ -20,10 +20,44 @@
 #define protected public
 #include "runtime/inject_helpers/ProfConfig.h"
 #include "profapi/HijackedFunc.h"
+#include "profapi/RegisterMsopprofProfileCallback.h"
 #undef private
 #undef protected
 #include "core/FuncSelector.h"
 #include "profapi/ProfInjectHelper.h"
+#include <map>
+
+namespace {
+std::map<uint32_t, VOID_PTR> g_registeredCallbacks;
+size_t g_registrationCalls = 0;
+int32_t RecordProfileCallback(uint32_t type, VOID_PTR callback, uint32_t len) {
+    ++g_registrationCalls;
+    if (len == sizeof(VOID_PTR)) {
+        g_registeredCallbacks[type] = callback;
+    }
+    return MSOPPROF_FUNC_REGISTER_SUCCESS;
+}
+}
+
+TEST(RegisterMsopprofProfileCallbackTest, registers_each_report_callback_once) {
+    auto *registry = RegisterMsopprofProfileCallback::Instance();
+    registry->register_ = false;
+    registry->callBackFuncMap.clear();
+    g_registeredCallbacks.clear();
+    g_registrationCalls = 0;
+    MOCKER(&MsprofRegisterProfileCallbackOrigin).stubs().will(invoke(RecordProfileCallback));
+    registry->RegisterFuncMsprof();
+    EXPECT_EQ(g_registrationCalls, 8U);
+    EXPECT_EQ(g_registeredCallbacks.size(), 8U);
+    for (const auto &entry : g_registeredCallbacks) {
+        EXPECT_NE(entry.second, nullptr);
+    }
+    registry->RegisterFuncMsprof();
+    EXPECT_EQ(g_registrationCalls, 8U);
+    registry->register_ = false;
+    registry->callBackFuncMap.clear();
+    GlobalMockObject::verify();
+}
 
 int g_callbackTime = 0;
 int32_t CallbackHandle(uint32_t type, void *data, uint32_t len)

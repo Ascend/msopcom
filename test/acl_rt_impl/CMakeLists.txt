@@ -28,9 +28,11 @@ file(GLOB SOURCE
     HijackedFuncOfAclrtFreeWithDevSyncImplTest.cpp
     HijackFuncOfLaunchKernelTest.cpp
     HijackedFuncOfAclrtMallocImplTest.cpp
+    HijackedFuncOfAclrtMallocAlign32ImplTest.cpp
     HijackedFuncOfAclrtKernelArgsInitByUserMemImplTest.cpp
     HijackedFuncOfAclrtMapMemImplTest.cpp
     injectors/ArgsManagerTest.cpp
+    injectors/ArgsRawContextTest.cpp
     injectors/ArgsHandleContextTest.cpp
     injectors/LaunchManagerTest.cpp
     injectors/LaunchContextTest.cpp

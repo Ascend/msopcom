@@ -14,7 +14,6 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
- 
 #include <gtest/gtest.h>
 #include <cstdlib>
 #include "mockcpp/mockcpp.hpp"
@@ -58,6 +57,45 @@ public:
     FuncContextSP stubFuncCtx_;
     FuncContextSP tilingFuncCtx_;
 };
+
+namespace {
+int64_t runtimeKernelType = 0;
+aclError ReturnRuntimeKernelType(aclrtFuncHandle, aclrtFuncAttribute, int64_t *value) {
+    *value = runtimeKernelType;
+    return ACL_SUCCESS;
+}
+
+aclError ReturnTwoParamCount(const void *, size_t *count) {
+    *count = 2;
+    return ACL_SUCCESS;
+}
+
+aclError ReturnParamLayout(const void *, size_t index, size_t *offset, size_t *size) {
+    *offset = index * 16;
+    *size = index == 0 ? 8 : 4;
+    return ACL_SUCCESS;
+}
+}
+
+TEST_F(FuncContextTest, mixed_binary_uses_runtime_function_core_type) {
+    MOCKER(&MagicToKernelType).stubs().will(returnValue(KernelType::MIX));
+    MOCKER(aclrtGetFunctionAttributeImplOrigin).stubs().will(invoke(ReturnRuntimeKernelType));
+    runtimeKernelType = static_cast<int64_t>(aclrtKernelType::ACL_KERNEL_TYPE_VECTOR);
+    EXPECT_EQ(stubFuncCtx_->GetKernelType(), KernelType::AIVEC);
+    runtimeKernelType = static_cast<int64_t>(aclrtKernelType::ACL_KERNEL_TYPE_CUBE);
+    EXPECT_EQ(stubFuncCtx_->GetKernelType(), KernelType::AICUBE);
+    runtimeKernelType = static_cast<int64_t>(aclrtKernelType::ACL_KERNEL_TYPE_AICPU);
+    EXPECT_EQ(stubFuncCtx_->GetKernelType(), KernelType::AICPU);
+}
+
+TEST_F(FuncContextTest, function_parameter_layout_is_cached_for_args_array_launch) {
+    MOCKER(aclrtFunctionGetParamCountImplOrigin).stubs().will(invoke(ReturnTwoParamCount));
+    MOCKER(aclrtFunctionGetParamInfoImplOrigin).stubs().will(invoke(ReturnParamLayout));
+    ASSERT_TRUE(stubFuncCtx_->QueryParamInfo());
+    EXPECT_EQ(stubFuncCtx_->GetParamCount(), 2U);
+    EXPECT_EQ(stubFuncCtx_->GetParamOffsets(), (std::vector<size_t>{0, 16}));
+    EXPECT_EQ(stubFuncCtx_->GetParamSizes(), (std::vector<size_t>{8, 4}));
+}
 
 TEST_F(FuncContextTest, mock_kernel_addr_then_test_get_start_pc_expect_success)
 {

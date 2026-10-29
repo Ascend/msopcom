@@ -16,6 +16,8 @@
 
 
 #include <gtest/gtest.h>
+#include <array>
+#include <cstring>
 #include <random>
 #include <string>
 
@@ -33,6 +35,7 @@
 #include "runtime/inject_helpers/MemoryDataCollect.h"
 #undef private
 #include "runtime/inject_helpers/InstrReport.h"
+#include "runtime/inject_helpers/LaunchInitFinalize.h"
 #include "runtime/inject_helpers/DeviceContext.h"
 #include "runtime/inject_helpers/InteractHelper.h"
 
@@ -127,6 +130,60 @@ aclError GetDeviceOriginStub(int32_t *devId)
     static int curDevId = 0;
     *devId = ++curDevId;
     return ACL_ERROR_NONE;
+}
+
+std::string g_finalizedPacket;
+std::array<uint8_t, sizeof(Register)> g_finalizedRegisters{};
+const void *g_hostInfoSource = nullptr;
+size_t g_hostInfoCopied = 0;
+aclError CopyFinalizeRecord(void *dst, size_t destMax, const void *src, size_t count, aclrtMemcpyKind kind) {
+    if (destMax < count) {
+        return ACL_ERROR_BAD_ALLOC;
+    }
+    if (src == g_hostInfoSource) {
+        g_hostInfoCopied = count;
+    }
+    std::memcpy(dst, src, count);
+    if (kind == ACL_MEMCPY_HOST_TO_HOST && count >= g_finalizedRegisters.size()) {
+        std::memcpy(g_finalizedRegisters.data(), dst, g_finalizedRegisters.size());
+    }
+    return ACL_SUCCESS;
+}
+
+int CaptureFinalizePacket(LocalProcess *, const std::string &message) {
+    g_finalizedPacket = message;
+    return message.size();
+}
+
+void MockFinalizeIO(uint32_t cacheSize) {
+    SanitizerConfig config{};
+    config.cacheSize = cacheSize;
+    MOCKER(&SanitizerConfigManager::GetConfig).stubs().will(returnValue(config));
+    MOCKER(&aclrtMemcpyImplOrigin).stubs().will(invoke(CopyFinalizeRecord));
+    MOCKER(&LocalProcess::Notify).stubs().will(invoke(CaptureFinalizePacket));
+    MOCKER(&LocalDevice::Wait).stubs().will(returnValue(0));
+    g_finalizedPacket.clear();
+}
+
+std::vector<uint8_t> MakeFinalizeRecord(bool withInstructions) {
+    constexpr size_t cacheBytes = MB_TO_BYTES;
+    std::vector<uint8_t> deviceMemory(sizeof(RecordGlobalHead) + sizeof(RecordBlockHead) + cacheBytes);
+    RecordGlobalHead globalHead{};
+    globalHead.kernelInfo.totalBlockDim = 1;
+    globalHead.checkParms.cacheSize = 1;
+    globalHead.offsetInfo.blockHeadSize = sizeof(RecordBlockHead);
+    std::memset(&globalHead.registers[0], 0x5A, sizeof(Register));
+    std::memcpy(deviceMemory.data(), &globalHead, sizeof(globalHead));
+    RecordBlockHead blockHead{};
+    if (withInstructions) {
+        blockHead.offset = 16;
+        blockHead.writeOffset = 16;
+        blockHead.recordCount = 1;
+        blockHead.recordWriteCount = 1;
+        std::memset(deviceMemory.data() + sizeof(globalHead) + sizeof(blockHead), 0x7B, 16);
+    }
+    std::memcpy(deviceMemory.data() + sizeof(globalHead), &blockHead, sizeof(blockHead));
+    return deviceMemory;
 }
 
 }  // namespace [Dummy]
@@ -256,6 +313,60 @@ TEST_F(InstrReportTest, finalize_with_blocks_of_records_expect_return)
 
     __sanitizer_finalize(nullptr, 1);
     GlobalMockObject::verify();
+}
+
+TEST_F(InstrReportTest, finalize_preserves_registers_and_includes_written_instructions) {
+    MockFinalizeIO(1);
+    for (bool withInstructions : {false, true}) {
+        g_finalizedPacket.clear();
+        auto record = MakeFinalizeRecord(withInstructions);
+        SanitizerLaunchFinalize finalize;
+        finalize.Init(record.data(), 1);
+        finalize.Process();
+        EXPECT_EQ(std::memcmp(g_finalizedRegisters.data(),
+            record.data() + offsetof(RecordGlobalHeadImpl, registers), sizeof(Register)), 0);
+        EXPECT_GT(g_finalizedPacket.size(), sizeof(RecordGlobalHead) + sizeof(RecordBlockHead));
+        if (withInstructions) {
+            EXPECT_NE(g_finalizedPacket.find(std::string(16, static_cast<char>(0x7B))), std::string::npos);
+        }
+    }
+}
+
+TEST_F(InstrReportTest, finalize_simt_block_reads_host_memory_description) {
+    MockFinalizeIO(3);
+    auto record = MakeFinalizeRecord(false);
+    record.resize(sizeof(RecordGlobalHead) + sizeof(RecordBlockHead) + 3 * MB_TO_BYTES);
+    auto *globalHead = reinterpret_cast<RecordGlobalHead *>(record.data());
+    globalHead->supportSimt = true;
+    globalHead->offsetInfo.blockHeadSize = sizeof(RecordBlockHead) + sizeof(HostMemoryInfo);
+    auto *blockHead = reinterpret_cast<RecordBlockHead *>(record.data() + sizeof(RecordGlobalHead));
+    blockHead->hostMemoryNum = 1;
+    HostMemoryInfo hostInfo{};
+    hostInfo.addr = 0x12340000;
+    hostInfo.size = 64;
+    auto *hostInfoData = record.data() + sizeof(RecordGlobalHead) + sizeof(RecordBlockHead);
+    std::memcpy(hostInfoData, &hostInfo, sizeof(hostInfo));
+    g_hostInfoSource = hostInfoData;
+    g_hostInfoCopied = 0;
+    SanitizerLaunchFinalize finalize;
+    finalize.Init(record.data(), 1);
+    finalize.Process();
+    EXPECT_EQ(g_hostInfoCopied, sizeof(HostMemoryInfo));
+    EXPECT_FALSE(g_finalizedPacket.empty());
+    g_hostInfoSource = nullptr;
+}
+
+TEST_F(InstrReportTest, mixed_binary_selects_kernel_type_from_registered_kernel_names) {
+    KernelContext::RegisterEvent registration{};
+    registration.bin.magic = RT_DEV_BINARY_MAGIC_ELF;
+    KernelContext::LaunchEvent launch{};
+    launch.kernelName = "op_mix_aic";
+    registration.kernelNames = {"op_mix_aic"};
+    EXPECT_EQ(GetKernelType(registration, launch), KernelType::AICUBE);
+    registration.kernelNames = {"op_mix_aiv"};
+    EXPECT_EQ(GetKernelType(registration, launch), KernelType::AIVEC);
+    registration.kernelNames = {"op_mix_aic", "op_mix_aiv"};
+    EXPECT_EQ(GetKernelType(registration, launch), KernelType::MIX);
 }
 
 TEST_F(InstrReportTest, input_valid_soc_info_expect_correct_arch_name)

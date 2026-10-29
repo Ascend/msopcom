@@ -14,12 +14,14 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
+#include "runtime/inject_helpers/KernelMetaDataParser.h"
 #include <gtest/gtest.h>
 #include <cstdlib>
 #include "mockcpp/mockcpp.hpp"
 #include "acl_rt_impl/HijackedFunc.h"
 #include "runtime/inject_helpers/RegisterContext.h"
 #include "runtime/inject_helpers/RegisterManager.h"
+#include "runtime/inject_helpers/DeviceContext.h"
 #include "acl_rt_impl/AscendclImplOrigin.h"
 #include "utils/FileSystem.h"
 #include "utils/ElfLoader.h"
@@ -273,6 +275,70 @@ TEST(RegisterContext, get_meta_section_with_nonexistent_section_expect_return_ze
     std::vector<uint8_t> parsed;
     ASSERT_EQ(GetMetaSection(binary, "missing_kernel", parsed), 0);
     ASSERT_TRUE(parsed.empty());
+}
+
+TEST(RegisterContext, a2_binary_magic_maps_to_runtime_core_flags) {
+    DeviceContext::Local().SetSocVersion("Ascend910B");
+    EXPECT_EQ(GetFlagByMagic(RT_DEV_BINARY_MAGIC_ELF_AIVEC), FLAG_A2_AIV);
+    EXPECT_EQ(GetFlagByMagic(RT_DEV_BINARY_MAGIC_ELF_AICUBE), FLAG_A2_AIC);
+    EXPECT_EQ(GetFlagByMagic(RT_DEV_BINARY_MAGIC_ELF), FLAG_A2_AIC);
+    EXPECT_EQ(GetFlagByMagic(RT_DEV_BINARY_MAGIC_ELF_AICPU), 0U);
+    DeviceContext::Local().SetSocVersion("Ascend310P");
+    EXPECT_EQ(GetFlagByMagic(RT_DEV_BINARY_MAGIC_ELF_AIVEC), 0U);
+}
+
+namespace {
+void AppendArg(std::vector<uint8_t> &payload, DfxTensorType tensor, DfxPointerType pointer, uint64_t length,
+    bool hasLength = true) {
+    payload.insert(payload.end(), {0, 0, 0, static_cast<uint8_t>(hasLength ? 2 : 1)});
+    payload.insert(payload.end(), {0, 0, 0, 0, 0, static_cast<uint8_t>(pointer), 0, static_cast<uint8_t>(tensor)});
+    if (hasLength) {
+        for (int shift = 56; shift >= 0; shift -= 8) {
+            payload.push_back(static_cast<uint8_t>(length >> shift));
+        }
+    }
+}
+
+std::vector<uint8_t> MakeDfxMeta(const std::vector<uint8_t> &payload) {
+    std::vector<uint8_t> meta{4, 0, static_cast<uint8_t>(payload.size()),
+        static_cast<uint8_t>(payload.size() >> 8)};
+    meta.insert(meta.end(), payload.begin(), payload.end());
+    return meta;
+}
+}
+
+TEST(KernelMetaDataParserTest, parses_input_tiling_and_mc2_context_from_binary_metadata) {
+    std::vector<uint8_t> payload;
+    AppendArg(payload, DfxTensorType::INPUT_TENSOR, DfxPointerType::LEVEL_1_POINTER, 64);
+    AppendArg(payload, DfxTensorType::TILING_DATA, DfxPointerType::LEVEL_1_POINTER, 16);
+    AppendArg(payload, DfxTensorType::MC2_CTX, DfxPointerType::LEVEL_1_POINTER, 0, false);
+    KernelMetaDataParser parser(MakeDfxMeta(payload));
+    ASSERT_TRUE(parser.Parse());
+    const auto &info = parser.GetOpMemInfo();
+    ASSERT_EQ(info.inputParamsAddrInfos.size(), 2U);
+    EXPECT_EQ(info.inputParamsAddrInfos[0].length, 64U);
+    EXPECT_EQ(info.inputParamsAddrInfos[0].paramsNo, 1U);
+    EXPECT_EQ(info.inputParamsAddrInfos[1].memInfoDesc, MemInfoDesc::HCCL_MC2_CONTEXT);
+    EXPECT_TRUE(info.hasMc2Ctx);
+    EXPECT_EQ(info.tilingDataSize, 16U);
+    EXPECT_EQ(info.tilingParamsNo, 2U);
+}
+
+TEST(KernelMetaDataParserTest, unsupported_pointer_rejects_metadata_without_partial_inputs) {
+    std::vector<uint8_t> payload;
+    AppendArg(payload, DfxTensorType::INPUT_TENSOR, DfxPointerType::LEVEL_1_POINTER, 64);
+    AppendArg(payload, DfxTensorType::INPUT_TENSOR, DfxPointerType::LEVEL_2_POINTER, 32);
+    KernelMetaDataParser parser(MakeDfxMeta(payload));
+    EXPECT_FALSE(parser.Parse());
+    EXPECT_TRUE(parser.GetOpMemInfo().inputParamsAddrInfos.empty());
+}
+
+TEST(KernelMetaDataParserTest, truncated_metadata_is_rejected_and_tik_marker_is_recognized) {
+    KernelMetaDataParser truncated({4, 0, 1});
+    EXPECT_FALSE(truncated.Parse());
+    KernelMetaDataParser tik({6, 0, 0, 0});
+    EXPECT_TRUE(tik.Parse());
+    EXPECT_TRUE(tik.GetOpMemInfo().isTik);
 }
 
 TEST(RegisterContext, scan_kernel_symbols_with_global_func_symbols_expect_success) {

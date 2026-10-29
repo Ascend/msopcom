@@ -15,6 +15,15 @@
  * ------------------------------------------------------------------------- */
 
 
+#include <array>
+#include <chrono>
+#include <condition_variable>
+#include <cstring>
+#include <mutex>
+#include <string>
+#define private public
+#include "runtime/inject_helpers/ProfConfig.h"
+#undef private
 #include <vector>
 #include <gtest/gtest.h>
 #include "camodel/Camodel.h"
@@ -125,4 +134,93 @@ TEST_F(CamodelTest, mock_DvcAttachLogCallback_then_call_dvc_icache_log_expect_re
     // 我们需要等待监听线程接受到消息后并处理，否则该函数就会结束，mock可能也结束，那么就会报错
     sleep(1);
     ASSERT_GT(gReceivedData.length(), 0);
+}
+
+namespace {
+std::mutex g_messageMutex;
+std::condition_variable g_messageReady;
+std::vector<std::string> g_messages;
+void RecordMessage(ProfConfig *, const std::string &message) {
+    std::lock_guard<std::mutex> guard(g_messageMutex);
+    g_messages.push_back(message);
+    g_messageReady.notify_all();
+}
+
+std::string WaitForMessage(size_t index) {
+    std::unique_lock<std::mutex> guard(g_messageMutex);
+    if (!g_messageReady.wait_for(guard, std::chrono::seconds(2), [index] { return g_messages.size() > index; })) {
+        return {};
+    }
+    return g_messages[index];
+}
+}
+class CamodelV2Test : public testing::Test {
+protected:
+    void SetUp() override {
+        MOCKER(&GetEnv).stubs().will(returnValue(std::string("true")));
+        previousSocVersion_ = ProfConfig::Instance().socVersion_;
+        ProfConfig::Instance().socVersion_ = "Ascend950DT_950x";
+        MessageOfProfConfig config{};
+        config.pmSamplingEnable = true;
+        ProfConfig::Instance().Init(config);
+        CamodelHelper::Instance().Enable();
+        {
+            std::lock_guard<std::mutex> guard(g_messageMutex);
+            g_messages.clear();
+        }
+        MOCKER(&DvcSetLogLevelOrigin).stubs().will(returnValue(0));
+        MOCKER(&DvcAttachLogCallbackOrigin).stubs().will(invoke(RecordDvcCallback));
+        MOCKER(&ProfConfig::SendMsg).stubs().will(invoke(RecordMessage));
+        CamodelCtor();
+    }
+
+    void TearDown() override {
+        CamodelHelper::Instance().SendSync();
+        GlobalMockObject::verify();
+        ProfConfig::Instance().socVersion_ = previousSocVersion_;
+    }
+
+private:
+    std::string previousSocVersion_;
+};
+
+TEST_F(CamodelV2Test, forwards_v2_fields_and_discards_invalid_optional_json) {
+    struct Case {
+        DvcLogType_t logType;
+        uint64_t time;
+        DvcInstrLogEntryV2_t entry;
+        ProfPacketType packetType;
+        const char *expectedJson;
+    };
+    const std::array<Case, 2> cases{{
+        {DvcLogType::DVC_INSTR_LOG, 123, {3, 1, 0x9000, "MOV_XD_SPR", nullptr, R"({"burst_len":128})"},
+            ProfPacketType::INSTR_LOG, R"({"burst_len":128})"},
+        {DvcLogType::DVC_INSTR_POPPED_LOG, 456, {4, 2, 0x9010, "MOV_SRC", nullptr, "{invalid"},
+            ProfPacketType::POPPED_LOG, ""}
+    }};
+    for (size_t i = 0; i < cases.size(); ++i) {
+        auto callback = gCallbacks[static_cast<size_t>(cases[i].logType)].instrLogCbV2;
+        ASSERT_NE(callback, nullptr);
+        callback(cases[i].time, &cases[i].entry);
+        const std::string message = WaitForMessage(i);
+        ASSERT_EQ(message.size(), sizeof(ProfPacketHead) + sizeof(Common::DvcInstrLogV2));
+        ProfPacketHead head{};
+        Common::DvcInstrLogV2 payload{};
+        std::memcpy(&head, message.data(), sizeof(head));
+        std::memcpy(&payload, message.data() + sizeof(head), sizeof(payload));
+        EXPECT_EQ(head.type, cases[i].packetType);
+        EXPECT_EQ(payload.time, cases[i].time);
+        EXPECT_EQ(payload.pc, cases[i].entry.pc);
+        EXPECT_EQ(payload.coreId, cases[i].entry.core_id);
+        EXPECT_EQ(payload.subCoreId, cases[i].entry.sub_core_id);
+        EXPECT_STREQ(payload.decodeDescr, cases[i].entry.decode_descr);
+        EXPECT_STREQ(payload.extendParamsJson, cases[i].expectedJson);
+    }
+    auto callback = gCallbacks[static_cast<size_t>(DvcLogType::DVC_INSTR_LOG)].instrLogCbV2;
+    ASSERT_NE(callback, nullptr);
+    DvcInstrLogEntryV2_t instruction{3, 1, 0x9000, "", nullptr, nullptr};
+    callback(123, &instruction);
+    CamodelHelper::Instance().SendSync();
+    std::lock_guard<std::mutex> guard(g_messageMutex);
+    EXPECT_EQ(g_messages.size(), cases.size());
 }

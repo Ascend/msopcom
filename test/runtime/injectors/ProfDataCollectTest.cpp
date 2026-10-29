@@ -103,6 +103,32 @@ TEST_F(ProfDataCollectTest, prof_success_when_app_replay)
     ASSERT_TRUE(profDataCollect.ProfData(stream, func));
 }
 
+TEST_F(ProfDataCollectTest, instr_profile_runs_kernel_once_and_restores_memory) {
+    MOCKER(&LocalProcess::Notify).stubs().will(returnValue(0));
+    MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
+    DeviceContext::Local().SetSocVersion("Ascend910B");
+    MessageOfProfConfig config{};
+    config.profWarmUpTimes = 0;
+    ProfConfig::Instance().Init(config);
+    MOCKER(&ProfConfig::GetOutputPathFromRemote).stubs().will(returnValue(path_));
+    MOCKER(&MemoryContext::Backup).expects(once()).will(returnValue(true));
+    MOCKER(&MemoryContext::Restore).expects(once()).will(returnValue(true));
+    MOCKER(aclrtSynchronizeStreamImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
+    MOCKER(aclrtSynchronizeStreamWithTimeoutImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
+    MOCKER(prof_drv_start_origin).stubs().will(returnValue(0));
+    MOCKER(prof_stop_origin).stubs().will(returnValue(0));
+    MOCKER(prof_channel_poll_origin).stubs().will(returnValue(0));
+    MOCKER(&KernelContext::GetMC2Flag).stubs().will(returnValue(false));
+    MOCKER(&KernelContext::GetLcclFlag).stubs().will(returnValue(false));
+    ProfDataCollect collector;
+    int launchCount = 0;
+    EXPECT_TRUE(collector.InstrProfData(nullptr, [&launchCount] {
+        ++launchCount;
+        return true;
+    }));
+    EXPECT_EQ(launchCount, 1);
+}
+
 TEST_F(ProfDataCollectTest, prof_310_failed_when_app_replay)
 {
     MOCKER(&LocalProcess::Notify).stubs().will(returnValue(0));
@@ -257,7 +283,6 @@ TEST_F(ProfDataCollectTest, prof_success_when_kernel_replay_start_success_and_sa
     ASSERT_TRUE(profDataCollect.ProfData(stream, func));
     RemoveAll(path);
 }
-
 TEST_F(ProfDataCollectTest, ProfData_success_when_mc2_operator_run_success)
 {
     MOCKER(&LocalProcess::Notify).stubs().will(returnValue(0));
