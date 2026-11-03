@@ -25,7 +25,6 @@ on:
 jobs:
   JOB_smoke:
     name: JOB_smoke
-    continue-on-error: true
     env:
       ARTIFACT_NAME: ${{ format('{0}-{1}', inputs.ARTIFACT_NAME, atomgit.run_number) }}
     select: selected_by_default
