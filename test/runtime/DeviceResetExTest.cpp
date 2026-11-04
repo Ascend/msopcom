@@ -28,6 +28,7 @@
 #include "core/DomainSocket.h"
 #include "core/FuncSelector.h"
 #include "utils/Serialize.h"
+#include "runtime/inject_helpers/MemoryDataCollect.h"
 #include "mockcpp/mockcpp.hpp"
 
 namespace {
@@ -68,9 +69,11 @@ TEST(rtDeviceResetEx, sanitizer_reports_the_reset_device_after_success) {
     MOCKER(&LocalDevice::Notify).stubs().will(invoke(CaptureDeviceSummary));
     DeviceContext::Instance(3).SetSocVersion("Ascend910B");
     resetPackets.clear();
+    PeerAccessState::Instance().Apply(2, 3, PeerAccessOp::ENABLE);
     HijackedFuncOfDeviceResetEx instance;
     instance.originfunc_ = RecordDeviceReset;
     EXPECT_EQ(instance.Call(3), RT_ERROR_NONE);
+    EXPECT_TRUE(PeerAccessState::Instance().Snapshot(2).empty());
     PacketHead head{PacketType::DEVICE_SUMMARY};
     DeviceSummary summary{};
     summary.deviceId = 3;

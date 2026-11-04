@@ -18,6 +18,7 @@
 #include "core/FuncSelector.h"
 #include "runtime/inject_helpers/InteractHelper.h"
 #include "runtime/inject_helpers/ThreadContext.h"
+#include "runtime/inject_helpers/MemoryDataCollect.h"
 #include "acl_rt_impl/AclRuntimeConfig.h"
 #include "utils/Protocol.h"
 #include "utils/InjectLogger.h"
@@ -33,6 +34,7 @@ void HijackedFuncOfAclrtDeviceEnablePeerAccessImpl::Pre(int32_t peerDeviceId, ui
 aclError HijackedFuncOfAclrtDeviceEnablePeerAccessImpl::Post(aclError ret) {
     if (ret == ACL_SUCCESS && IsSanitizer()) {
         PeerAccessRecord record{deviceId_, peerDeviceId_, PeerAccessOp::ENABLE};
+        PeerAccessState::Instance().Apply(deviceId_, peerDeviceId_, PeerAccessOp::ENABLE);
         InteractHelper::Notify(deviceId_, PacketType::PEER_ACCESS_RECORD, record);
     }
     return ret;

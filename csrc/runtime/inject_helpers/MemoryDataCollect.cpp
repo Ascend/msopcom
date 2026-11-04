@@ -83,6 +83,7 @@ template <>
 void MemoryManage::CacheMemory<MemoryOpType::MALLOC>(uint64_t addr, MemInfoSrc infoSrc,
     uint64_t size, bool isUpdateCount)
 {
+    std::lock_guard<std::mutex> lock(memoryMutex_);
     if (isUpdateCount) {
         mallocCount_++;
     }
@@ -98,6 +99,7 @@ template <>
 void MemoryManage::CacheMemory<MemoryOpType::FREE>(uint64_t addr, MemInfoSrc infoSrc,
     uint64_t size, bool isUpdateCount)
 {
+    std::lock_guard<std::mutex> lock(memoryMutex_);
     (void)size;
     (void)isUpdateCount;
     for (const auto &it : this->memoryOpAddrInfos_) {
@@ -115,6 +117,7 @@ void MemoryManage::CacheMemory<MemoryOpType::FREE>(uint64_t addr, MemInfoSrc inf
 
 void MemoryManage::SetPermission(uint64_t addr, uint64_t size, uint32_t permission)
 {
+    std::lock_guard<std::mutex> lock(memoryMutex_);
     for (auto it = memoryOpAddrInfos_.begin(); it != memoryOpAddrInfos_.end(); ++it) {
         if (it->addr == addr && it->length == size) {
             AddrInfo addrInfo{*it};
@@ -223,8 +226,14 @@ MemoryManage::AddrsVec MemoryManage::MergeHostMems()
     return merged;
 }
 
+MemoryManage::AddrsVec MemoryManage::SnapshotOnlineRanges() {
+    std::lock_guard<std::mutex> lock(memoryMutex_);
+    return ExtractValidMems(memoryOpAddrInfos_);
+}
+
 void MemoryManage::UpdateMemoryOp()
 {
+    std::lock_guard<std::mutex> lock(memoryMutex_);
     for (auto it = memoryOpAddrInfos_.begin(); it != memoryOpAddrInfos_.end();) {
         if (it->addr != 0x0 && it->length != 0) {
             it++;
@@ -235,15 +244,60 @@ void MemoryManage::UpdateMemoryOp()
     mallocCount_ = memoryOpAddrInfos_.size();
 }
 
-MemoryManage &MemoryManage::Instance() {
+MemoryManage &MemoryManage::Instance() { return Instance(ThreadContext::Instance().GetDeviceId()); }
+
+MemoryManage &MemoryManage::Instance(int32_t deviceId) {
+    // 同一 Host 进程的各线程共享每个设备的内存表，供本地和远端启动快照读取。
     static std::unordered_map<int32_t, MemoryManage> deviceInstances_;
+    // 仅保护实例映射的查找和创建；返回后，内存表内容由各实例的 memoryMutex_ 保护。
     static std::mutex instanceMutex_;
-
-    int32_t deviceId = ThreadContext::Instance().GetDeviceId();
-
     std::lock_guard<std::mutex> lock(instanceMutex_);
     auto &instance = deviceInstances_[deviceId];
     return instance;
+}
+
+PeerAccessState &PeerAccessState::Instance() {
+    static PeerAccessState state; // 单进程唯一，所有设备共享
+    return state;
+}
+
+void PeerAccessState::Apply(int32_t deviceId, int32_t peerDeviceId, PeerAccessOp operation) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (deviceId < 0) {
+        return;
+    }
+    if (operation == PeerAccessOp::RESET) {
+        // 双向删除
+        relations_.erase(deviceId);
+        for (auto &entry : relations_) {
+            entry.second.erase(deviceId);
+        }
+    } else if (peerDeviceId >= 0 && peerDeviceId != deviceId) {
+        if (operation == PeerAccessOp::ENABLE) {
+            relations_[deviceId].insert(peerDeviceId);
+        } else if (operation == PeerAccessOp::DISABLE) {
+            relations_[deviceId].erase(peerDeviceId);
+        }
+    }
+}
+
+std::vector<PeerMemoryInfo> PeerAccessState::Snapshot(int32_t deviceId) {
+    // 加锁保证收集期间授权关系不变
+    std::lock_guard<std::mutex> lock(mutex_);
+    std::vector<PeerMemoryInfo> result;
+    auto it = relations_.find(deviceId);
+    if (it == relations_.end()) {
+        return result;
+    }
+    for (int32_t peer : it->second) {
+        // 各个目标设备的内存表分别在 SnapshotOnlineRanges 内部加锁读取
+        for (const auto &memory : MemoryManage::Instance(peer).SnapshotOnlineRanges()) {
+            if (memory.addr != 0 && memory.size != 0) {
+                result.push_back({memory.addr, memory.size, memory.permission, peer});
+            }
+        }
+    }
+    return result;
 }
 
 void ReportMalloc(uint64_t addr, uint64_t size, MemInfoSrc memInfoSrc, MemInfoDesc memInfoDesc, uint64_t paramsNo)

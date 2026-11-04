@@ -48,6 +48,7 @@ file(GLOB SOURCE
     injectors/MsTxTest.cpp
     injectors/ProfConfigTest.cpp
     injectors/MemoryDataCollectTest.cpp
+    injectors/PeerOnlineLaunchTest.cpp
     injectors/DevMemManagerTest.cpp
     injectors/InstrReportTest.cpp
     injectors/BBCountDumperTest.cpp

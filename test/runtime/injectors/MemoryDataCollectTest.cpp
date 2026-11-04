@@ -21,6 +21,11 @@
 #include <gtest/gtest.h>
 #include <map>
 #include <string>
+#include <thread>
+#include <condition_variable>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <cstdlib>
 
 #include "core/DomainSocket.h"
 #include "core/FuncSelector.h"
@@ -28,6 +33,7 @@
 #include "mockcpp/mockcpp.hpp"
 #include "runtime/inject_helpers/KernelContext.h"
 #include "runtime/inject_helpers/LocalDevice.h"
+#include "runtime/inject_helpers/MsTx.h"
 #define private public
 #include "runtime/inject_helpers/MemoryDataCollect.h"
 #undef private
@@ -854,6 +860,84 @@ TEST(MemoryDataCollect, memory_manage_process_mstx_heap_mem_expect_success)
     MemoryManage::Instance().Reset();
 }
 
+TEST(PeerAccessState, SnapshotTracksAuthorizedDeviceAndCurrentAllocation) {
+    constexpr int32_t accessor = 510;
+    constexpr int32_t peer = 511;
+    auto &relations = PeerAccessState::Instance();
+    auto &memory = MemoryManage::Instance(peer);
+    memory.CacheMemory<MemoryOpType::MALLOC>(0x9000, MemInfoSrc::ACL, 128);
+
+    EXPECT_TRUE(relations.Snapshot(accessor).empty());
+    relations.Apply(accessor, peer, PeerAccessOp::ENABLE);
+    auto first = relations.Snapshot(accessor);
+    ASSERT_EQ(first.size(), 1);
+    EXPECT_EQ(first[0].deviceId, peer);
+    EXPECT_EQ(first[0].addr, 0x9000);
+    EXPECT_EQ(first[0].size, 128);
+
+    memory.SetPermission(0x9000, 128, MstxAPI::MSTX_MEM_PERMISSIONS_REGION_FLAGS_READ);
+    auto permissionSnapshot = relations.Snapshot(accessor);
+    ASSERT_EQ(permissionSnapshot.size(), 1);
+    EXPECT_EQ(permissionSnapshot[0].permission, MstxAPI::MSTX_MEM_PERMISSIONS_REGION_FLAGS_READ);
+
+    memory.CacheMemory<MemoryOpType::FREE>(0x9000, MemInfoSrc::ACL);
+    EXPECT_TRUE(relations.Snapshot(accessor).empty());
+    EXPECT_EQ(first[0].addr, 0x9000); // 旧 kernel 的快照不随 FREE 改写。
+    relations.Apply(accessor, peer, PeerAccessOp::DISABLE);
+    relations.Apply(accessor, peer, PeerAccessOp::RESET);
+}
+
+TEST(PeerAccessState, DisableAndResetOnlyRemoveAffectedDirections) {
+    constexpr int32_t a = 520;
+    constexpr int32_t b = 521;
+    constexpr int32_t c = 522;
+    auto &relations = PeerAccessState::Instance();
+    MemoryManage::Instance(b).CacheMemory<MemoryOpType::MALLOC>(0xa000, MemInfoSrc::ACL, 64);
+    MemoryManage::Instance(c).CacheMemory<MemoryOpType::MALLOC>(0xb000, MemInfoSrc::ACL, 64);
+    relations.Apply(a, b, PeerAccessOp::ENABLE);
+    relations.Apply(a, c, PeerAccessOp::ENABLE);
+    relations.Apply(c, b, PeerAccessOp::ENABLE);
+    ASSERT_EQ(relations.Snapshot(a).size(), 2);
+
+    relations.Apply(a, b, PeerAccessOp::DISABLE);
+    ASSERT_EQ(relations.Snapshot(a).size(), 1);
+    EXPECT_EQ(relations.Snapshot(a)[0].deviceId, c);
+    ASSERT_EQ(relations.Snapshot(c).size(), 1);
+    relations.Apply(b, -1, PeerAccessOp::RESET);
+    EXPECT_TRUE(relations.Snapshot(c).empty());
+    ASSERT_EQ(relations.Snapshot(a).size(), 1);
+    relations.Apply(a, -1, PeerAccessOp::RESET);
+    EXPECT_TRUE(relations.Snapshot(a).empty());
+    MemoryManage::Instance(b).CacheMemory<MemoryOpType::FREE>(0xa000, MemInfoSrc::ACL);
+    MemoryManage::Instance(c).CacheMemory<MemoryOpType::FREE>(0xb000, MemInfoSrc::ACL);
+}
+
+TEST(PeerAccessState, SnapshotDuringPeerAllocationUpdates) {
+    constexpr int32_t accessor = 530;
+    constexpr int32_t peer = 531;
+    auto &relations = PeerAccessState::Instance();
+    auto &memory = MemoryManage::Instance(peer);
+    relations.Apply(accessor, peer, PeerAccessOp::ENABLE);
+    std::thread writer([&memory] {
+        for (int i = 0; i < 200; ++i) {
+            memory.CacheMemory<MemoryOpType::MALLOC>(0xc000, MemInfoSrc::ACL, 64);
+            memory.CacheMemory<MemoryOpType::FREE>(0xc000, MemInfoSrc::ACL);
+        }
+    });
+    for (int i = 0; i < 200; ++i) {
+        const auto snapshot = relations.Snapshot(accessor);
+        EXPECT_LE(snapshot.size(), 1);
+        if (!snapshot.empty()) {
+            EXPECT_EQ(snapshot[0].addr, 0xc000);
+            EXPECT_EQ(snapshot[0].size, 64);
+            EXPECT_EQ(snapshot[0].deviceId, peer);
+        }
+    }
+    writer.join();
+    EXPECT_TRUE(relations.Snapshot(accessor).empty());
+    relations.Apply(accessor, peer, PeerAccessOp::RESET);
+}
+
 TEST(MemoryDataCollect, memory_manage_extract_extra_mem_expect_success)
 {
     MemoryManage::Instance().Reset();
@@ -928,4 +1012,175 @@ TEST(MemoryDataCollect, memory_manage_merge_rt_mem_expect_success)
         ASSERT_EQ(extrAddrs[i].size, 0);
     }
     MemoryManage::Instance().Reset();
+}
+
+// 950 在线快照：每个测试使用专属设备号，退出时清理，支持单独过滤和重复运行。
+class PeerOnlineSnapshot : public testing::Test {
+protected:
+    static constexpr int32_t A = 610, B = 611, C = 612;
+    PeerAccessState &state = PeerAccessState::Instance();
+    void SetUp() override { Clear(); }
+    void TearDown() override { Clear(); }
+    void Clear() {
+        for (int32_t dev : {A, B, C}) {
+            state.Apply(dev, -1, PeerAccessOp::RESET);
+            MemoryManage::Instance(dev).Reset();
+        }
+    }
+};
+
+constexpr int32_t PeerOnlineSnapshot::A;
+constexpr int32_t PeerOnlineSnapshot::B;
+constexpr int32_t PeerOnlineSnapshot::C;
+
+TEST_F(PeerOnlineSnapshot, ExplicitDirectionsAreNotTransitiveOrReflexive) {
+    for (int32_t dev : {A, B, C}) {
+        MemoryManage::Instance(dev).CacheMemory<MemoryOpType::MALLOC>(0x1000, MemInfoSrc::ACL, 64);
+    }
+    state.Apply(A, B, PeerAccessOp::ENABLE);
+    state.Apply(A, B, PeerAccessOp::ENABLE);
+    state.Apply(B, C, PeerAccessOp::ENABLE);
+    state.Apply(A, A, PeerAccessOp::ENABLE);
+    state.Apply(A, -1, PeerAccessOp::ENABLE);
+    auto a = state.Snapshot(A);
+    ASSERT_EQ(a.size(), 1);
+    EXPECT_EQ(a[0].deviceId, B);
+    EXPECT_TRUE(state.Snapshot(C).empty());
+    state.Apply(B, A, PeerAccessOp::ENABLE);
+    ASSERT_EQ(state.Snapshot(B).size(), 2);
+    state.Apply(A, B, PeerAccessOp::DISABLE);
+    state.Apply(A, B, PeerAccessOp::DISABLE);
+    EXPECT_TRUE(state.Snapshot(A).empty());
+    EXPECT_EQ(state.Snapshot(B).size(), 2);
+}
+
+TEST_F(PeerOnlineSnapshot, ReusedAddressGetsNewSizeAndPermissionButOldSnapshotIsImmutable) {
+    auto &memory = MemoryManage::Instance(B);
+    state.Apply(A, B, PeerAccessOp::ENABLE);
+    memory.CacheMemory<MemoryOpType::MALLOC>(0x1000, MemInfoSrc::ACL, 128);
+    auto old = state.Snapshot(A);
+    memory.CacheMemory<MemoryOpType::FREE>(0x1000, MemInfoSrc::ACL);
+    EXPECT_TRUE(state.Snapshot(A).empty());
+    memory.CacheMemory<MemoryOpType::MALLOC>(0x1000, MemInfoSrc::ACL, 32);
+    memory.SetPermission(0x1000, 32, MstxAPI::MSTX_MEM_PERMISSIONS_REGION_FLAGS_WRITE);
+    auto current = state.Snapshot(A);
+    ASSERT_EQ(current.size(), 1);
+    EXPECT_EQ(current[0].size, 32);
+    EXPECT_EQ(current[0].permission, MstxAPI::MSTX_MEM_PERMISSIONS_REGION_FLAGS_WRITE);
+    ASSERT_EQ(old.size(), 1);
+    EXPECT_EQ(old[0].size, 128);
+    EXPECT_EQ(old[0].permission, MstxAPI::MSTX_MEM_PERMISSIONS_REGION_FLAGS_DEFAULT);
+    state.Apply(A, B, PeerAccessOp::DISABLE);
+    EXPECT_TRUE(state.Snapshot(A).empty());
+    state.Apply(A, B, PeerAccessOp::ENABLE);
+    EXPECT_EQ(state.Snapshot(A).size(), 1);
+    state.Apply(B, -1, PeerAccessOp::RESET);
+    EXPECT_TRUE(state.Snapshot(A).empty());
+    EXPECT_EQ(current[0].size, 32);
+}
+
+TEST_F(PeerOnlineSnapshot, SourcePriorityAndZeroEntriesMatchOnlineMemoryRules) {
+    auto &memory = MemoryManage::Instance(B);
+    state.Apply(A, B, PeerAccessOp::ENABLE);
+    memory.CacheMemory<MemoryOpType::MALLOC>(0x1000, MemInfoSrc::ACL, 64);
+    memory.CacheMemory<MemoryOpType::MALLOC>(0x2000, MemInfoSrc::RT, 64);
+    memory.CacheMemory<MemoryOpType::MALLOC>(0x3000, MemInfoSrc::MANUAL, 32);
+    memory.CacheMemory<MemoryOpType::MALLOC>(0x4000, MemInfoSrc::BYPASS, 32);
+    memory.CacheMemory<MemoryOpType::MALLOC>(0, MemInfoSrc::ACL, 64);
+    memory.CacheMemory<MemoryOpType::MALLOC>(0x5000, MemInfoSrc::ACL, 0);
+    auto ordinary = state.Snapshot(A);
+    ASSERT_EQ(ordinary.size(), 4);
+    memory.CacheMemory<MemoryOpType::MALLOC>(0x6000, MemInfoSrc::EXTRA, 16);
+    auto extra = state.Snapshot(A);
+    ASSERT_EQ(extra.size(), 3);
+    std::set<uint64_t> addresses;
+    for (const auto &range : extra) {
+        addresses.insert(range.addr);
+    }
+    EXPECT_EQ(addresses, (std::set<uint64_t>{0x3000, 0x4000, 0x6000}));
+}
+
+TEST_F(PeerOnlineSnapshot, MstxHeapRemovesBackingAndKeepsLogicalRegionsAndPermissions) {
+    auto &memory = MemoryManage::Instance(B);
+    state.Apply(A, B, PeerAccessOp::ENABLE);
+    memory.CacheMemory<MemoryOpType::MALLOC>(0x1000, MemInfoSrc::ACL, 256);
+    memory.CacheMemory<MemoryOpType::MALLOC>(0x1000, MemInfoSrc::MSTX_HEAP, 256);
+    memory.CacheMemory<MemoryOpType::MALLOC>(0x1040, MemInfoSrc::MSTX_REGION, 64);
+    memory.SetPermission(0x1040, 64, MstxAPI::MSTX_MEM_PERMISSIONS_REGION_FLAGS_READ);
+    auto ranges = state.Snapshot(A);
+    ASSERT_EQ(ranges.size(), 1);
+    EXPECT_EQ(ranges[0].addr, 0x1040);
+    EXPECT_EQ(ranges[0].size, 64);
+    EXPECT_EQ(ranges[0].permission, MstxAPI::MSTX_MEM_PERMISSIONS_REGION_FLAGS_READ);
+}
+
+TEST_F(PeerOnlineSnapshot, ConditionVariableOrdersAllocationSnapshotPermissionFreeAndRevocation) {
+    std::mutex mutex;
+    std::condition_variable cv;
+    int stage = 0;
+    auto advance = [&](int value) {
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            stage = value;
+        }
+        cv.notify_all();
+    };
+    auto wait = [&](int value) {
+        std::unique_lock<std::mutex> lock(mutex);
+        cv.wait(lock, [&] { return stage >= value; });
+    };
+    std::thread owner([&] {
+        auto &memory = MemoryManage::Instance(B);
+        memory.CacheMemory<MemoryOpType::MALLOC>(0x1000, MemInfoSrc::ACL, 64);
+        state.Apply(A, B, PeerAccessOp::ENABLE);
+        advance(1);
+        wait(2);
+        memory.SetPermission(0x1000, 64, MstxAPI::MSTX_MEM_PERMISSIONS_REGION_FLAGS_READ);
+        advance(3);
+        wait(4);
+        memory.CacheMemory<MemoryOpType::FREE>(0x1000, MemInfoSrc::ACL);
+        state.Apply(A, B, PeerAccessOp::DISABLE);
+        advance(5);
+    });
+    wait(1);
+    auto first = state.Snapshot(A);
+    advance(2);
+    wait(3);
+    auto second = state.Snapshot(A);
+    advance(4);
+    wait(5);
+    auto last = state.Snapshot(A);
+    owner.join(); // 所有致命断言均在 join 后，失败也不会遗留 joinable 线程。
+    ASSERT_EQ(first.size(), 1);
+    ASSERT_EQ(second.size(), 1);
+    EXPECT_EQ(first[0].permission, MstxAPI::MSTX_MEM_PERMISSIONS_REGION_FLAGS_DEFAULT);
+    EXPECT_EQ(second[0].permission, MstxAPI::MSTX_MEM_PERMISSIONS_REGION_FLAGS_READ);
+    EXPECT_TRUE(last.empty());
+}
+
+TEST(PeerOnlineProcess, ExecChildStartsWithoutParentAuthorizationOrAllocations) {
+    constexpr int32_t A = 660, B = 661;
+    auto &state = PeerAccessState::Instance();
+    if (std::getenv("MSOPS_PEER_SNAPSHOT_EXEC_CHILD") != nullptr) {
+        EXPECT_TRUE(state.Snapshot(A).empty());
+        EXPECT_TRUE(MemoryManage::Instance(B).SnapshotOnlineRanges().empty());
+        return;
+    }
+    MemoryManage::Instance(B).CacheMemory<MemoryOpType::MALLOC>(0x1000, MemInfoSrc::ACL, 64);
+    state.Apply(A, B, PeerAccessOp::ENABLE);
+    const pid_t child = fork();
+    ASSERT_GE(child, 0);
+    if (child == 0) {
+        setenv("MSOPS_PEER_SNAPSHOT_EXEC_CHILD", "1", 1);
+        execl("/proc/self/exe", "injectionTest",
+            "--gtest_filter=PeerOnlineProcess.ExecChildStartsWithoutParentAuthorizationOrAllocations", nullptr);
+        _exit(127);
+    }
+    int status = 0;
+    ASSERT_EQ(waitpid(child, &status, 0), child);
+    ASSERT_TRUE(WIFEXITED(status));
+    EXPECT_EQ(WEXITSTATUS(status), 0);
+    EXPECT_EQ(state.Snapshot(A).size(), 1);
+    state.Apply(A, -1, PeerAccessOp::RESET);
+    MemoryManage::Instance(B).CacheMemory<MemoryOpType::FREE>(0x1000, MemInfoSrc::ACL);
 }

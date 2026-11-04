@@ -104,8 +104,9 @@ inline uint64_t GetAllThreadSize(RecordGlobalHead const &globalHead) {
     return (globalHead.offsetInfo.simtErrorInfo.size + sizeof(SimtRecordBlockHead)) * SIMT_THREAD_MAX_SIZE;
 }
 
-inline uint64_t GetRecordHeadSize(uint32_t hostMemoryNum) {
-    return CeilByAlignSize<CACHE_LINE_SIZE>(sizeof(RecordBlockHead) + hostMemoryNum * sizeof(HostMemoryInfo));
+inline uint64_t GetRecordHeadSize(uint32_t hostMemoryNum, uint32_t peerMemoryNum) {
+    return CeilByAlignSize<CACHE_LINE_SIZE>(
+        sizeof(RecordBlockHead) + hostMemoryNum * sizeof(HostMemoryInfo) + peerMemoryNum * sizeof(PeerMemoryInfo));
 }
 
 inline bool AssignMemSize(RecordGlobalHead &head, uint64_t blockDim, DeviceType deviceType) {
@@ -327,6 +328,7 @@ struct SanitizerLaunchGlobalData {
 void SanitizerLaunchInit::Init(uint64_t blockDim) {
     blockDim_ = blockDim;
     hostMemoryNum_ = MemoryManage::Instance().GetMallocCount();
+    peerMemories_ = PeerAccessState::Instance().Snapshot(ThreadContext::Instance().GetDeviceId());
     InitKernelType();
 }
 
@@ -381,7 +383,16 @@ bool SanitizerLaunchInit::AssignGlobalHead() {
     globalHead_.kernelInfo.kernelType = kernelType_;
     globalHead_.kernelInfo.kernelParamNum = KernelContext::Instance().GetKernelParamNum();
     globalHead_.supportSimt = SupportSimt(deviceType);
-    globalHead_.offsetInfo.blockHeadSize = GetRecordHeadSize(hostMemoryNum_);
+    if (peerMemories_.size() > UINT32_MAX) {
+        ERROR_LOG("Peer memory count exceeds the online protocol limit.");
+        return false;
+    }
+    const uint64_t headSize = GetRecordHeadSize(hostMemoryNum_, peerMemories_.size());
+    if (headSize > UINT32_MAX) {
+        ERROR_LOG("Online block header size exceeds the online protocol limit.");
+        return false;
+    }
+    globalHead_.offsetInfo.blockHeadSize = static_cast<uint32_t>(headSize);
     DEBUG_LOG("offsetInfo.blockHeadSize:%u cacheByteSize:%lu", globalHead_.offsetInfo.blockHeadSize,
         globalHead_.checkParms.cacheSize * MB_TO_BYTES);
     if (globalHead_.supportSimt) {
@@ -467,10 +478,15 @@ bool SanitizerLaunchInit::BlockHeadsH2D(uint8_t *memInfo) const {
         recordBlockHead.paraBase.size = KernelContext::Instance().GetArgsSize();
     }
     recordBlockHead.hostMemoryNum = hostMemoryNum_;
+    recordBlockHead.peerMemoryNum = peerMemories_.size();
     for (size_t blockIdx = 0; blockIdx < globalHead_.kernelInfo.totalBlockDim; ++blockIdx) {
         // 2. 初始化每个核的 RecordBlockHead
         recordBlockHead.hostMemoryInfoPtr = recordBlockHead.hostMemoryNum > 0
             ? reinterpret_cast<HostMemoryInfo *>(memInfo + sizeof(RecordBlockHead))
+            : nullptr;
+        recordBlockHead.peerMemoryInfoPtr = recordBlockHead.peerMemoryNum > 0
+            ? reinterpret_cast<PeerMemoryInfo *>(
+                  memInfo + sizeof(RecordBlockHead) + recordBlockHead.hostMemoryNum * sizeof(HostMemoryInfo))
             : nullptr;
         error = aclrtMemcpyImplOrigin(memInfo, sizeof(RecordBlockHead), static_cast<const void *>(&recordBlockHead),
             sizeof(RecordBlockHead), ACL_MEMCPY_HOST_TO_DEVICE);
@@ -507,6 +523,16 @@ bool SanitizerLaunchInit::HostMallocH2D(uint8_t *memInfo, size_t blockIdx) const
             static_cast<const void *>(hostMems.data()), memsSize, ACL_MEMCPY_HOST_TO_DEVICE);
         if (error != ACL_ERROR_NONE) {
             ERROR_LOG("init block: %ld host malloc mem to record block head error: %d", blockIdx, error);
+            return false;
+        }
+    }
+    if (!peerMemories_.empty()) {
+        const size_t peerBytes = peerMemories_.size() * sizeof(PeerMemoryInfo);
+        aclError error =
+            aclrtMemcpyImplOrigin(memInfo + sizeof(RecordBlockHead) + hostMemoryNum_ * sizeof(HostMemoryInfo),
+                peerBytes, peerMemories_.data(), peerBytes, ACL_MEMCPY_HOST_TO_DEVICE);
+        if (error != ACL_ERROR_NONE) {
+            ERROR_LOG("init block: %ld peer malloc mem copy error: %d", blockIdx, error);
             return false;
         }
     }
