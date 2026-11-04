@@ -43,6 +43,8 @@ void HijackedAscendclImplCtor()
     REGISTER_LIBRARY(AclRuntimeLibName());
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtSetDeviceImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtResetDeviceImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtDeviceEnablePeerAccessImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtDeviceDisablePeerAccessImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMallocImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMallocAlign32Impl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMallocHostImpl);
@@ -634,6 +636,18 @@ aclError aclrtResetDeviceImpl(int32_t deviceId)
     LayerGuard guard(HijackedLayerManager::Instance(), __func__);
     HijackedFuncOfAclrtResetDeviceImpl instance;
     return instance.Call(deviceId);
+}
+
+aclError aclrtDeviceEnablePeerAccessImpl(int32_t peerDeviceId, uint32_t flags) {
+    LayerGuard guard(HijackedLayerManager::Instance(), __func__);
+    HijackedFuncOfAclrtDeviceEnablePeerAccessImpl instance;
+    return instance.Call(peerDeviceId, flags);
+}
+
+aclError aclrtDeviceDisablePeerAccessImpl(int32_t peerDeviceId) {
+    LayerGuard guard(HijackedLayerManager::Instance(), __func__);
+    HijackedFuncOfAclrtDeviceDisablePeerAccessImpl instance;
+    return instance.Call(peerDeviceId);
 }
 
 aclError aclrtMallocImpl(void **devPtr, size_t size, aclrtMemMallocPolicy policy)

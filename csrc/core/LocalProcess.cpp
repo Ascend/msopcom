@@ -22,6 +22,8 @@
 #include "LocalProcess.h"
 
 #include <map>
+#include <cstdlib>
+#include <limits>
 #include <thread>
 #include <chrono>
 #include <cstring>
@@ -35,14 +37,14 @@
 #endif
 
 #include "FuncSelector.h"
+#include "runtime/inject_helpers/LocalDevice.h"
 #include "utils/InjectLogger.h"
 #include "utils/Protocol.h"
 #include "utils/Serialize.h"
 
-namespace {
 // memfd_create 包装函数依赖较新的 glibc（>=2.27）；这里直接走 syscall，
 // 兼容较老的构建镜像。内核不支持时返回 -1，由调用方回退到字节流发送。
-int CreateKernelMemfd(const char *name) {
+int LocalProcess::CreateKernelMemfd(const char *name) {
 #if defined(SYS_memfd_create)
     return static_cast<int>(syscall(SYS_memfd_create, name, MFD_CLOEXEC));
 #else
@@ -51,6 +53,7 @@ int CreateKernelMemfd(const char *name) {
 #endif
 }
 
+namespace {
 bool WriteAllToFd(int fd, char const *data, size_t length) {
     size_t offset = 0;
     while (offset < length) {
@@ -64,8 +67,36 @@ bool WriteAllToFd(int fd, char const *data, size_t length) {
 }
 } // namespace
 
-LocalProcess::LocalProcess(CommType type)
-{
+LocalProcess::ProcessState &LocalProcess::State() {
+    static ProcessState state;
+    return state;
+}
+
+void LocalProcess::CheckProcessOwner() {
+    if (State().ownerPid != getpid()) {
+        // fork 子进程可能继承了日志锁；直接写标准错误，避免退出前卡住。
+        constexpr char message[] = "mssanitizer: forked child cannot reuse device connections inherited from "
+                                   "the parent process; use exec to start a new process.\n";
+        const ssize_t written = write(STDERR_FILENO, message, sizeof(message) - 1);
+        (void)written;
+        _exit(EXIT_FAILURE);
+    }
+}
+
+// 为设备业务包原子保留进程级编号；fork 后拒绝复用父进程的编号源。
+uint64_t LocalProcess::ReserveOrderId() {
+    auto &state = State();
+    CheckProcessOwner();
+    uint64_t next = state.nextOrderId.load(std::memory_order_relaxed);
+    while (next != 0 && next != std::numeric_limits<uint64_t>::max()) {
+        if (state.nextOrderId.compare_exchange_weak(next, next + 1, std::memory_order_relaxed)) {
+            return next;
+        }
+    }
+    return 0;
+}
+
+LocalProcess::LocalProcess(CommType type, bool isDeviceConnection) : isDeviceConnection_(isDeviceConnection) {
     constexpr int retryLimit = 50;            // 链接充实次数上限为50
     client_ = new Client(type); // NOLINT(cppcoreguidelines-owning-memory)
     int retryTimes = 0;
@@ -111,10 +142,32 @@ void LocalProcess::Log(LogLevel level, std::string msg) const
     }
 }
 
-// 通过工具侧配合wait实现阻塞功能
-// 此处Notify的消息格式为[MESSAGE] xxx:xxx; 与log格式统一，降低工具侧消息解析复杂度
-ssize_t LocalProcess::Notify(std::string const &msg) const
-{
+// 通用通知沿用字节发送，设备业务包在发送前统一填入进程编号
+ssize_t LocalProcess::Notify(std::string msg) const {
+    if (!isDeviceConnection_) {
+        return SendBytes(msg);
+    }
+    CheckProcessOwner();
+    if (msg.size() < sizeof(PacketHead)) {
+        return -1;
+    }
+    std::lock_guard<std::mutex> lock(sendMutex_);
+    PacketHead head{};
+    std::memcpy(&head, msg.data(), sizeof(head));
+    head.orderId = ReserveOrderId();
+    if (head.orderId == 0) {
+        return -1;
+    }
+    // 持有消息本身并原地填号，临时消息无需再复制整包
+    std::memcpy(&msg[0], &head, sizeof(head));
+    const ssize_t sent = SendBytes(msg);
+    if (sent != static_cast<ssize_t>(msg.size())) {
+        ERROR_LOG("Device packet send failed; detection result is incomplete (orderId=%lu).", head.orderId);
+    }
+    return sent;
+}
+
+ssize_t LocalProcess::SendBytes(std::string const &msg) const {
     ssize_t sentBytes = 0;
     size_t totalSent = 0;
     while (totalSent < msg.size() && client_ != nullptr) {
@@ -130,11 +183,24 @@ ssize_t LocalProcess::Notify(std::string const &msg) const
 }
 
 ssize_t LocalProcess::NotifyKernelBinary(std::vector<char> const &elfData) const {
+    // 设备连接先检查 PID 再加锁，避免 fork 子进程等待父进程遗留的锁
+    std::unique_lock<std::mutex> lock(sendMutex_, std::defer_lock);
+    uint64_t orderId = 0;
+    if (isDeviceConnection_) {
+        CheckProcessOwner();
+        lock.lock();
+        orderId = ReserveOrderId();
+        if (orderId == 0) {
+            return -1;
+        }
+    }
     if (client_ == nullptr) {
+        ERROR_LOG("Kernel binary send failed; detection result is incomplete (orderId=%lu).", orderId);
         return -1;
     }
     // 包头 + 长度（与字节流协议一致），实际二进制不再经过 socket
-    std::string head = Serialize(PacketHead{PacketType::KERNEL_BINARY}, static_cast<uint64_t>(elfData.size()));
+    std::string head =
+        Serialize(PacketHead{PacketType::KERNEL_BINARY, 0, orderId}, static_cast<uint64_t>(elfData.size()));
     int fd = CreateKernelMemfd("msop_kernel_bin");
     if (fd >= 0) {
         bool ok = WriteAllToFd(fd, elfData.data(), elfData.size());
@@ -152,7 +218,12 @@ ssize_t LocalProcess::NotifyKernelBinary(std::vector<char> const &elfData) const
     std::string msg = std::move(head);
     msg.reserve(msg.size() + elfData.size());
     msg.append(elfData.data(), elfData.size());
-    return Notify(msg);
+    // 回退沿用已有包头和编号，直接发送字节，避免重复取号或重复加锁
+    const ssize_t sent = SendBytes(msg);
+    if (sent <= 0) {
+        ERROR_LOG("Kernel binary send failed; detection result is incomplete (orderId=%lu).", orderId);
+    }
+    return sent;
 }
 
 ssize_t LocalProcess::Wait(std::string& msg, uint32_t timeOut) const
@@ -185,10 +256,7 @@ int LocalProcess::TerminateWithSignal(int signo) const
     return kill(getpid(), signo);
 }
 
-ssize_t Notify(std::string message)
-{
-    return LocalProcess::GetInstance().Notify(message);
-}
+ssize_t Notify(std::string message) { return LocalProcess::GetInstance().Notify(std::move(message)); }
 
 ssize_t Wait(std::string& msg)
 {

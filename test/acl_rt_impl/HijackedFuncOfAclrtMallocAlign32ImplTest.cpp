@@ -37,7 +37,7 @@ aclError RecordAlignedMalloc(void **devPtr, size_t size, aclrtMemMallocPolicy) {
     *devPtr = reinterpret_cast<void *>(0x1000);
     return ACL_SUCCESS;
 }
-int CaptureMallocRecord(LocalProcess *, const std::string &message) {
+int CaptureMallocRecord(LocalProcess *, std::string message) {
     mallocRecord = message;
     return message.size();
 }
@@ -83,7 +83,7 @@ TEST(HijackedFuncOfAclrtMallocAlign32Impl, sanitizer_reports_aligned_user_size_a
 }
 namespace {
 std::string reportedRecord;
-int CaptureHostMemoryRecord(LocalProcess *, const std::string &message) {
+int CaptureHostMemoryRecord(LocalProcess *, std::string message) {
     reportedRecord = message;
     return message.size();
 }

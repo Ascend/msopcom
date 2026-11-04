@@ -32,13 +32,13 @@
 
 namespace {
 int32_t resetDevice = -1;
-std::string resetSummary;
+std::vector<std::string> resetPackets;
 rtError_t RecordDeviceReset(int32_t device) {
     resetDevice = device;
     return RT_ERROR_NONE;
 }
-int CaptureDeviceSummary(LocalProcess *, const std::string &message) {
-    resetSummary = message;
+int CaptureDeviceSummary(LocalProcess *, std::string message) {
+    resetPackets.push_back(message);
     return message.size();
 }
 }
@@ -67,7 +67,7 @@ TEST(rtDeviceResetEx, sanitizer_reports_the_reset_device_after_success) {
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(&LocalDevice::Notify).stubs().will(invoke(CaptureDeviceSummary));
     DeviceContext::Instance(3).SetSocVersion("Ascend910B");
-    resetSummary.clear();
+    resetPackets.clear();
     HijackedFuncOfDeviceResetEx instance;
     instance.originfunc_ = RecordDeviceReset;
     EXPECT_EQ(instance.Call(3), RT_ERROR_NONE);
@@ -75,6 +75,20 @@ TEST(rtDeviceResetEx, sanitizer_reports_the_reset_device_after_success) {
     DeviceSummary summary{};
     summary.deviceId = 3;
     summary.device = static_cast<uint32_t>(GetDeviceTypeBySocVersion("Ascend910B"));
-    EXPECT_EQ(resetSummary, Serialize(head, summary));
+    ASSERT_EQ(resetPackets.size(), 2);
+    EXPECT_EQ(resetPackets[0], Serialize(head, summary));
+    EXPECT_EQ(resetPackets[1],
+        Serialize(PacketHead{PacketType::PEER_ACCESS_RECORD}, PeerAccessRecord{3, -1, PeerAccessOp::RESET}));
+    resetPackets.clear();
+    HijackedFuncOfDeviceReset reset;
+    reset.originfunc_ = RecordDeviceReset;
+    EXPECT_EQ(reset.Call(3), RT_ERROR_NONE);
+    ASSERT_EQ(resetPackets.size(), 2);
+    EXPECT_EQ(resetPackets[1],
+        Serialize(PacketHead{PacketType::PEER_ACCESS_RECORD}, PeerAccessRecord{3, -1, PeerAccessOp::RESET}));
+    resetPackets.clear();
+    EXPECT_EQ(reset.Post(RT_ERROR_RESERVED), RT_ERROR_RESERVED);
+    EXPECT_EQ(instance.Post(RT_ERROR_RESERVED), RT_ERROR_RESERVED);
+    EXPECT_TRUE(resetPackets.empty());
     GlobalMockObject::verify();
 }

@@ -18,6 +18,7 @@
 #include "HijackedFunc.h"
 #include "runtime/inject_helpers/DevMemManager.h"
 #include "RuntimeConfig.h"
+#include "runtime/inject_helpers/InteractHelper.h"
 #include "core/FuncSelector.h"
 #include "utils/InjectLogger.h"
 #include "runtime/inject_helpers/DeviceContext.h"
@@ -63,6 +64,9 @@ rtError_t HijackedFuncOfDeviceResetEx::Post(rtError_t ret)
         summary.device = static_cast<uint32_t>(GetDeviceTypeBySocVersion(socVersion));
         summary.deviceId = devId_;
         LocalDevice::GetInstance(devId_).Notify(Serialize(head, summary));
+        // 与 ACL 重置入口一致，成功后撤销涉及目标设备的全部授权
+        InteractHelper::Notify(
+            devId_, PacketType::PEER_ACCESS_RECORD, PeerAccessRecord{devId_, -1, PeerAccessOp::RESET});
     }
     return ret;
 }

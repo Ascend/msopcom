@@ -26,6 +26,7 @@
 #include "runtime/inject_helpers/DeviceContext.h"
 #include "runtime/inject_helpers/LocalDevice.h"
 #include "utils/InjectLogger.h"
+#include "runtime/inject_helpers/InteractHelper.h"
 
 HijackedFuncOfAclrtResetDeviceImpl::HijackedFuncOfAclrtResetDeviceImpl()
     : HijackedFuncType(AclRuntimeLibName(), "aclrtResetDeviceImpl"), devId_{0} {}
@@ -66,6 +67,8 @@ aclError HijackedFuncOfAclrtResetDeviceImpl::Post(aclError ret)
         summary.device = static_cast<uint32_t>(GetDeviceTypeBySocVersion(socVersion));
         summary.deviceId = devId_;
         LocalDevice::GetInstance(devId_).Notify(Serialize(head, summary));
+        PeerAccessRecord record{devId_, -1, PeerAccessOp::RESET};
+        InteractHelper::Notify(devId_, PacketType::PEER_ACCESS_RECORD, record);
     }
     return ret;
 }

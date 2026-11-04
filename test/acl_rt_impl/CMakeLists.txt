@@ -16,6 +16,7 @@ file(GLOB SOURCE
     HijackedFuncOfAclrtLaunchKernelWithArgsArrayImplTest.cpp
     HijackedFuncOfAclrtCreateContextImplTest.cpp
     HijackedFuncOfAclrtGetDeviceImplTest.cpp
+    HijackedFuncOfAclrtDevicePeerAccessImplTest.cpp
     HijackedFuncOfAclrtGetDeviceCountImplTest.cpp
     HijackedFuncOfAclrtGetDeviceInfoImplTest.cpp
     HijackedFuncOfAclrtGetSocNameImplTest.cpp

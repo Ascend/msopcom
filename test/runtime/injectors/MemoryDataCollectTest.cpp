@@ -14,7 +14,6 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
-
 #include <elf.h>
 #include <memory>
 #include <random>
@@ -38,6 +37,7 @@
 #include "stub/FakeElf.h"
 #include "utils/Protocol.h"
 #include "utils/Serialize.h"
+#include <cstring>
 
 constexpr uint64_t ADDR0 = 0x12;
 constexpr uint64_t ADDR1 = 0x34;
@@ -65,6 +65,18 @@ static int StubNotify(LocalProcess*, std::string const &msg)
 {
     g_received.append(msg);
     return g_received.size();
+}
+
+// 这些用例比较业务载荷；进程级流水号由 LocalDevice 单独测试。
+std::string WithoutOrderIds(std::string message) {
+    constexpr size_t packetSize = sizeof(PacketHead) + sizeof(HostMemRecord);
+    for (size_t offset = 0; offset + packetSize <= message.size(); offset += packetSize) {
+        PacketHead head{};
+        std::memcpy(&head, message.data() + offset, sizeof(head));
+        head.orderId = 0;
+        std::memcpy(&message[offset], &head, sizeof(head));
+    }
+    return message;
 }
 
 aclError AclrtMallocHostStub(void **hostPtr, size_t size) {
@@ -187,7 +199,7 @@ TEST(MemoryDataCollect, report_malloc_expect_recieve_correct_message)
     MOCKER(IsSanitizer).stubs().will(returnValue(true));
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(aclrtGetDeviceImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
-    MOCKER(&LocalDevice::Notify).stubs().will(invoke(StubNotify));
+    MOCKER(&LocalProcess::Notify).stubs().will(invoke(StubNotify));
 
     g_received.clear();
     ReportMalloc(ADDR0, SIZE0, MemInfoSrc::EXTRA);
@@ -195,7 +207,7 @@ TEST(MemoryDataCollect, report_malloc_expect_recieve_correct_message)
 
     PacketHead head = { PacketType::MEMORY_RECORD };
     HostMemRecord record = CreateHostMemRecord(MemOpType::MALLOC, MemInfoSrc::EXTRA);
-    ASSERT_EQ(g_received, Serialize(head, record));
+    ASSERT_EQ(WithoutOrderIds(g_received), Serialize(head, record));
 }
 
 TEST(MemoryDataCollect, report_free_expect_recieve_correct_message)
@@ -203,7 +215,7 @@ TEST(MemoryDataCollect, report_free_expect_recieve_correct_message)
     MOCKER(IsSanitizer).stubs().will(returnValue(true));
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(aclrtGetDeviceImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
-    MOCKER(&LocalDevice::Notify).stubs().will(invoke(StubNotify));
+    MOCKER(&LocalProcess::Notify).stubs().will(invoke(StubNotify));
 
     g_received.clear();
     ReportFree(ADDR0, MemInfoSrc::EXTRA);
@@ -213,7 +225,7 @@ TEST(MemoryDataCollect, report_free_expect_recieve_correct_message)
     HostMemRecord record = CreateHostMemRecord(MemOpType::FREE, MemInfoSrc::EXTRA);
     // free should never care about memSize
     record.memSize = 0;
-    ASSERT_EQ(g_received, Serialize(head, record));
+    ASSERT_EQ(WithoutOrderIds(g_received), Serialize(head, record));
 }
 
 TEST(MemoryDataCollect, report_memset_expect_recieve_correct_message)
@@ -221,7 +233,7 @@ TEST(MemoryDataCollect, report_memset_expect_recieve_correct_message)
     MOCKER(IsSanitizer).stubs().will(returnValue(true));
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(aclrtGetDeviceImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
-    MOCKER(&LocalDevice::Notify).stubs().will(invoke(StubNotify));
+    MOCKER(&LocalProcess::Notify).stubs().will(invoke(StubNotify));
 
     g_received.clear();
     ReportMemset(ADDR0, SIZE0, MemInfoSrc::EXTRA);
@@ -229,7 +241,7 @@ TEST(MemoryDataCollect, report_memset_expect_recieve_correct_message)
 
     PacketHead head = { PacketType::MEMORY_RECORD };
     HostMemRecord record = CreateHostMemRecord(MemOpType::STORE, MemInfoSrc::EXTRA);
-    ASSERT_EQ(g_received, Serialize(head, record));
+    ASSERT_EQ(WithoutOrderIds(g_received), Serialize(head, record));
 }
 
 TEST(MemoryDataCollect, report_op_malloc_info_with_null_args_info_expect_do_nothing)
@@ -447,7 +459,7 @@ TEST(MemoryDataCollect, report_op_free_info_with_expect_get_correct_mem_info)
     MOCKER(IsSanitizer).stubs().will(returnValue(true));
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(aclrtGetDeviceImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
-    MOCKER(&LocalDevice::Notify).stubs().will(invoke(StubNotify));
+    MOCKER(&LocalProcess::Notify).stubs().will(invoke(StubNotify));
 
     // create tensor memInfo with uniqueAddrInfos
     KernelContext::OpMemInfo opMemInfo;
@@ -467,7 +479,7 @@ TEST(MemoryDataCollect, report_op_free_info_with_expect_get_correct_mem_info)
 
     GlobalMockObject::verify();
 
-    ASSERT_EQ(opFreeMsg, manualFreeMsg);
+    ASSERT_EQ(WithoutOrderIds(opFreeMsg), WithoutOrderIds(manualFreeMsg));
 }
 
 TEST(MemoryDataCollect, get_section_headers_from_dev_binary_with_null_data_expect_return_false)

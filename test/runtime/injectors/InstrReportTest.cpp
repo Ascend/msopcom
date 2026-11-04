@@ -150,7 +150,7 @@ aclError CopyFinalizeRecord(void *dst, size_t destMax, const void *src, size_t c
     return ACL_SUCCESS;
 }
 
-int CaptureFinalizePacket(LocalProcess *, const std::string &message) {
+int CaptureFinalizePacket(LocalProcess *, std::string message) {
     g_finalizedPacket = message;
     return message.size();
 }

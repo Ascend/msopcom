@@ -157,6 +157,7 @@ enum class PacketType : uint32_t {
     MEM_REGION_PERMISSION, // 内存权限分配
     SANITIZER_RECORD,    // 用于上报 SanitizerRecord 记录
     GM_ADDR_OUT_OF_BOUND_RECORD,  // GM地址越界写记录
+    PEER_ACCESS_RECORD, // ACL P2P 访存关系
 
     TEXT = 2000,
 
@@ -174,6 +175,8 @@ enum class MaskMode : uint8_t {
 
 struct PacketHead {
     PacketType type;
+    uint32_t reserved;
+    uint64_t orderId; // 业务包编号，Host PID 内所有设备连接共用
 };
 
 /// 设备信息 Payload
@@ -569,6 +572,20 @@ struct IPCMemRecord {
         IPCMemoryMapInfo mapInfo;
         IPCMemoryUnmapInfo unmapInfo;
     };
+};
+
+// 跨设备访问授权类型
+enum class PeerAccessOp : uint32_t {
+    ENABLE = 0,
+    DISABLE,
+    RESET
+};
+
+// 跨设备访问授权记录，供工具更新访问方到目标设备的有向关系
+struct PeerAccessRecord {
+    int32_t deviceId; // ENABLE/DISABLE: 访问方; RESET: 重置的设备
+    int32_t peerDeviceId; // ENABLE/DISABLE 的目标设备；RESET 时为 -1
+    PeerAccessOp operation;
 };
 
 enum class DemangleMode : uint8_t {

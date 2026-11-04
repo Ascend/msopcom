@@ -63,6 +63,34 @@ private:
     int32_t devId_{0};
 };
 
+class HijackedFuncOfAclrtDeviceEnablePeerAccessImpl
+    : public decltype(AscendclImpHijackedType(&aclrtDeviceEnablePeerAccessImpl)) {
+public:
+    HijackedFuncOfAclrtDeviceEnablePeerAccessImpl();
+    // 调用原接口，缺失符号时输出与其它 ACL 劫持入口一致的错误
+    aclError Call(int32_t peerDeviceId, uint32_t flags) override;
+    void Pre(int32_t peerDeviceId, uint32_t flags) override;
+    aclError Post(aclError ret) override;
+
+private:
+    int32_t deviceId_{-1}; // 访问方设备号
+    int32_t peerDeviceId_{-1}; // 被访问方设备号
+};
+
+class HijackedFuncOfAclrtDeviceDisablePeerAccessImpl
+    : public decltype(AscendclImpHijackedType(&aclrtDeviceDisablePeerAccessImpl)) {
+public:
+    HijackedFuncOfAclrtDeviceDisablePeerAccessImpl();
+    // 调用原接口，缺失符号时输出与其它 ACL 劫持入口一致的错误
+    aclError Call(int32_t peerDeviceId) override;
+    void Pre(int32_t peerDeviceId) override;
+    aclError Post(aclError ret) override;
+
+private:
+    int32_t deviceId_{-1}; // 访问方设备号
+    int32_t peerDeviceId_{-1}; // 被访问方设备号
+};
+
 class HijackedFuncOfAclrtMallocImpl : public decltype(AscendclImpHijackedType(&aclrtMallocImpl)) {
 public:
     explicit HijackedFuncOfAclrtMallocImpl();
