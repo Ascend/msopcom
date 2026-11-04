@@ -709,6 +709,10 @@ private:
     std::vector<aclrtPlaceHolderInfo> placeHolderArray_;
     size_t placeHolderNum_{0};
     ArgsContextSP argsCtx_{nullptr};
+    std::vector<Elf64_Shdr> sections_;
+    // 插桩后的参数无法补齐时置位：此时既不能下发插桩 kernel（会读到非法记录区），
+    // 也没有未插桩的 kernel 可退回，只能阻止本次下发。
+    bool abortLaunch_{false};
 };
 
 class HijackedFuncOfAclrtLaunchKernelWithConfigImpl

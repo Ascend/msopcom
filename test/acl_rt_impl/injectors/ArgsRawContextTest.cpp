@@ -181,6 +181,35 @@ TEST_F(ArgsRawContextTest, expanding_snapshot_keeps_tiling_data_and_updates_plac
     EXPECT_EQ(tilingData, (std::vector<uint8_t>{16, 17}));
 }
 
+TEST_F(ArgsRawContextTest, expanding_at_declared_slot_only_shifts_data_after_insert_offset) {
+    // 声明参数区 72 字节被内嵌数据挤占：数据从 64 开始，末尾槽位并未真正预留
+    std::vector<uint8_t> hostArgs(80);
+    std::iota(hostArgs.begin(), hostArgs.end(), uint8_t{0});
+    ArgsRawContext ctx(hostArgs.data(), hostArgs.size(), {{0, 64}});
+    MOCKER(aclrtMemcpyImplOrigin).stubs().will(invoke(CopyHostArgs));
+    uint64_t memInfo = 0xAABBCCDDEEFF0011ULL;
+    uint32_t offset = 0;
+    ASSERT_TRUE(ctx.ExpandArgsAt(&memInfo, sizeof(memInfo), 64, offset));
+    EXPECT_EQ(offset, 64U);
+    EXPECT_EQ(ctx.GetArgsSize(), hostArgs.size() + sizeof(memInfo));
+    EXPECT_EQ(ctx.GetPlaceholderInfo().at(0).dataOffset, 72U);
+    const auto *expanded = static_cast<const uint8_t *>(ctx.GetArgs());
+    ASSERT_NE(expanded, nullptr);
+    EXPECT_EQ(std::memcmp(expanded, hostArgs.data(), 64), 0);
+    EXPECT_EQ(std::memcmp(expanded + offset, &memInfo, sizeof(memInfo)), 0);
+    EXPECT_EQ(std::memcmp(expanded + 72, hostArgs.data() + 64, 16), 0);
+}
+
+TEST_F(ArgsRawContextTest, expanding_at_offset_out_of_args_size_expect_failure) {
+    std::vector<uint8_t> hostArgs(64, 0);
+    ArgsRawContext ctx(hostArgs.data(), hostArgs.size());
+    MOCKER(aclrtMemcpyImplOrigin).stubs().will(invoke(CopyHostArgs));
+    uint64_t memInfo = 0x1234;
+    uint32_t offset = 0;
+    EXPECT_FALSE(ctx.ExpandArgsAt(&memInfo, sizeof(memInfo), 72, offset));
+    EXPECT_EQ(ctx.GetArgsSize(), hostArgs.size());
+}
+
 TEST_F(ArgsRawContextTest, expanding_plain_host_args_appends_aligned_metadata) {
     std::vector<uint8_t> hostArgs{1, 2, 3, 4, 5};
     ArgsRawContext ctx(hostArgs.data(), hostArgs.size());

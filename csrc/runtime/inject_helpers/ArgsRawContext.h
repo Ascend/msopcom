@@ -48,6 +48,11 @@ public:
 
     bool ExpandArgs(void *param, size_t paramSize, uint32_t &paramOffset) override;
 
+    // 在指定偏移处插入参数，并只把插入点之后的 placeholder 数据整体后移。
+    // 用于编译器声明的参数区末尾槽位已被 placeholder 内嵌数据占用（未真正预留）的场景：
+    // 此时按“最后一个 placeholder 之后”的默认插入点会与 kernel 读取的偏移不一致。
+    bool ExpandArgsAt(void *param, size_t paramSize, uint32_t insertOffset, uint32_t &paramOffset);
+
     uint32_t GetLastParamOffset() override;
 
     bool Save(const std::string &outputPath, DumperContext &config, OpMemInfo &memInfo, bool isSink) override;
@@ -64,6 +69,9 @@ public:
 
     bool GetTilingData(std::vector<uint8_t> &data) const override;
 private:
+    bool InsertParam(void *param, size_t paramSize, bool hasFixedOffset, uint32_t insertOffset,
+        uint32_t &paramOffset);
+
     void *args_;
     uint32_t argsSize_;
     bool isDeviceArgs_;
