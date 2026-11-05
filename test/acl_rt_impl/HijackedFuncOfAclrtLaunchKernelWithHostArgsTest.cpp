@@ -389,11 +389,11 @@ TEST_F(HijackedFuncOfAclrtLaunchKernelWithHostArgsTest, sanitizer_pre_non_static
 /**
  * |  用例集  | HijackedFuncOfAclrtLaunchKernelWithHostArgsTest
  * | 测试函数 | SanitizerPre
- * |  用例名  | sanitizer_pre_recycle_reported_mem_when_init_failed
- * | 用例描述 | __sanitizer_init 失败提前返回时，Pre 已上报的 section / input 内存必须在返回前成对回收，
- * |          | 否则 Post 因 memInfo_ 为空不会进入回收分支，造成 malloc/free 不配对。
+ * |  用例名  | sanitizer_pre_no_recycle_when_init_failed
+ * | 用例描述 | section / input 内存的上报已移到 SanitizerPost，__sanitizer_init 失败提前返回时
+ * |          | Pre 未上报任何内存，因此不应产生回收动作，避免 malloc/free 不配对。
  */
-TEST_F(HijackedFuncOfAclrtLaunchKernelWithHostArgsTest, sanitizer_pre_recycle_reported_mem_when_init_failed)
+TEST_F(HijackedFuncOfAclrtLaunchKernelWithHostArgsTest, sanitizer_pre_no_recycle_when_init_failed)
 {
     FuncSelector::Instance().Set(ToolType::SANITIZER);
     MockSanitizerPreCommon(false);
@@ -406,8 +406,8 @@ TEST_F(HijackedFuncOfAclrtLaunchKernelWithHostArgsTest, sanitizer_pre_recycle_re
     aclrtLaunchKernelCfg cfg{};
     inst.Pre(funcHandle_, 3, &placeholder_, &cfg, hostArgs.data(), hostArgs.size(), nullptr, 0);
 
-    ASSERT_EQ(g_sectionsFreeCalls, 1U);
-    ASSERT_EQ(g_opFreeCalls, 1U);
+    ASSERT_EQ(g_sectionsFreeCalls, 0U);
+    ASSERT_EQ(g_opFreeCalls, 0U);
     ASSERT_EQ(inst.argsSize_, DECLARED_ARG_SIZE);
     // 静态插桩 kernel 没有未插桩版本可退，缺少 memInfo 时必须阻止本次下发
     ASSERT_TRUE(inst.abortLaunch_);

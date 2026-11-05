@@ -252,36 +252,18 @@ void HijackedFuncOfAclrtLaunchKernelWithHostArgsImpl::SanitizerPre()
         }
     }
 
-    // 注册 section 内存和 input 内存（必须在 __sanitizer_init 之前，
-    // 这样 hostMemoryInfoPtr 才能在 device 侧在线检测时包含 section 和算子输入），
-    // 顺序与 rt 路径、SIMT host-args 路径保持一致
-    bool sectionsReported = false;
+    // section 列表在 Pre 阶段解析，内存上报统一放到 SanitizerPost：
+    // tiling 指针由 runtime 在下发时才写入 hostArgs，下发前上报只能拿到 0。
     if (hasHeaders) {
         sections_ = GetAllocSectionHeaders(headers);
-        ReportSectionsMalloc(funcCtx_->GetStartPC(), sections_);
-        sectionsReported = true;
     }
-    AclrtLaunchArgsInfo launchInfo{};
-    launchInfo.hostArgs = hostArgs_;
-    launchInfo.argsSize = argsSize_;
-    launchInfo.placeHolderArray = reinterpret_cast<aclrtPlaceHolderInfo *>(placeHolderArray_.data());
-    launchInfo.placeHolderNum = placeHolderNum_;
-    const bool opMemReported = (launchInfo.hostArgs != nullptr);
-    ReportOpMallocInfo(launchInfo, LaunchManager::Local().GetCurrentMemInfo());
 
     // 预处理失败时不能直接返回：外层 Call 仍会下发，而 funcCtx_ 可能已经指向插桩后的 kernel。
-    // 这里先成对回收已上报的内存，再按“是否存在未插桩 kernel”决定回滚还是阻止下发。
     auto handlePreFailure = [&](const char *reason) {
         if (memInfo_ != nullptr) {
             // 与 SanitizerPost 的回收顺序保持一致；置空后 Post 不会重复回收
             __sanitizer_finalize(memInfo_, blockDim_);
             memInfo_ = nullptr;
-        }
-        if (sectionsReported) {
-            ReportSectionsFree(funcCtx_->GetStartPC(), sections_);
-        }
-        if (opMemReported) {
-            ReportOpFreeInfo(LaunchManager::Local().GetCurrentMemInfo());
         }
         if (hasStaticStub) {
             // 静态插桩 kernel 没有未插桩版本可退，缺 memInfo 下发必然读到非法地址
@@ -485,6 +467,18 @@ void HijackedFuncOfAclrtLaunchKernelWithHostArgsImpl::SanitizerPost()
 
         // wait for kernel execution done, and catch potential exception
         SyncStreamWithInterrupt(stream_);
+
+        // 内存上报放在下发之后：tiling 指针此时已由 runtime 写入 hostArgs，
+        // 上报拿到的是真实设备地址；记录仍归属本次 launch，回放时排在访问记录之前。
+        if (!funcCtx_->isAiCpu && !sections_.empty()) {
+            ReportSectionsMalloc(funcCtx_->GetStartPC(), sections_);
+        }
+        AclrtLaunchArgsInfo launchInfo{};
+        launchInfo.hostArgs = hostArgs_;
+        launchInfo.argsSize = argsSize_;
+        launchInfo.placeHolderArray = reinterpret_cast<aclrtPlaceHolderInfo *>(placeHolderArray_.data());
+        launchInfo.placeHolderNum = placeHolderNum_;
+        ReportOpMallocInfo(launchInfo, LaunchManager::Local().GetCurrentMemInfo());
 
         if (!funcCtx_->isAiCpu) {
             auto startPC = funcCtx_->GetStartPC();
