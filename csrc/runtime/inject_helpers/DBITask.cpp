@@ -344,11 +344,20 @@ DBITaskConfig::DBITaskConfig()
     keepRootTmpDirOutputs_ = keepTaskOutputs_;
 }
 
-DBITaskConfig::~DBITaskConfig()
-{
+DBITaskConfig::~DBITaskConfig() { CleanTmpRootDir(); }
+
+// 清理本线程实例持有的 tmp 根目录。
+// 清理后从进程级临时路径清理器摘除并置空 tmpRootDir_，保证幂等：
+// 析构路径与退出路径（CleanAll 之后的兜底）重复调用不会二次删除。
+void DBITaskConfig::CleanTmpRootDir() {
+    if (tmpRootDir_.empty()) {
+        return;
+    }
+    TempFileCleaner::Instance().RemovePath(tmpRootDir_);
     if (!keepRootTmpDirOutputs_ && IsExist(tmpRootDir_)) {
         RemoveAll(tmpRootDir_);
     }
+    tmpRootDir_.clear();
 }
 
 void DBITaskConfig::Reset() const
@@ -356,6 +365,8 @@ void DBITaskConfig::Reset() const
     auto &inst = Instance();
     inst.enabled_ = false;
     inst.matcher_ = nullptr;
+    // 保持进程级临时路径清理器与线程实例一致，避免测试间残留登记项
+    TempFileCleaner::Instance().RemovePath(inst.tmpRootDir_);
     inst.tmpRootDir_.clear();
     inst.pluginPath_.clear();
     inst.type_ = BIType::MAX;
@@ -388,9 +399,12 @@ void DBITaskConfig::SetTmpRootDir(const std::string &path)
     }
     if (path.empty()) {
         tmpRootDir_ = "./tmp_" +  std::to_string(getpid()) + "_" + GenerateTimeStamp<std::chrono::nanoseconds>();
-        return;
+    } else {
+        tmpRootDir_ = path + "/tmp_" + std::to_string(getpid()) + "_" + GenerateTimeStamp<std::chrono::nanoseconds>();
     }
-    tmpRootDir_ = path + "/tmp_" +  std::to_string(getpid()) + "_" + GenerateTimeStamp<std::chrono::nanoseconds>();
+    // 登记到进程级临时路径清理器：每个启动线程各有一个 tmp 根目录，Ctrl-C 退出时
+    // 无法依赖本线程析构清理，由 TempFileCleaner 在退出前统一清理
+    TempFileCleaner::Instance().AddPath(tmpRootDir_, keepRootTmpDirOutputs_);
 }
 
 uint8_t* InitMemory(uint64_t memSize)

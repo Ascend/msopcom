@@ -14,14 +14,13 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
-#include <csignal>
 #include <iostream>
 #include <mutex>
 #include "acl_rt_impl/AscendclImplOrigin.h"
 #include "utils/InjectLogger.h"
 #include "utils/signal.h"
 #include "SyncStreamWithInterrupt.h"
-
+#include "utils/FileSystem.h"
 namespace {
 
 volatile bool g_killRunningKernel = false;
@@ -41,9 +40,7 @@ void SigIntHandler(int32_t signo) {
 void BindSigIntHandler(void) {
     // 使用 once_flag 和 call_once 保证自定义的 SIGINT 全局仅调用一次
     static std::once_flag sigIntRegOnce;
-    std::call_once(sigIntRegOnce, [&]() {
-        SignalWrapper::RegisterCallback(SIGINT, SigIntHandler);
-    });
+    std::call_once(sigIntRegOnce, [&]() { SignalWrapper::RegisterCallback(SIGINT, SigIntHandler); });
 }
 
 aclError SyncStreamWithInterrupt(aclrtStream stream) {
@@ -74,6 +71,10 @@ aclError SyncStreamWithInterrupt(aclrtStream stream) {
 void ExitAfterProcess(void) {
     // 若当前 kernel 已经被 Ctrl-C，则在处理完当前 kernel 数据后直接退出
     if (g_killRunningKernel) {
+        // DBITaskConfig 为 thread_local，各下发线程的 tmp 根目录统一登记在进程级
+        // TempFileCleaner，退出前按快照全量清理（keep 的目录按原语义保留），否则
+        // 其他线程的 tmp_<pid>_<timestamp> 目录会残留（issue #84）
+        TempFileCleaner::Instance().CleanAll();
         int ret = raise(SIGINT);
         if (ret != 0) {
             ERROR_LOG("raise SIGINT failed ret %d", ret);

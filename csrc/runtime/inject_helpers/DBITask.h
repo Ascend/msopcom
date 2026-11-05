@@ -126,6 +126,8 @@ public:
 
     void SetTmpRootDir(const std::string &path);
 
+    void CleanTmpRootDir();
+
     // 用于外部获取相关动态插桩中间产物
     std::string GetOutputDir(uint64_t launchId) const
     {

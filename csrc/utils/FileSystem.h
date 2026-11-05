@@ -17,6 +17,8 @@
 #pragma once
 #include <string>
 #include <vector>
+#include <map>
+#include <mutex>
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/stat.h>
@@ -26,6 +28,7 @@
 #include <iostream>
 
 #include "Ustring.h"
+#include "Singleton.h"
 
 constexpr mode_t DIR_DEFAULT_MOD = 0750;
 constexpr char const *PATH_SEP = "/";
@@ -140,3 +143,71 @@ inline bool WriteStringToFile(const std::string &filePath, const std::string &da
 {
     return WriteBinary(filePath, data.data(), data.length(), openMode);
 }
+
+// 临时文件/目录统一清理器（进程级单例）。
+// 各线程创建的临时目录（如动态插桩的 tmp_<pid>_<timestamp> 根目录，持有者为
+// thread_local 单例）在创建时通过 AddPath 登记，进程退出路径调用 CleanAll
+// 统一清理，避免无法触发的线程析构导致目录残留。
+// AddPath/RemovePath/CleanAll 内部加锁，可在任意普通线程上下文调用，
+// 但严禁在信号 handler 中调用（内部含 mutex 与文件 IO，非 async-signal-safe）。
+class TempFileCleaner : public Singleton<TempFileCleaner, false> {
+    friend class Singleton<TempFileCleaner, false>;
+
+public:
+    // 登记待清理路径；keep 为 true 时 CleanAll 跳过该路径（调用方自行保留）
+    void AddPath(const std::string &path, bool keep) {
+        if (path.empty()) {
+            return;
+        }
+        std::lock_guard<std::mutex> lock(mutex_);
+        paths_[path] = keep;
+    }
+
+    void RemovePath(const std::string &path) {
+        if (path.empty()) {
+            return;
+        }
+        std::lock_guard<std::mutex> lock(mutex_);
+        paths_.erase(path);
+    }
+
+    // 清理所有已登记路径（keep 为 true 的按原语义保留）。
+    // 先在锁内取快照并清空登记表，再在锁外做文件 IO，避免持锁执行
+    // remove_all；单个路径删除失败不阻断其余路径的清理。
+    // CleanAll 天然幂等，可被析构路径与退出路径重复调用。
+    void CleanAll() {
+        std::map<std::string, bool> snapshot;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            snapshot.swap(paths_);
+        }
+        for (const auto &entry : snapshot) {
+            if (entry.second || !IsExist(entry.first)) {
+                continue;
+            }
+            try {
+                RemoveAll(entry.first);
+            } catch (...) {
+                // 进程即将退出，删除失败（如文件被占用）时跳过该路径继续清理
+            }
+        }
+    }
+
+#ifdef __BUILD_TESTS__
+    // 仅供 UT 观察登记表状态
+    bool Contains(const std::string &path) {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return paths_.find(path) != paths_.end();
+    }
+
+    size_t Size() {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return paths_.size();
+    }
+#endif
+
+private:
+    TempFileCleaner() = default;
+    std::mutex mutex_{};
+    std::map<std::string, bool> paths_{}; // path → keep
+};
