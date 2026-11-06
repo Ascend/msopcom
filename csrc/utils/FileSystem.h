@@ -154,6 +154,14 @@ class TempFileCleaner : public Singleton<TempFileCleaner, false> {
     friend class Singleton<TempFileCleaner, false>;
 
 public:
+    // 覆盖基类 Instance：thread_local 单例（如 DBITaskConfig）的析构发生在
+    // 进程退出阶段，与静态对象的销毁顺序不受控；leaky 实例永不析构，
+    // 退出路径任意阶段访问均安全（调用方进程退出后由 OS 回收，无需手动释放）
+    static TempFileCleaner &Instance() {
+        static auto *instance = new TempFileCleaner();
+        return *instance;
+    }
+
     // 登记待清理路径；keep 为 true 时 CleanAll 跳过该路径（调用方自行保留）
     void AddPath(const std::string &path, bool keep) {
         if (path.empty()) {
