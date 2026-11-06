@@ -237,18 +237,17 @@ void HijackedFuncOfAclrtLaunchKernelWithHostArgsImpl::SanitizerPre()
     if (recordSlotInPlaceholderData) {
         recordArgOffset = kernelArgSize - sizeof(uintptr_t);
     }
-    // 末尾这个参数槽已被别人写过时，覆盖会破坏对方功能（典型是 TRITON_DEVICE_PRINT=1 把 DTData
-    // 指针写在同一位置），不覆盖则记录区指针落不到 kernel 读取的偏移上。两种情况都不对，本次直接跳过。
+    // 槽位由编译器（AppendSanitizerData）追加，kernel 固定从该偏移读 memInfo。
+    // 调用方缓冲区此处可能非 0（aclnn 为 tiling 缓冲地址，TRITON_DEVICE_PRINT=1 为 DTData 指针），
+    // 仍需覆盖为记录区指针，否则 kernel 会按残留值访问记录区。
     if (hasRecordArgSlot) {
         auto *slotPtr = reinterpret_cast<uint64_t *>(static_cast<uint8_t *>(hostArgs_) + recordArgOffset);
         if (*slotPtr != 0) {
-            ERROR_LOG("Skip sanitizer for kernel %s: arg at offset %zu (kernelArgSize=%u) is not 0, "
-                "current value 0x%lx. This arg is used by another feature, normally TRITON_DEVICE_PRINT=1 "
-                "which writes the DTData pointer here. Sanitizer will not overwrite it, so this launch is "
-                "not checked. Unset TRITON_DEVICE_PRINT to restore the check.",
-                kernelName.c_str(), recordArgOffset, kernelArgSize, *slotPtr);
-            skipSanitizer_ = true;
-            return;
+            WARN_LOG("Record arg slot of kernel %s is not empty: offset=%zu argsSize=%zu kernelArgSize=%u "
+                "current value 0x%lx. It is declared by the compiler for the sanitizer record area and "
+                "will be overwritten with the sanitizer memInfo. If TRITON_DEVICE_PRINT=1 is enabled, "
+                "device print and sanitizer share this slot and cannot be used together.",
+                kernelName.c_str(), recordArgOffset, argsSize_, kernelArgSize, *slotPtr);
         }
     }
 
@@ -290,8 +289,8 @@ void HijackedFuncOfAclrtLaunchKernelWithHostArgsImpl::SanitizerPre()
         // hostArgs_ 是 ArgsRawContext 里的副本（构造时整块拷贝调用方 buffer），写它不影响调用方内存
         auto *slot = reinterpret_cast<uint64_t *>(static_cast<uint8_t *>(hostArgs_) + recordArgOffset);
         *slot = reinterpret_cast<uint64_t>(memInfo_);
-        DEBUG_LOG("Fill sanitizer record arg: offset=%zu argsSize=%zu kernelArgSize=%u",
-            recordArgOffset, argsSize_, kernelArgSize);
+        DEBUG_LOG("Fill sanitizer record arg: offset=%zu argsSize=%zu kernelArgSize=%u placeHolderNum=%zu",
+            recordArgOffset, argsSize_, kernelArgSize, placeHolderNum_);
     } else {
         // expand args（必须在 __sanitizer_init 之后，因为需要 memInfo_ 指针）
         bool expanded = false;

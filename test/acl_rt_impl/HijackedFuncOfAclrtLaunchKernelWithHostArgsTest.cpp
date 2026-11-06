@@ -340,11 +340,11 @@ TEST_F(HijackedFuncOfAclrtLaunchKernelWithHostArgsTest,
 /**
  * |  用例集  | HijackedFuncOfAclrtLaunchKernelWithHostArgsTest
  * | 测试函数 | SanitizerPre
- * |  用例名  | sanitizer_pre_skip_when_record_arg_slot_occupied
- * | 用例描述 | 目标槽位已被占用（TRITON_DEVICE_PRINT=1 写入 DTData 指针）时，放弃本次检测：
- * |          | 不覆盖槽位、不上报内存、不初始化记录区，kernel 原样下发。
+ * |  用例名  | sanitizer_pre_overwrite_non_empty_record_arg_slot
+ * | 用例描述 | 槽位非 0（如 aclnn 路径残留的 tiling 缓冲地址）时覆盖为记录区指针并继续检测，
+ * |          | 不跳过本次 launch。
  */
-TEST_F(HijackedFuncOfAclrtLaunchKernelWithHostArgsTest, sanitizer_pre_skip_when_record_arg_slot_occupied)
+TEST_F(HijackedFuncOfAclrtLaunchKernelWithHostArgsTest, sanitizer_pre_overwrite_non_empty_record_arg_slot)
 {
     FuncSelector::Instance().Set(ToolType::SANITIZER);
     MockSanitizerPreCommon();
@@ -358,9 +358,9 @@ TEST_F(HijackedFuncOfAclrtLaunchKernelWithHostArgsTest, sanitizer_pre_skip_when_
     aclrtLaunchKernelCfg cfg{};
     inst.Pre(funcHandle_, 3, &placeholder_, &cfg, hostArgs.data(), hostArgs.size(), nullptr, 0);
 
-    ASSERT_TRUE(inst.skipSanitizer_);
-    ASSERT_EQ(inst.memInfo_, nullptr);
-    ASSERT_EQ(RecordArgAt(inst, MEM_INFO_OFFSET / sizeof(uintptr_t)), 0xDEADBEEFULL);
+    EXPECT_FALSE(inst.skipSanitizer_);
+    ASSERT_NE(inst.memInfo_, nullptr);
+    ASSERT_EQ(RecordArgAt(inst, MEM_INFO_OFFSET / sizeof(uintptr_t)), reinterpret_cast<uint64_t>(g_memInfo));
     ASSERT_EQ(inst.argsSize_, DECLARED_ARG_SIZE);
 }
 
