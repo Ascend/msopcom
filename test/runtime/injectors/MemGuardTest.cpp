@@ -24,6 +24,8 @@
 #undef private
 
 #include <gtest/gtest.h>
+#include <future>
+#include <chrono>
 #include "mockcpp/mockcpp.hpp"
 
 aclError MemcpyStub(void *dst, size_t destMax, const void *src, size_t count, aclrtMemcpyKind kind)
@@ -71,7 +73,7 @@ TEST(MemGuardTestSuit, memGuard_test_set_guard_size)
     ASSERT_EQ(frontSize, 0);
     ASSERT_EQ(backSize, 128);
 
-    // 3、有效值，向上对齐到 max_align_t 
+    // 3、有效值，向上对齐到 max_align_t
     MemoryGuard::Instance().SetGuardSizes(10, 70);
     MemoryGuard::Instance().GetGuardSizes(frontSize, backSize);
     ASSERT_EQ(frontSize, 32);
@@ -152,7 +154,7 @@ TEST(MemGuardTestSuit, memGuard_test_malloc_and_free_proc_normal)
     MemoryGuard::Instance().Init();
     MemoryGuard::Instance().SetGuardSizes(GM_BUFFER_GUARD_DFT_SIZE, GM_BUFFER_GUARD_DFT_SIZE);
     MemoryGuard::Instance().SetGuardPattern(GM_BUFFER_GUARD_DFT_PATTERN);
-    
+
     size_t userSize = 128;
     size_t actualSize = MemoryGuard::Instance().GetTotalSize(userSize);
     ASSERT_EQ(actualSize, userSize + GM_BUFFER_GUARD_DFT_SIZE * 2);  // 检查实际长度
@@ -340,4 +342,47 @@ TEST(MemGuardTestSuit, memGuard_test_malloc_and_free_proc_except_only_back_guard
 
     // 清空map防止影响后续用例
     MemoryGuard::Instance().ClearGuardBlockMap();
+}
+// 测试场景：双线程首次申请内存，第一线程已标记初始化开始但配置尚未就绪
+// 测试预期：第二线程等待配置完成，两次申请均包含32字节保护区
+TEST(MemGuardTestSuit, concurrent_first_allocations_wait_for_guard_initialization)
+{
+    GlobalMockObject::verify();
+    auto &guard = MemoryGuard::Instance();
+    const bool previousInit = guard.memGuardInit_;
+    const bool previousEnable = guard.memGuardEnable_;
+    size_t front = 0;
+    size_t back = 0;
+    guard.GetGuardSizes(front, back);
+    guard.memGuardInit_ = false;
+    guard.memGuardEnable_ = false;
+    std::promise<void> initEntered;
+    std::promise<void> releaseInit;
+    static std::promise<void> *entered;
+    static std::shared_future<void> release;
+    entered = &initEntered;
+    release = releaseInit.get_future().share();
+    MOCKER(&MemoryGuard::Init).stubs().will(invoke(+[](MemoryGuard *self) {
+        self->memGuardInit_ = true;
+        entered->set_value();
+        release.wait();
+        self->SetGuardSizes(0, 32);
+        self->memGuardEnable_ = true;
+    }));
+    auto first = std::async(std::launch::async, [&] { return guard.GetTotalSize(1024); });
+    initEntered.get_future().wait();
+    std::promise<void> secondStarted;
+    auto second = std::async(std::launch::async, [&] {
+        secondStarted.set_value();
+        return guard.GetTotalSize(1024);
+    });
+    secondStarted.get_future().wait();
+    EXPECT_EQ(second.wait_for(std::chrono::milliseconds(100)), std::future_status::timeout);
+    releaseInit.set_value();
+    EXPECT_EQ(first.get(), 1056U);
+    EXPECT_EQ(second.get(), 1056U);
+    guard.memGuardInit_ = previousInit;
+    guard.memGuardEnable_ = previousEnable;
+    guard.SetGuardSizes(front, back);
+    GlobalMockObject::verify();
 }

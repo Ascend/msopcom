@@ -200,12 +200,11 @@ void MemoryGuard::GenGMAddrErr(const GuardBlockInfo &blockInfo) const
 
 size_t MemoryGuard::GetTotalSize(size_t userSize)
 {
-    // 首次内存申请时，初始化 MemoryGuard 类
-    if (!memGuardInit_) Init();
-
-    if (!memGuardEnable_) return userSize;
-
+    // 初始化和读取配置必须在同一锁内；另一分配线程不能看到尚未完成的初始化
+    // 否则它会按原大小分配，Post阶段却按已使能的保护区登记，造成虚假的保护区
     std::lock_guard<std::mutex> lock(mutex_);
+    if (!memGuardInit_) Init();
+    if (!memGuardEnable_) return userSize;
 
     // 安全加法：检查溢出
     size_t guard_total = frontSize_ + backSize_;

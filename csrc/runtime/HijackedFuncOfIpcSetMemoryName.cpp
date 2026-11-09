@@ -39,30 +39,19 @@ rtError_t HijackedFuncOfIpcSetMemoryName::Call(const void *ptr, uint64_t byteCou
         return RT_ERROR_RESERVED;
     }
 
-    rtError_t ret;
-    if (MemoryGuard::Instance().memGuardEnable_) {
-        size_t frontSize = 0;
-        size_t backSize = 0;
-        MemoryGuard::Instance().GetGuardSizes(frontSize, backSize);
-
-        // 溢出检查
-        uint64_t totalSize = 0;
-        if (__builtin_uaddl_overflow(byteCount, frontSize, &totalSize) ||
-            __builtin_uaddl_overflow(totalSize, backSize, &totalSize)) {
-            WARN_LOG(
-                "Integer overflow detected in IPC memory size calculation: byteCount=%lu, frontSize=%lu, backSize=%lu.",
-                byteCount, frontSize, backSize);
-            return originfunc_(ptr, byteCount, name, len);
-        }
-
-        // 还原为实际地址再调用
-        // NOLINTBEGIN(cppcoreguidelines-pro-type-const-cast)
-        ret = originfunc_(
-            reinterpret_cast<char *>(const_cast<void *>(ptr)) - frontSize, byteCount + frontSize + backSize, name, len);
-        // NOLINTEND(cppcoreguidelines-pro-type-const-cast)
-    } else {
-        ret = originfunc_(ptr, byteCount, name, len);
+    const void *exportPtr = ptr;
+    uint64_t exportSize = byteCount;
+    GuardBlockInfo blockInfo{};
+    // 同 HijackedFuncOfAclrtIpcMemGetExportKeyImpl，只有工具确实扩大过的完整分配才能导出保护区；也避免ACL层已扩长后再次扩长
+    bool guarded = MemoryGuard::Instance().memGuardEnable_ &&
+        MemoryGuard::Instance().GetGuardBlockInfoByUserAddr(const_cast<void *>(ptr), blockInfo);
+    if (guarded && byteCount == blockInfo.userSize) {
+        exportPtr = blockInfo.realPtr;
+        exportSize += blockInfo.frontGuardSize + blockInfo.backGuardSize;
     }
+    DEBUG_LOG("Runtime IPC export user=%p size=%lu guarded=%d actual=%p size=%lu.",
+              ptr, byteCount, guarded, exportPtr, exportSize);
+    rtError_t ret = originfunc_(exportPtr, exportSize, name, len);
 
     if (ret != RT_ERROR_NONE) {
         ERROR_LOG("error happened when calling rtIpcSetMemoryName byteCount:%lu, name:%.2048s, len:%u, retVal:%u",

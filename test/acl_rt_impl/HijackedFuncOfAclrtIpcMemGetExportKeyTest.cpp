@@ -27,6 +27,7 @@
 #include "core/FuncSelector.h"
 #include "core/DomainSocket.h"
 #include "runtime/inject_helpers/LocalDevice.h"
+#include "runtime/inject_helpers/MemGuard.h"
 
 class HijackedFuncOfAclrtIpcMemGetExportKey : public testing::Test {
     void TearDown() override
@@ -95,4 +96,50 @@ TEST_F(HijackedFuncOfAclrtIpcMemGetExportKey, origin_func_call_failed_expect_ret
     };
     instance.originfunc_ = func;
     ASSERT_EQ(instance.Call(ptr, size, key, len, 0), ACL_ERROR_INTERNAL_ERROR);
+}
+
+// 测试场景：保护区使能，但HCCL导出地址不在工具分配表中
+// 测试预期：原样导出4MiB，不额外增加32字节
+TEST_F(HijackedFuncOfAclrtIpcMemGetExportKey, untracked_export_keeps_original_range)
+{
+    auto &guard = MemoryGuard::Instance();
+    bool previous = guard.memGuardEnable_;
+    guard.memGuardEnable_ = true;
+    MOCKER(&MemoryGuard::GetGuardBlockInfoByUserAddr).stubs().will(returnValue(false));
+    HijackedFuncOfAclrtIpcMemGetExportKeyImpl instance;
+    instance.originfunc_ = [](void *ptr, size_t size, char *, size_t, uint64_t) -> aclError {
+        EXPECT_EQ(ptr, reinterpret_cast<void *>(0x100000));
+        EXPECT_EQ(size, 0x400000U);
+        return ACL_ERROR_INTERNAL_ERROR;
+    };
+    EXPECT_EQ(instance.Call(reinterpret_cast<void *>(0x100000), 0x400000, nullptr, 0, 0),
+              ACL_ERROR_INTERNAL_ERROR);
+    guard.memGuardEnable_ = previous;
+}
+
+// 测试场景：工具托管分配分别完整导出、前缀导出和内部子区间导出
+// 测试预期：完整导出含实际32字节后保护区；两个子区间保持原始范围
+TEST_F(HijackedFuncOfAclrtIpcMemGetExportKey, guarded_full_and_partial_export_ranges)
+{
+    auto &guard = MemoryGuard::Instance();
+    bool previous = guard.memGuardEnable_;
+    size_t front = 0;
+    size_t back = 0;
+    guard.GetGuardSizes(front, back);
+    guard.memGuardEnable_ = true;
+    guard.SetGuardSizes(0, 32);
+    void *ptr = reinterpret_cast<void *>(0x200000);
+    guard.MallocProc(&ptr, 1024);
+    HijackedFuncOfAclrtIpcMemGetExportKeyImpl instance;
+    instance.originfunc_ = [](void *addr, size_t size, char *, size_t, uint64_t flag) -> aclError {
+        EXPECT_EQ(addr, reinterpret_cast<void *>(flag == 2 ? 0x200080 : 0x200000));
+        EXPECT_EQ(size, flag == 0 ? 1056U : 512U);
+        return ACL_ERROR_INTERNAL_ERROR;
+    };
+    EXPECT_EQ(instance.Call(ptr, 1024, nullptr, 0, 0), ACL_ERROR_INTERNAL_ERROR);
+    EXPECT_EQ(instance.Call(ptr, 512, nullptr, 0, 1), ACL_ERROR_INTERNAL_ERROR);
+    EXPECT_EQ(instance.Call(reinterpret_cast<char *>(ptr) + 128, 512, nullptr, 0, 2), ACL_ERROR_INTERNAL_ERROR);
+    guard.FreeProc(ptr);
+    guard.SetGuardSizes(front, back);
+    guard.memGuardEnable_ = previous;
 }

@@ -17,6 +17,9 @@
 
 #include <gtest/gtest.h>
 #include <cstdlib>
+#include <elf.h>
+#include <unistd.h>
+#include <cstring>
 #include "mockcpp/mockcpp.hpp"
 #include "acl_rt_impl/HijackedFunc.h"
 #include "acl_rt_impl/AscendclImplOrigin.h"
@@ -65,4 +68,28 @@ TEST_F(BinaryLoadFromFileTest, input_nullptr_and_mock_prof_then_test_call_expect
     HijackedFuncOfAclrtBinaryLoadFromFileImpl inst;
     FuncSelector::Instance().Set(ToolType::PROF);
     ASSERT_EQ(inst.Call(nullptr, nullptr, nullptr), ACL_SUCCESS);
+}
+
+// 测试场景：原生ELF携带有效目标标志，没有可选的同名JSON
+// 测试预期：保留通用ELF注册，不调用JSON解析，不跳过二进制插桩入口
+TEST_F(BinaryLoadFromFileTest, native_elf_without_json_keeps_registration)
+{
+    char path[] = "/tmp/hccl-native-elf-XXXXXX.o";
+    int fd = mkstemps(path, 2);
+    ASSERT_GE(fd, 0);
+    Elf64_Ehdr header{};
+    std::memcpy(header.e_ident, ELFMAG, SELFMAG);
+    header.e_flags = 0x990000;
+    const auto written = write(fd, &header, sizeof(header));
+    close(fd);
+    ASSERT_EQ(written, sizeof(header));
+    MOCKER(ReadMagicFromKernelJson).expects(never());
+    MOCKER_CPP(&RegisterManager::CreateContext,
+        RegisterContextSP(RegisterManager::*)(const char*, aclrtBinHandle, uint32_t, aclrtBinaryLoadOptions *))
+        .expects(once()).will(returnValue(RegisterContextSP{}));
+    HijackedFuncOfAclrtBinaryLoadFromFileImpl inst;
+    aclrtBinHandle handle{};
+    inst.Pre(path, nullptr, &handle);
+    EXPECT_EQ(inst.Post(ACL_SUCCESS), ACL_SUCCESS);
+    unlink(path);
 }

@@ -41,19 +41,23 @@ void HijackedFuncOfAclrtIpcMemGetExportKeyImpl::Pre(void *devPtr, size_t size, c
 aclError HijackedFuncOfAclrtIpcMemGetExportKeyImpl::Call(void *devPtr, size_t size, char *key, size_t len, uint64_t flag)
 {
     Pre(devPtr, size, key, len, flag);
-    
+
     if (originfunc_) {
-        aclError ret;
-        if (MemoryGuard::Instance().memGuardEnable_) {
-            size_t frontSize = 0;
-            size_t backSize = 0;
-            MemoryGuard::Instance().GetGuardSizes(frontSize, backSize);
-            // 还原为实际地址再调用
-            ret = originfunc_(reinterpret_cast<char *>(devPtr) - frontSize, size + frontSize + backSize, key, len, flag);
-        } else {
-            ret = originfunc_(devPtr, size, key, len, flag);
+        void *exportPtr = devPtr;
+        size_t exportSize = size;
+        GuardBlockInfo blockInfo{};
+        // HCCL 使用的内存可能没有经过安全区扩展，也可能只导出一个子区间，或者请求已经被上层扩展过，再加一次就会超过真实分配范围
+        // 修改为 起始地址命中工具登记的用户分配 + 导出大小等于该分配完整的用户大小 两个条件都满足时再扩展
+        bool guarded = MemoryGuard::Instance().memGuardEnable_ &&
+            MemoryGuard::Instance().GetGuardBlockInfoByUserAddr(devPtr, blockInfo);
+        if (guarded && size == blockInfo.userSize) {
+            exportPtr = blockInfo.realPtr;
+            exportSize += blockInfo.frontGuardSize + blockInfo.backGuardSize;
         }
-        
+        DEBUG_LOG("IPC export user=%p size=%zu guarded=%d actual=%p size=%zu.",
+                  devPtr, size, guarded, exportPtr, exportSize);
+        aclError ret = originfunc_(exportPtr, exportSize, key, len, flag);
+        DEBUG_LOG("IPC export result=%d user=%p size=%zu.", ret, devPtr, size);
         return Post(ret);
     }
     ERROR_LOG("HijackedFuncOfAclrtIpcMemGetExportKeyImpl originfunc is nullptr.");

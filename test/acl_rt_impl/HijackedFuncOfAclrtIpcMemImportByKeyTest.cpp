@@ -27,6 +27,7 @@
 #include "core/FuncSelector.h"
 #include "core/DomainSocket.h"
 #include "runtime/inject_helpers/LocalDevice.h"
+#include "runtime/inject_helpers/MemGuard.h"
 
 class HijackedFuncOfAclrtIpcMemImportByKey : public testing::Test {
     void TearDown() override
@@ -101,4 +102,19 @@ TEST_F(HijackedFuncOfAclrtIpcMemImportByKey, origin_func_call_failed_expect_retu
     };
     instance.originfunc_ = func;
     ASSERT_EQ(instance.Call(&ptr, key, 0), ACL_ERROR_INTERNAL_ERROR);
+}
+
+// 测试场景：IPC导入失败，输出参数为空且保护区使能
+// 测试预期：保留原错误码，不解引用输出参数，也不上报映射
+TEST_F(HijackedFuncOfAclrtIpcMemImportByKey, failed_import_with_null_output)
+{
+    auto &guard = MemoryGuard::Instance();
+    bool previous = guard.memGuardEnable_;
+    guard.memGuardEnable_ = true;
+    HijackedFuncOfAclrtIpcMemImportByKeyImpl instance;
+    instance.originfunc_ = [](void **, const char *, uint64_t) -> aclError {
+        return ACL_ERROR_INTERNAL_ERROR;
+    };
+    EXPECT_EQ(instance.Call(nullptr, nullptr, 0), ACL_ERROR_INTERNAL_ERROR);
+    guard.memGuardEnable_ = previous;
 }

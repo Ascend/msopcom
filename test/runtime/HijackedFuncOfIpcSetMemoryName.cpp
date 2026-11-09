@@ -27,6 +27,7 @@
 #include "core/FuncSelector.h"
 #include "utils/InjectLogger.h"
 #include "core/DomainSocket.h"
+#include "runtime/inject_helpers/MemGuard.h"
 
 TEST(HijackedFuncOfIpcSetMemoryNameTest, normal_calling)
 {
@@ -66,4 +67,34 @@ TEST(HijackedFuncOfIpcSetMemoryNameTest, origin_bad_calling)
     };
     instance.originfunc_ = func;
     ASSERT_EQ(instance.Call(ptr, byteCount, name, len), RT_ERROR_INVALID_VALUE);
+}
+
+// 测试场景：Runtime导出未托管内存、完整托管分配、子区间及ACL已扩长的分配
+// 测试预期：仅完整托管分配扩长一次，其他三种保持输入长度
+TEST(HijackedFuncOfIpcSetMemoryNameTest, export_only_expands_actual_guarded_allocation_once)
+{
+    GlobalMockObject::verify();
+    auto &guard = MemoryGuard::Instance();
+    bool previous = guard.memGuardEnable_;
+    size_t front = 0;
+    size_t back = 0;
+    guard.GetGuardSizes(front, back);
+    guard.memGuardEnable_ = true;
+    guard.SetGuardSizes(0, 32);
+    HijackedFuncOfIpcSetMemoryName instance;
+    instance.originfunc_ = [](const void *ptr, uint64_t size, char *, uint32_t len) -> rtError_t {
+        EXPECT_EQ(ptr, reinterpret_cast<void *>(0x300000));
+        EXPECT_EQ(size, len == 1 ? 0x400000U : (len == 3 ? 512U : 1056U));
+        return RT_ERROR_INVALID_VALUE;
+    };
+    void *ptr = reinterpret_cast<void *>(0x300000);
+    char name[] = "";
+    EXPECT_EQ(instance.Call(ptr, 0x400000, name, 1), RT_ERROR_INVALID_VALUE);
+    guard.MallocProc(&ptr, 1024);
+    EXPECT_EQ(instance.Call(ptr, 1024, name, 2), RT_ERROR_INVALID_VALUE);
+    EXPECT_EQ(instance.Call(ptr, 512, name, 3), RT_ERROR_INVALID_VALUE);
+    EXPECT_EQ(instance.Call(ptr, 1056, name, 4), RT_ERROR_INVALID_VALUE);
+    guard.FreeProc(ptr);
+    guard.SetGuardSizes(front, back);
+    guard.memGuardEnable_ = previous;
 }

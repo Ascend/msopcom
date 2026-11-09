@@ -15,7 +15,12 @@
  * ------------------------------------------------------------------------- */
 
 
+#include <elf.h>
+#include <fstream>
+#include <cstring>
+
 #include "HijackedFunc.h"
+#include "utils/FileSystem.h"
 #include "core/FuncSelector.h"
 #include "runtime/inject_helpers/ProfConfig.h"
 #include "runtime/inject_helpers/ProfDataCollect.h"
@@ -52,7 +57,16 @@ aclError HijackedFuncOfAclrtBinaryLoadFromFileImpl::Post(aclError ret)
 
     if (suffix == ".o") {
         jsonPath = jsonPath.substr(0, lastDot) + ".json";
-        if (!ReadMagicFromKernelJson(jsonPath, magicStr) || !ParseMagicStr(magicStr, magic)) {
+        Elf64_Ehdr header{};
+        std::ifstream binary(binPath_, std::ios::binary);
+        bool nativeElf = binary.read(reinterpret_cast<char *>(&header), sizeof(header)) &&
+            std::memcmp(header.e_ident, ELFMAG, SELFMAG) == 0 &&
+            header.e_flags != 0 && header.e_flags != FLAG_DEFAULT_VALUE;
+        // 原生ELF头已携带目标核信息（但没有同名 JSON）的场景下，BinaryLoadFromFile可以不要求JSON；仍按通用ELF注册以保留插桩
+        // 旧格式依赖 JSON，或者存在 JSON 的场景还是保留原来的解析流程
+        if (nativeElf && Realpath(jsonPath).empty()) {
+            DEBUG_LOG("Use native ELF metadata without optional kernel JSON. path:%.2048s", binPath_);
+        } else if (!ReadMagicFromKernelJson(jsonPath, magicStr) || !ParseMagicStr(magicStr, magic)) {
             WARN_LOG("Parse magic from kernel JSON failed.");
         }
     } else if (suffix == ".json") {
