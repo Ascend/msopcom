@@ -18,6 +18,10 @@
 #include "MsTx.h"
 
 #include <algorithm>
+#include <fnmatch.h>
+#include "nlohmann/json.hpp"
+#include "utils/FileSystem.h"
+#include "utils/Environment.h"
 
 #include "utils/Ustring.h"
 #include "utils/InjectLogger.h"
@@ -130,6 +134,43 @@ void MsTx::MstxRangeEnd(const MstxRangeId& rangeId)
     }
 }
 
+void MsTx::WriteTimelineRecord(const std::string &record) {
+    const auto path = JoinPath({GetEnv(DEVICE_PROF_DUMP_PATH_ENV), "timeline_mstx.json"});
+    if (!AppendStringToFile(path, record + "\n")) {
+        ERROR_LOG("Cannot record timeline mstx metadata: %s", path.c_str());
+    }
+}
+
+void MsTx::RecordTimelineLaunch(int32_t deviceId, const std::string &kernelName, const std::string &outputPath) {
+    if (kernelName.empty() || outputPath.empty() || !IsInMstxRange()) {
+        return;
+    }
+    const auto &selections = ProfConfig::Instance().GetConfig().timelineMergeConfigs;
+    std::lock_guard<std::mutex> lock(mstxAttrMutex_);
+    const auto messages = mstxRangeMessageUsageCountMap_.find(std::this_thread::get_id());
+    if (messages == mstxRangeMessageUsageCountMap_.end()) {
+        return;
+    }
+    for (size_t configIndex = 0; configIndex < MAX_TIMELINE_MERGE_CONFIG_COUNT; ++configIndex) {
+        const auto &selection = selections[configIndex];
+        // mstxName为空时匹配结束，不再读取后续配置项
+        if (selection.mstxName[0] == '\0') {
+            break;
+        }
+        if (messages->second.count(selection.mstxName) == 0 ||
+            (!mstxEnabledMessageList_.empty() && mstxEnabledMessageList_.count(selection.mstxName) == 0)) {
+            continue;
+        }
+        if (!StartsWith(kernelName, selection.kernelName) &&
+            fnmatch(selection.kernelName, kernelName.c_str(), 0) != 0) {
+            continue;
+        }
+        const nlohmann::json record = {
+            {"config_index", configIndex}, {"device_id", deviceId}, {"output_path", outputPath}};
+        WriteTimelineRecord(record.dump());
+    }
+}
+
 bool MsTx::IsInMstxRange()
 {
     auto mstxProfConfig = ProfConfig::Instance().GetConfig().mstxProfConfig;
@@ -188,8 +229,7 @@ MstxAPI::MstxDomainRegistration* MsTx::MstxDomainCreateA(const std::string &doma
     return it->second.get();
 }
 
-bool MsTx::IsDomainExist(MstxDomainRegistration *domain) const 
-{
+bool MsTx::IsDomainExist(MstxDomainRegistration *domain) const {
     if (domain == nullptr) {
          // globalDomain default is nullptr
         return true;

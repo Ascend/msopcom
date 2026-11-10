@@ -395,6 +395,7 @@ DataCollect::DataCollect(const LaunchContextSP &ctx, bool isInitOutput) {
     if (!outputPath_.empty() && !MkdirRecusively(outputPath_)) {
         WARN_LOG("Output path create failed, path is: %s", outputPath_.c_str());
     }
+    MsTx::Instance().RecordTimelineLaunch(deviceId_, kernelName_, outputPath_);
 }
 
 void SimulatorLauncher::Launch(const std::string &dumpPath, uint64_t launchId, bool aclNew) {

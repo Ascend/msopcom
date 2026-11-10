@@ -127,6 +127,8 @@ size_t GetFileSize(const std::string &filePath);
 bool ReadFile(const std::string &filePath, uint8_t *buffer, size_t bufferSize, bool checkSize = false);
 size_t WriteBinary(const std::string &filename, const char *data, uint64_t length,
                    std::ios_base::openmode mode = std::ios::out | std::ios::binary | std::ios::trunc);
+bool AppendStringToFile(
+    const std::string &filePath, const std::string &data, mode_t fileAuthority = SAVE_DATA_FILE_AUTHORITY);
 bool IsSoftLinkRecursively(const std::string &path);
 bool PathLenCheckValid(const std::string &checkPath);
 bool CheckOwnerPermission(std::string &path, std::string &msg);

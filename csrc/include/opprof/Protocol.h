@@ -65,6 +65,13 @@ struct ProcessCtrl {
     };
 };
 #pragma pack()
+constexpr uint32_t MAX_TIMELINE_MERGE_CONFIG_COUNT = 64U;
+
+struct TimelineMergeSelection {
+    char mstxName[NAME_MAX_LENGTH]{};
+    char kernelName[NAME_MAX_LENGTH]{};
+};
+
 struct MessageOfProfConfig {
     MstxProfConfig mstxProfConfig { };
     uint32_t replayCount {UINT32_INVALID};
@@ -80,6 +87,7 @@ struct MessageOfProfConfig {
     bool isDeviceToSimulator {false};
     bool isSimulator {false};
     bool pmSamplingEnable {false};
+    TimelineMergeSelection timelineMergeConfigs[MAX_TIMELINE_MERGE_CONFIG_COUNT]{};
 };
 
 #endif // __PROTOCOL_H__

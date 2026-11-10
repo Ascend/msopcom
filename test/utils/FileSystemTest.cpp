@@ -22,6 +22,7 @@
 #include <gtest/gtest.h>
 #include <iostream>
 #include <fstream>
+#include <iterator>
 #include <experimental/filesystem>
 #include <sys/stat.h> // for stat
 #include <limits.h>   // for PATH_MAX
@@ -73,6 +74,41 @@ public:
     std::string tempSoftLink_;
     std::string tempReadFile_;
 };
+
+/**
+/* | 用例集 | FileSystemTest
+/* |测试函数| AppendStringToFile()
+/* | 用例名 | append_records_expect_file_created_and_previous_content_preserved
+/* |用例描述| 向不存在文件连续追加两条记录，首次创建文件并保留原内容
+*/
+TEST_F(FileSystemTest, append_records_expect_file_created_and_previous_content_preserved) {
+    const auto path = tempDir_ + "/timeline_mstx.json";
+    const std::string first = "{\"device_id\":0}\n";
+    const std::string second = "{\"device_id\":1}\n";
+    ASSERT_FALSE(IsPathExists(path));
+    ASSERT_TRUE(AppendStringToFile(path, first));
+    ASSERT_TRUE(AppendStringToFile(path, second));
+    ASSERT_TRUE(AppendStringToFile(path, ""));
+    std::ifstream stream(path, std::ios::binary);
+    ASSERT_TRUE(stream.is_open());
+    const std::string content((std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>());
+    EXPECT_EQ(content, first + second);
+}
+
+/**
+/* | 用例集 | FileSystemTest
+/* |测试函数| AppendStringToFile()
+/* | 用例名 | append_with_invalid_path_or_short_write_expect_false
+/* |用例描述| 父目录不存在、目标为目录或短写时追加返回false
+*/
+TEST_F(FileSystemTest, append_with_invalid_path_or_short_write_expect_false) {
+    EXPECT_FALSE(AppendStringToFile(tempDir_ + "/missing/record.json", "record"));
+    EXPECT_FALSE(AppendStringToFile(tempDir_, "record"));
+    MOCKER(&write).expects(once()).will(returnValue(ssize_t{1}));
+    const bool appended = AppendStringToFile(tempDir_ + "/short.json", "record");
+    GlobalMockObject::verify();
+    EXPECT_FALSE(appended);
+}
 
 TEST_F(FileSystemTest, cover_checkInputFileValid_invalid_character)
 {

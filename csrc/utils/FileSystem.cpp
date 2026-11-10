@@ -17,6 +17,7 @@
 #include "FileSystem.h"
 
 #include <map>
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <iterator>
 #include "utils/InjectLogger.h"
@@ -261,6 +262,20 @@ size_t WriteBinary(const std::string &filename, const char *data, uint64_t lengt
         return 0;
     }
     return length;
+}
+
+bool AppendStringToFile(const std::string &filePath, const std::string &data, mode_t fileAuthority) {
+    std::string realPath = filePath;
+    if (!CheckWriteFilePathValid(realPath)) {
+        return false;
+    }
+    const int fd = open(realPath.c_str(), O_WRONLY | O_CREAT | O_APPEND, fileAuthority);
+    if (fd < 0) {
+        return false;
+    }
+    const auto written = write(fd, data.data(), data.size());
+    close(fd);
+    return written == static_cast<ssize_t>(data.size());
 }
 
 bool Chmod(const std::string &filePath, mode_t fileAuthority)

@@ -229,6 +229,7 @@ public:
     void MstxRangeEnd(const MstxAPI::MstxRangeId& rangeId);
     bool IsInMstxRange();
     bool IsMessageEnable(const std::string& msg);
+    void RecordTimelineLaunch(int32_t deviceId, const std::string &kernelName, const std::string &outputPath);
     MstxAPI::MstxDomainRegistration* MstxDomainCreateA(const std::string &domainName);
     bool IsDomainExist(MstxAPI::MstxDomainRegistration *domain) const;
     MstxAPI::MstxMemHeap* MstxMemHeapRegister(MstxAPI::MstxDomainRegistration *domain,
@@ -258,6 +259,7 @@ private:
         std::vector<MstxAPI::MstxMemVirtualRangeDesc> &rangeDescVec, MstxAPI::MstxMemRegion *targetHandle);
 
     bool isMstxInit_ = false;
+    void WriteTimelineRecord(const std::string &record);
     std::mutex mstxAttrMutex_;
     bool isMstxEnabledMessageInit_ = false;
     std::set<std::string> mstxEnabledMessageList_;

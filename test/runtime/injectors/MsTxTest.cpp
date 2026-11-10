@@ -17,14 +17,209 @@
 
 #include <gtest/gtest.h>
 #include <thread>
+#include <algorithm>
+#include <cstdlib>
+#include <fstream>
+#include <set>
+#include <unistd.h>
+#include "nlohmann/json.hpp"
 #include "mockcpp/mockcpp.hpp"
 #define private public
 #include "runtime/inject_helpers/MsTx.h"
 #undef private
 #include "ascendcl/AscendclOrigin.h"
 #include "runtime/inject_helpers/ProfDataCollect.h"
+#include "utils/FileSystem.h"
 
 using namespace MstxAPI;
+
+namespace {
+const std::string &ReadCurrentTimelineTestEnv(const std::string &key) {
+    thread_local std::string value;
+    const char *current = std::getenv(key.c_str());
+    value = current != nullptr ? current : "";
+    return value;
+}
+}
+
+class TimelineLaunchTest : public testing::Test {
+protected:
+    void SetUp() override {
+        GlobalMockObject::verify();
+        const char *previous = std::getenv(DEVICE_PROF_DUMP_PATH_ENV);
+        hadDumpPath_ = previous != nullptr;
+        savedDumpPath_ = previous != nullptr ? previous : "";
+        char directory[] = "/tmp/msopscommon_timeline_XXXXXX";
+        const char *created = mkdtemp(directory);
+        ASSERT_NE(created, nullptr);
+        directory_ = created;
+        ASSERT_EQ(setenv(DEVICE_PROF_DUMP_PATH_ENV, directory_.c_str(), 1), 0);
+        // 产品GetEnv按进程缓存，这里用当前环境值让每个用例读到各自的临时目录。
+        MOCKER(&GetEnv).stubs().will(invoke(ReadCurrentTimelineTestEnv));
+        MessageOfProfConfig config{};
+        config.mstxProfConfig.isMstxEnable = true;
+        ProfConfig::Instance().Init(config);
+        ProfConfig::Instance().isRangeReplay_ = false;
+        MsTx::Instance().MstxAttrReset(true);
+    }
+
+    void TearDown() override {
+        GlobalMockObject::verify();
+        MsTx::Instance().MstxAttrReset(true);
+        ProfConfig::Instance().Init(MessageOfProfConfig{});
+        ProfConfig::Instance().isRangeReplay_ = false;
+        if (hadDumpPath_) {
+            setenv(DEVICE_PROF_DUMP_PATH_ENV, savedDumpPath_.c_str(), 1);
+        } else {
+            unsetenv(DEVICE_PROF_DUMP_PATH_ENV);
+        }
+        if (!directory_.empty()) {
+            RemoveAll(directory_);
+        }
+    }
+
+    void Select(size_t index, const std::string &mstx, const std::string &kernel) {
+        ASSERT_LT(index, MAX_TIMELINE_MERGE_CONFIG_COUNT);
+        auto &selection = ProfConfig::Instance().profConfig_.timelineMergeConfigs[index];
+        ASSERT_LT(mstx.size(), sizeof(selection.mstxName));
+        ASSERT_LT(kernel.size(), sizeof(selection.kernelName));
+        std::copy(mstx.begin(), mstx.end(), selection.mstxName);
+        selection.mstxName[mstx.size()] = '\0';
+        std::copy(kernel.begin(), kernel.end(), selection.kernelName);
+        selection.kernelName[kernel.size()] = '\0';
+    }
+
+    std::vector<nlohmann::json> Records() const {
+        std::ifstream stream(directory_ + "/timeline_mstx.json");
+        std::vector<nlohmann::json> records;
+        std::string line;
+        while (std::getline(stream, line)) {
+            records.push_back(nlohmann::json::parse(line));
+        }
+        return records;
+    }
+
+    bool hadDumpPath_ = false;
+    std::string savedDumpPath_;
+    std::string directory_;
+};
+
+/**
+/* | 用例集 | TimelineLaunchTest
+/* |测试函数| MsTx::RecordTimelineLaunch()
+/* | 用例名 | prefix_and_wildcard_matches_expect_only_selected_json_records_in_order
+/* |用例描述| 同一范围下前缀与通配符匹配，仅所选配置按索引追加JSON记录
+*/
+TEST_F(TimelineLaunchTest, prefix_and_wildcard_matches_expect_only_selected_json_records_in_order) {
+    Select(0, "mstx1", "kernel");
+    Select(1, "mstx1", "*_fused");
+    Select(2, "inactive", "kernel");
+    Select(3, "mstx1", "other");
+    Select(5, "mstx1", "kernel"); // 第4项为空，后面的第5项不可被读取。
+    auto &mstx = MsTx::Instance();
+    const auto range = mstx.MstxRangeAdd("mstx1");
+    const std::string output = "/capture/\"quoted\"/back\\slash/dump";
+    mstx.RecordTimelineLaunch(3, "kernel_fused", output);
+    mstx.RecordTimelineLaunch(7, "kernel_plain", "/second/dump");
+    mstx.MstxRangeEnd(range);
+
+    const auto records = Records();
+    ASSERT_EQ(records.size(), 3U);
+    EXPECT_EQ(records[0], (nlohmann::json{{"config_index", 0}, {"device_id", 3}, {"output_path", output}}));
+    EXPECT_EQ(records[1], (nlohmann::json{{"config_index", 1}, {"device_id", 3}, {"output_path", output}}));
+    EXPECT_EQ(records[2],
+        (nlohmann::json{{"config_index", 0}, {"device_id", 7}, {"output_path", "/second/dump"}}));
+}
+
+/**
+/* | 用例集 | TimelineLaunchTest
+/* |测试函数| MsTx::RecordTimelineLaunch()
+/* | 用例名 | invalid_arguments_or_no_active_range_expect_no_metadata_file
+/* |用例描述| 空算子名、空输出目录或无活动范围时，不创建timeline_mstx.json记录文件
+*/
+TEST_F(TimelineLaunchTest, invalid_arguments_or_no_active_range_expect_no_metadata_file) {
+    Select(0, "mstx1", "kernel");
+    auto &mstx = MsTx::Instance();
+    mstx.RecordTimelineLaunch(0, "kernel", "/output/dump");
+    const auto range = mstx.MstxRangeAdd("mstx1");
+    mstx.RecordTimelineLaunch(0, "", "/output/dump");
+    mstx.RecordTimelineLaunch(0, "kernel", "");
+    mstx.MstxRangeEnd(range);
+    mstx.RecordTimelineLaunch(0, "kernel", "/output/dump");
+    ProfConfig::Instance().profConfig_.mstxProfConfig.isMstxEnable = false;
+    mstx.RecordTimelineLaunch(0, "kernel", "/output/dump");
+    EXPECT_FALSE(IsPathExists(directory_ + "/timeline_mstx.json"));
+}
+
+/**
+/* | 用例集 | TimelineLaunchTest
+/* |测试函数| MsTx::RecordTimelineLaunch()
+/* | 用例名 | global_mstx_filter_expect_only_enabled_selection_recorded
+/* |用例描述| 全局mstxEnabledMessage只允许mstx2时，仅记录对应配置索引1
+*/
+TEST_F(TimelineLaunchTest, global_mstx_filter_expect_only_enabled_selection_recorded) {
+    Select(0, "mstx1", "kernel");
+    Select(1, "mstx2", "kernel");
+    auto &setting = ProfConfig::Instance().profConfig_.mstxProfConfig;
+    std::copy_n("mstx2", sizeof("mstx2"), setting.mstxEnabledMessage);
+    auto &mstx = MsTx::Instance();
+    const auto first = mstx.MstxRangeAdd("mstx1");
+    const auto second = mstx.MstxRangeAdd("mstx2");
+    mstx.RecordTimelineLaunch(2, "kernel", "/enabled/dump");
+    mstx.MstxRangeEnd(second);
+    mstx.RecordTimelineLaunch(2, "kernel", "/disabled/dump");
+    mstx.MstxRangeEnd(first);
+    const auto records = Records();
+    ASSERT_EQ(records.size(), 1U);
+    EXPECT_EQ(records[0],
+        (nlohmann::json{{"config_index", 1}, {"device_id", 2}, {"output_path", "/enabled/dump"}}));
+}
+
+/**
+/* | 用例集 | TimelineLaunchTest
+/* |测试函数| MsTx::RecordTimelineLaunch()
+/* | 用例名 | four_thread_launches_expect_80_complete_and_thread_isolated_records
+/* |用例描述| 4线程各记录20次launch，共80条记录且各线程内保持提交顺序
+*/
+TEST_F(TimelineLaunchTest, four_thread_launches_expect_80_complete_and_thread_isolated_records) {
+    constexpr size_t threads = 4;
+    constexpr size_t launches = 20;
+    for (size_t index = 0; index < threads; ++index) {
+        Select(index, "mstx" + std::to_string(index), "same_op");
+    }
+    std::vector<std::thread> workers;
+    for (size_t index = 0; index < threads; ++index) {
+        workers.emplace_back([index] {
+            auto &mstx = MsTx::Instance();
+            const auto range = mstx.MstxRangeAdd("mstx" + std::to_string(index));
+            for (size_t launch = 0; launch < launches; ++launch) {
+                mstx.RecordTimelineLaunch(static_cast<int32_t>(index), "same_op",
+                    "/device" + std::to_string(index) + "/" + std::to_string(launch) + "/dump");
+            }
+            mstx.MstxRangeEnd(range);
+        });
+    }
+    for (auto &worker : workers) {
+        worker.join();
+    }
+    MsTx::Instance().RecordTimelineLaunch(0, "same_op", "/main_thread/dump");
+    const auto records = Records();
+    ASSERT_EQ(records.size(), threads * launches);
+    std::vector<size_t> nextLaunch(threads, 0);
+    std::set<std::string> paths;
+    for (const auto &record : records) {
+        const size_t index = record["config_index"].get<size_t>();
+        ASSERT_LT(index, threads);
+        EXPECT_EQ(record["device_id"], index);
+        const auto expected = "/device" + std::to_string(index) + "/" +
+            std::to_string(nextLaunch[index]++) + "/dump";
+        EXPECT_EQ(record["output_path"], expected);
+        EXPECT_TRUE(paths.insert(record["output_path"].get<std::string>()).second);
+    }
+    for (auto count : nextLaunch) {
+        EXPECT_EQ(count, launches);
+    }
+}
 
 TEST(MsTx, prof_mstx_range_add_end_single_time)
 {
