@@ -37,7 +37,7 @@ void HijackedFuncOfAclrtIpcMemCloseImpl::Pre(const char *key)
 
 aclError HijackedFuncOfAclrtIpcMemCloseImpl::Post(aclError ret)
 {
-    if (IsSanitizer()) {
+    if (ret == ACL_SUCCESS && IsSanitizer()) {
         if (key_ == nullptr) {
             ERROR_LOG("aclrtIpcMemCloseImpl key is nullptr");
             return ret;

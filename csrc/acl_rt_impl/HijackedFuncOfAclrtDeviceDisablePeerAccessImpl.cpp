@@ -34,6 +34,7 @@ void HijackedFuncOfAclrtDeviceDisablePeerAccessImpl::Pre(int32_t peerDeviceId) {
 aclError HijackedFuncOfAclrtDeviceDisablePeerAccessImpl::Post(aclError ret) {
     if (ret == ACL_SUCCESS && IsSanitizer()) {
         PeerAccessRecord record{deviceId_, peerDeviceId_, PeerAccessOp::DISABLE};
+        MemoryManage::RevokeP2PMappings(deviceId_, peerDeviceId_);
         PeerAccessState::Instance().Apply(deviceId_, peerDeviceId_, PeerAccessOp::DISABLE);
         InteractHelper::Notify(deviceId_, PacketType::PEER_ACCESS_RECORD, record);
     }

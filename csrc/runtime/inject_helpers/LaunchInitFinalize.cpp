@@ -329,6 +329,9 @@ void SanitizerLaunchInit::Init(uint64_t blockDim) {
     blockDim_ = blockDim;
     hostMemoryNum_ = MemoryManage::Instance().GetMallocCount();
     peerMemories_ = PeerAccessState::Instance().Snapshot(ThreadContext::Instance().GetDeviceId());
+    // 把精确映射窗口也塞进同一张数组，随 blockHead 一起拷贝到设备侧
+    auto mapped = MemoryManage::SnapshotP2PMappings(ThreadContext::Instance().GetDeviceId());
+    peerMemories_.insert(peerMemories_.end(), mapped.begin(), mapped.end());
     InitKernelType();
 }
 

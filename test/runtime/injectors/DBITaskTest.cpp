@@ -24,6 +24,7 @@
 
 #include "runtime/inject_helpers/KernelContext.h"
 #include "runtime/inject_helpers/DeviceContext.h"
+#include "runtime/inject_helpers/ThreadContext.h"
 #include "runtime/inject_helpers/KernelMatcher.h"
 #include "runtime/inject_helpers/RegisterContext.h"
 #include "runtime/inject_helpers/FuncManager.h"
@@ -594,4 +595,99 @@ TEST_F(DBITaskTest, RunDBITask_handle_static_stub_with_keep_outputs_expect_dump)
     const uint64_t tilingKey = 1;
     EXPECT_FALSE(RunDBITask(&hdl, tilingKey));
     // TearDown 中 GlobalMockObject::verify() 校验 WriteBinary 被调用一次（落盘 kernel.o）
+}
+
+// 测试场景：同源函数重复启动，以及原始句柄重用后创建同名新函数
+// 测试预期：同源只转换一次，新源重新转换并返回新设备函数
+TEST_F(DBITaskTest, SourceFunctionLifetimeControlsReuse)
+{
+    MockFuncContext();
+    MOCKER(&DBITask::Convert).expects(exactly(2)).will(returnValue(true));
+    MOCKER_CPP(&RegisterContext::Clone).stubs().will(returnValue(regCtx_));
+    MOCKER_CPP(&aclrtBinaryGetFunctionByEntryImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
+    DBITaskConfig::Instance().Init(BIType::CUSTOMIZE, "pluginPath", KernelMatcher::Config{});
+    DBITask task(BIType::CUSTOMIZE);
+    auto first = task.Run(launchCtx_);
+    ASSERT_NE(first, nullptr);
+    EXPECT_EQ(task.Run(launchCtx_), first);
+    auto replacement = FuncManager::Instance().CreateContext(tilingFuncCtx_->GetFuncHandle(),
+        uint64_t(0), tilingFuncCtx_->GetFuncHandle());
+    ASSERT_NE(replacement, tilingFuncCtx_);
+    auto nextLaunch = make_shared<LaunchContext>(replacement, launchCtx_->GetArgsContext(),
+        launchCtx_->GetLaunchParam());
+    auto second = task.Run(nextLaunch);
+    ASSERT_NE(second, nullptr);
+    EXPECT_NE(second, first);
+    EXPECT_EQ(task.Run(nextLaunch), second);
+}
+
+// 测试场景：旧函数已转换成功，新源转换失败后重试
+// 测试预期：失败返回空，不复用旧Context函数；重试成功后仅复用新函数
+TEST_F(DBITaskTest, NewSourceConversionFailureNeverReusesStaleFunction)
+{
+    MockFuncContext();
+    MOCKER(&DBITask::Convert).expects(exactly(3)).will(returnValue(true))
+        .then(returnValue(false)).then(returnValue(true));
+    MOCKER_CPP(&RegisterContext::Clone).stubs().will(returnValue(regCtx_));
+    MOCKER_CPP(&aclrtBinaryGetFunctionByEntryImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
+    DBITaskConfig::Instance().Init(BIType::CUSTOMIZE, "pluginPath", KernelMatcher::Config{});
+    DBITask task(BIType::CUSTOMIZE);
+    auto old = task.Run(launchCtx_);
+    ASSERT_NE(old, nullptr);
+    auto replacement = FuncManager::Instance().CreateContext(tilingFuncCtx_->GetFuncHandle(),
+        uint64_t(0), tilingFuncCtx_->GetFuncHandle());
+    auto nextLaunch = make_shared<LaunchContext>(replacement, launchCtx_->GetArgsContext(),
+        launchCtx_->GetLaunchParam());
+    EXPECT_EQ(task.Run(nextLaunch), nullptr);
+    auto current = task.Run(nextLaunch);
+    ASSERT_NE(current, nullptr);
+    EXPECT_NE(current, old);
+    EXPECT_EQ(task.Run(nextLaunch), current);
+}
+
+// 测试场景：同源函数跨Context启动，同一卡Context指针在最终reset后重用
+// 测试预期：不同Context和新代际均重新转换，同Context同代际保持复用
+TEST_F(DBITaskTest, ContextIdentityAndResetGenerationPreventStaleReuse)
+{
+    MockFuncContext();
+    MOCKER(&DBITask::Convert).expects(exactly(3)).will(returnValue(true));
+    MOCKER_CPP(&RegisterContext::Clone).stubs().will(returnValue(regCtx_));
+    MOCKER_CPP(&aclrtBinaryGetFunctionByEntryImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
+    static aclrtContext current;
+    current = reinterpret_cast<aclrtContext>(0x100);
+    auto query = [](aclrtContext *ctx) -> aclError { *ctx = current; return ACL_SUCCESS; };
+    MOCKER(&aclrtGetCurrentContextImplOrigin).stubs().will(invoke(+query));
+    DBITaskConfig::Instance().Init(BIType::CUSTOMIZE, "pluginPath", KernelMatcher::Config{});
+    DBITask task(BIType::CUSTOMIZE);
+    auto first = task.Run(launchCtx_);
+    ASSERT_NE(first, nullptr);
+    EXPECT_EQ(task.Run(launchCtx_), first);
+    current = reinterpret_cast<aclrtContext>(0x200);
+    auto second = task.Run(launchCtx_);
+    ASSERT_NE(second, nullptr);
+    EXPECT_NE(second, first);
+    EXPECT_EQ(task.Run(launchCtx_), second);
+    DeviceContext::Local().AdvanceContextGeneration();
+    auto third = task.Run(launchCtx_);
+    ASSERT_NE(third, nullptr);
+    EXPECT_NE(third, second);
+    EXPECT_EQ(task.Run(launchCtx_), third);
+}
+
+// 测试场景：查询当前Context失败，转换函数不能被当成可复用缓存
+// 测试预期：每次重新转换，不因上次成功转换而返回未知归属的设备句柄
+TEST_F(DBITaskTest, UnknownContextDisablesConvertedFunctionReuse)
+{
+    MockFuncContext();
+    MOCKER(&DBITask::Convert).expects(exactly(2)).will(returnValue(true));
+    MOCKER_CPP(&RegisterContext::Clone).stubs().will(returnValue(regCtx_));
+    MOCKER_CPP(&aclrtBinaryGetFunctionByEntryImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
+    MOCKER(&aclrtGetCurrentContextImplOrigin).stubs().will(returnValue(ACL_ERROR_INTERNAL_ERROR));
+    DBITaskConfig::Instance().Init(BIType::CUSTOMIZE, "pluginPath", KernelMatcher::Config{});
+    DBITask task(BIType::CUSTOMIZE);
+    auto first = task.Run(launchCtx_);
+    auto second = task.Run(launchCtx_);
+    ASSERT_NE(first, nullptr);
+    ASSERT_NE(second, nullptr);
+    EXPECT_NE(first, second);
 }

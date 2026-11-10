@@ -128,3 +128,18 @@ TEST_F(HijackedFuncOfAclrtIpcMemCloseImplTest, TestPostWithSanitizerAndKeyFoundA
     EXPECT_EQ(ret, ACL_SUCCESS);
     GlobalMockObject::verify();
 }
+// 测试场景：真实IPC Close失败，原导入记录仍有效
+// 测试预期：保留记录，不发送UNMAP或DESTROY
+TEST_F(HijackedFuncOfAclrtIpcMemCloseImplTest, FailedClosePreservesIPCRecord)
+{
+    const char *key = "hccl_failed_close";
+    auto &records = IPCMemManager::Instance().ipcMemInfoMap;
+    records[key] = {IPCMemManager::IPCMemActor::SHAREE, reinterpret_cast<void *>(0x123400)};
+    HijackedFuncOfAclrtIpcMemCloseImpl func;
+    func.Pre(key);
+    EXPECT_EQ(func.Post(ACL_ERROR_INTERNAL_ERROR), ACL_ERROR_INTERNAL_ERROR);
+    ASSERT_EQ(records.count(key), 1U);
+    EXPECT_EQ(records.at(key).devPtr, reinterpret_cast<void *>(0x123400));
+    records.erase(key);
+    GlobalMockObject::verify();
+}

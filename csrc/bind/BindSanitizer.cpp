@@ -54,6 +54,7 @@ void HijackedAscendclImplCtor()
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtFreeHostImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMemsetImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMemcpyImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMemP2PMapImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMapMemImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtUnmapMemImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtIpcMemGetExportKeyImpl);
@@ -689,6 +690,13 @@ aclError aclrtMemcpyImpl(void *dst, size_t destMax, const void *src,
     LayerGuard guard(HijackedLayerManager::Instance(), __func__);
     HijackedFuncOfAclrtMemcpyImpl instance;
     return instance.Call(dst, destMax, src, count, kind);
+}
+
+aclError aclrtMemP2PMapImpl(void *devPtr, size_t size, int32_t dstDevId, uint64_t flags)
+{
+    LayerGuard guard(HijackedLayerManager::Instance(), __func__);
+    HijackedFuncOfAclrtMemP2PMapImpl instance;
+    return instance.Call(devPtr, size, dstDevId, flags);
 }
 
 aclError aclrtMapMemImpl(void *virPtr, size_t size, size_t offset,

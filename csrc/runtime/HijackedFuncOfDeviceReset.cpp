@@ -59,12 +59,18 @@ rtError_t HijackedFuncOfDeviceReset::Post(rtError_t ret)
             return ret;
         }
 
+        if (!DeviceContext::IsPrimaryContextReleased(devId_)) {
+            return ret;
+        }
+
+        DeviceContext::Instance(devId_).AdvanceContextGeneration();
         std::string socVersion = DeviceContext::Instance(devId_).GetSocVersion();
         PacketHead head = { PacketType::DEVICE_SUMMARY };
         DeviceSummary summary{};
         summary.device = static_cast<uint32_t>(GetDeviceTypeBySocVersion(socVersion));
         summary.deviceId = devId_;
         LocalDevice::GetInstance(devId_).Notify(Serialize(head, summary));
+        MemoryManage::ResetDevice(devId_);
         PeerAccessState::Instance().Apply(devId_, -1, PeerAccessOp::RESET);
         // 与 ACL 重置入口一致，成功后撤销涉及目标设备的全部授权
         InteractHelper::Notify(

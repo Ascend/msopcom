@@ -32,6 +32,8 @@ void AscendclImplOriginCtor()
     REGISTER_LIBRARY(AclRuntimeLibName());
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtSetDeviceImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtGetDeviceImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtGetCurrentContextImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtGetPrimaryCtxStateImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtResetDeviceForceImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtGetLogicDevIdByUserDevIdImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtGetSocNameImpl);
@@ -107,6 +109,11 @@ aclError aclrtSetDeviceImplOrigin(int32_t deviceId)
 aclError aclrtGetDeviceImplOrigin(int32_t *deviceId)
 {
     LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtGetDeviceImpl, deviceId);
+}
+
+aclError aclrtGetPrimaryCtxStateImplOrigin(int32_t deviceId, uint32_t *flags, int32_t *active)
+{
+    LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtGetPrimaryCtxStateImpl, deviceId, flags, active);
 }
 
 aclError aclrtResetDeviceForceImplOrigin(int32_t deviceId)
@@ -383,4 +390,9 @@ aclError aclrtLaunchSIMTKernelWithArgsArrayImplOrigin(void *func, dim3 gridDim, 
     aclrtStream stream, aclrtLaunchKernelCfg *cfg, void **args)
 {
     LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtLaunchSIMTKernelWithArgsArrayImpl, func, gridDim, blockDim, dynUbufSize, stream, cfg, args);
+}
+
+aclError aclrtGetCurrentContextImplOrigin(aclrtContext *context)
+{
+    LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtGetCurrentContextImpl, context);
 }

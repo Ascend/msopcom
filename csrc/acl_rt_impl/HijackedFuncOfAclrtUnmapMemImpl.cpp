@@ -22,6 +22,7 @@
 #include "runtime/inject_helpers/LocalDevice.h"
 #include "runtime/inject_helpers/MemoryContext.h"
 #include "runtime/inject_helpers/ProfConfig.h"
+#include "runtime/inject_helpers/MemoryDataCollect.h"
 #include "utils/Protocol.h"
 #include "utils/Serialize.h"
 
@@ -37,6 +38,7 @@ void HijackedFuncOfAclrtUnmapMemImpl::Pre(void* virPtr)
         record.infoSrc = MemInfoSrc::ACL;
         record.dstAddr = reinterpret_cast<uint64_t>(virPtr);
         record.memSize = 0;
+        MemoryManage::Instance().CacheMemory<MemoryOpType::FREE>(record.dstAddr, MemInfoSrc::ACL);
         LocalDevice::Local().Notify(Serialize(head, record));
     }
     if (IsOpProf() && !ProfConfig::Instance().IsSimulator()) {

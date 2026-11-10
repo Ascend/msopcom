@@ -62,6 +62,11 @@ aclError HijackedFuncOfAclrtResetDeviceImpl::Post(aclError ret)
             return ret;
         }
 
+        if (!DeviceContext::IsPrimaryContextReleased(devId_)) {
+            return ret;
+        }
+
+        DeviceContext::Instance(devId_).AdvanceContextGeneration();
         std::string socVersion = DeviceContext::Instance(devId_).GetSocVersion();
         PacketHead head = { PacketType::DEVICE_SUMMARY };
         DeviceSummary summary{};
@@ -69,6 +74,7 @@ aclError HijackedFuncOfAclrtResetDeviceImpl::Post(aclError ret)
         summary.deviceId = devId_;
         LocalDevice::GetInstance(devId_).Notify(Serialize(head, summary));
         PeerAccessRecord record{devId_, -1, PeerAccessOp::RESET};
+        MemoryManage::ResetDevice(devId_);
         PeerAccessState::Instance().Apply(devId_, -1, PeerAccessOp::RESET);
         InteractHelper::Notify(devId_, PacketType::PEER_ACCESS_RECORD, record);
     }

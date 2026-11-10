@@ -105,6 +105,20 @@ int32_t DeviceContext::GetRunningDeviceId()
     return runningDeviceId;
 }
 
+// 查询默认 Context 的引用是否已全部释放；仍有引用时调用方不撤销设备内存与映射记录
+bool DeviceContext::IsPrimaryContextReleased(int32_t deviceId)
+{
+    int32_t active = 0;
+    // active 表示默认 Context 的激活状态：0 未激活，1 已激活
+    // ACL 接口约束 flags 为保留参数，必须传 nullptr
+    const aclError ret = aclrtGetPrimaryCtxStateImplOrigin(deviceId, nullptr, &active);
+    if (ret != ACL_SUCCESS) {
+        WARN_LOG("Cannot query primary context state for device %d, invalidate reset records conservatively", deviceId);
+        return true;
+    }
+    return active == 0;
+}
+
 bool DeviceContext::NeedOverflowStatus() const
 {
     if (socVersion_.find("Ascend310P") != std::string::npos || socVersion_.find("Ascend310p") != std::string::npos) {

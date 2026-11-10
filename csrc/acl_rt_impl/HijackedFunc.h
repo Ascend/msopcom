@@ -267,6 +267,20 @@ public:
         aclrtMemcpyKind kind, aclrtStream stream) override;
 };
 
+// 成功后采集显式使用设备的精确映射，不修改线程当前设备
+class HijackedFuncOfAclrtMemP2PMapImpl
+    : public decltype(AscendclImpHijackedType(&aclrtMemP2PMapImpl)) {
+public:
+    HijackedFuncOfAclrtMemP2PMapImpl();
+    void Pre(void *devPtr, size_t size, int32_t dstDevId, uint64_t flags) override;
+    aclError Post(aclError ret) override;
+
+private:
+    uint64_t addr_{0}; // 原业务地址
+    uint64_t size_{0}; // 映射长度
+    int32_t deviceId_{-1}; // 用户设备号，与SetDevice及checker一致
+};
+
 class HijackedFuncOfAclrtMapMemImpl : public decltype(AscendclImpHijackedType(&aclrtMapMemImpl)) {
 public:
     explicit HijackedFuncOfAclrtMapMemImpl();

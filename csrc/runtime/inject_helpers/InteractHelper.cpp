@@ -19,6 +19,8 @@
 
 #include "utils/TypeTraits.h"
 #include "InteractHelper.h"
+#include "MemoryDataCollect.h"
+#include <limits>
 
 PacketType QueryResponsePacketType(PacketType type)
 {
@@ -46,6 +48,17 @@ void IPCInteract(const IPCMemRecord &record)
     } else if (response.status != ResponseStatus::SUCCESS) {
         ERROR_LOG("Error happened: failure response received (Operation type:%u).", EnumToUnderlying(response.status));
     } else {
+        // 工具已更新离线Checker，此处仅同步在线SIMT快照，不重复发送分配事件
+        if (record.type == IPCOperationType::MAP_INFO) {
+            if (response.size == 0 || record.mapInfo.addr > std::numeric_limits<uint64_t>::max() - response.size) {
+                ERROR_LOG("Invalid IPC mapped memory size: %lu.", response.size);
+                return;
+            }
+            MemoryManage::Instance().CacheMemory<MemoryOpType::MALLOC>(
+                record.mapInfo.addr, MemInfoSrc::BYPASS, response.size);
+        } else if (record.type == IPCOperationType::UNMAP_INFO) {
+            MemoryManage::Instance().CacheMemory<MemoryOpType::FREE>(record.unmapInfo.addr, MemInfoSrc::BYPASS);
+        }
         DEBUG_LOG("Succeed in receiving response.");
     }
 }

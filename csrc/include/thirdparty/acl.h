@@ -227,6 +227,8 @@ aclError aclrtFreeHostImpl(void *hostPtr);
 aclError aclrtCtxGetCurrentDefaultStreamImpl(aclrtStream *stream);
 aclError aclrtSetDeviceImpl(int32_t deviceId);
 aclError aclrtGetDeviceImpl(int32_t *deviceId);
+aclError aclrtGetPrimaryCtxStateImpl(int32_t deviceId, uint32_t *flags, int32_t *active);
+aclError aclrtGetCurrentContextImpl(aclrtContext *context);
 aclError aclrtResetDeviceImpl(int32_t deviceId);
 aclError aclrtDeviceEnablePeerAccessImpl(int32_t peerDeviceId, uint32_t flags);
 aclError aclrtDeviceDisablePeerAccessImpl(int32_t peerDeviceId);
@@ -257,6 +259,7 @@ aclError aclrtMemcpy2dImpl(void *dst, size_t dpitch, const void *src, size_t spi
 aclError aclrtMemcpy2dAsyncImpl(void *dst, size_t dpitch, const void *src, size_t spitch,
                                 size_t width, size_t height, aclrtMemcpyKind kind, aclrtStream stream);
 
+aclError aclrtMemP2PMapImpl(void *devPtr, size_t size, int32_t dstDevId, uint64_t flags);
 aclError aclrtMapMemImpl(void *virPtr, size_t size, size_t offset, aclrtDrvMemHandle handle, uint64_t flags);
 aclError aclrtUnmapMemImpl(void *virPtr);
 

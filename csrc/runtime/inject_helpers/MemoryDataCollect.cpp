@@ -33,8 +33,37 @@
 #include "utils/Protocol.h"
 #include "utils/Serialize.h"
 #include "ArgsManager.h"
+#include "InteractHelper.h"
 
 namespace {
+
+// 映射只保存原分配身份，分配成功释放/重置时主动移除，地址复用不继承权限
+// HCCL的静态对象析构晚于函数内静态表析构，仍会调用被劫持的Free
+// 进程级登记和锁保留到操作系统回收，避免退出阶段访问已析构的容器
+struct MemoryManageProcessState {
+    std::mutex instancesMutex;
+    std::unordered_map<int32_t, MemoryManage> instances; // key：deviceId
+    std::mutex p2pMutex;
+    std::vector<P2PMappingRecord> p2pMappings;
+};
+
+MemoryManageProcessState &MemoryProcessState()
+{
+    static auto *state = new MemoryManageProcessState;
+    return *state;
+}
+
+std::mutex &p2pMutex = MemoryProcessState().p2pMutex;
+std::vector<P2PMappingRecord> &p2pMappings = MemoryProcessState().p2pMappings;
+
+void RevokeMappingsOfAllocation(int32_t ownerDeviceId, uint64_t ownerAddr) {
+    std::lock_guard<std::mutex> lock(p2pMutex);
+    p2pMappings.erase(std::remove_if(p2pMappings.begin(), p2pMappings.end(),
+                          [ownerDeviceId, ownerAddr](const P2PMappingRecord &m) {
+                              return m.ownerDeviceId == ownerDeviceId && m.ownerAddr == ownerAddr;
+                          }),
+        p2pMappings.end());
+}
 
 /// 函数返回值表示是否缓存当前传入的addr
 bool ProcessMc2CtxAddr(uint64_t addr, std::function<void(const KernelContext::AddrInfo &addrInfo)> func) {
@@ -105,6 +134,10 @@ void MemoryManage::CacheMemory<MemoryOpType::FREE>(uint64_t addr, MemInfoSrc inf
     for (const auto &it : this->memoryOpAddrInfos_) {
         if (it.addr == addr) {
             if (IsSameMemInfoSrc(it.memInfoSrc, infoSrc)) {
+                // 撤销当前分配的精确映射窗口
+                if (infoSrc == MemInfoSrc::ACL || infoSrc == MemInfoSrc::RT) {
+                    RevokeMappingsOfAllocation(deviceId_, addr);
+                }
                 this->memoryOpAddrInfos_.erase(it);
                 mallocCount_--;
                 return;
@@ -246,14 +279,141 @@ void MemoryManage::UpdateMemoryOp()
 
 MemoryManage &MemoryManage::Instance() { return Instance(ThreadContext::Instance().GetDeviceId()); }
 
-MemoryManage &MemoryManage::Instance(int32_t deviceId) {
-    // 同一 Host 进程的各线程共享每个设备的内存表，供本地和远端启动快照读取。
-    static std::unordered_map<int32_t, MemoryManage> deviceInstances_;
-    // 仅保护实例映射的查找和创建；返回后，内存表内容由各实例的 memoryMutex_ 保护。
-    static std::mutex instanceMutex_;
-    std::lock_guard<std::mutex> lock(instanceMutex_);
-    auto &instance = deviceInstances_[deviceId];
-    return instance;
+std::unordered_map<int32_t, MemoryManage> &MemoryManage::Instances()
+{
+    return MemoryProcessState().instances;
+}
+
+std::mutex &MemoryManage::InstanceMutex()
+{
+    return MemoryProcessState().instancesMutex;
+}
+
+MemoryManage &MemoryManage::Instance(int32_t deviceId)
+{
+    std::lock_guard<std::mutex> lock(InstanceMutex());
+    auto &instances = Instances();
+    auto found = instances.find(deviceId);
+    if (found == instances.end()) {
+        auto &instance = instances[deviceId];
+        instance.deviceId_ = deviceId; // 发布后不再修改，避免并发读取设备归属时产生数据竞争
+        return instance;
+    }
+    return found->second;
+}
+
+bool MemoryManage::ApplyP2PMapping(int32_t deviceId, uint64_t addr, uint64_t size)
+{
+    if (deviceId < 0 || addr == 0 || size == 0 || addr > UINT64_MAX - size) {
+        return false;
+    }
+    // 映射建立不是每访存路径：持有实例锁及现有分配表锁，原子查找唯一所有方
+    // 其它路径只持有单张分配表锁；取映射锁后不再反向获取分配表锁
+    std::lock_guard<std::mutex> instancesLock(InstanceMutex());
+    std::vector<std::unique_lock<std::mutex>> allocationLocks;
+    for (auto &entry : Instances()) {
+        allocationLocks.emplace_back(entry.second.memoryMutex_);
+    }
+
+    // 遍历所有设备的分配表，找"完整覆盖该窗口"的 ACL/RT 分配
+    P2PMappingRecord record{};
+    bool found = false;
+    for (auto &entry : Instances()) {
+        // 跳过使用方自己和非法设备
+        if (entry.first == deviceId || entry.first < 0) {
+            continue;
+        }
+        for (const auto &allocation : entry.second.memoryOpAddrInfos_) {
+            if ((allocation.memInfoSrc != MemInfoSrc::ACL && allocation.memInfoSrc != MemInfoSrc::RT) ||
+                !IsAddrInRange(addr, size, allocation.addr, allocation.length)) {
+                continue;
+            }
+            if (found) {
+                return false; // 同一地址存在多个候选时不猜测所有方
+            }
+            record = {deviceId, entry.first, addr, size, allocation.addr}; // 构造映射记录
+            found = true;
+        }
+    }
+    if (found) {
+        std::lock_guard<std::mutex> mappingLock(p2pMutex);
+        auto same = [&record](const P2PMappingRecord &m) {
+            return m.deviceId == record.deviceId && m.ownerDeviceId == record.ownerDeviceId &&
+                m.addr == record.addr && m.size == record.size && m.ownerAddr == record.ownerAddr;
+        };
+        // 先去重，再push_back
+        if (std::find_if(p2pMappings.begin(), p2pMappings.end(), same) == p2pMappings.end()) {
+            p2pMappings.push_back(record);
+            // 在释放分配表锁前发布，避免Free事件排在映射之前
+            InteractHelper::Notify(deviceId, PacketType::P2P_MAPPING_RECORD, record);
+        }
+        DEBUG_LOG("P2P mapping: device=%d owner=%d base=0x%lx addr=0x%lx size=%lu",
+            deviceId, record.ownerDeviceId, record.ownerAddr, addr, size);
+        return true;
+    }
+    return false;
+}
+
+std::vector<PeerMemoryInfo> MemoryManage::SnapshotP2PMappings(int32_t deviceId)
+{
+    // 先复制映射表，避免后续处理长时间持有 p2pMutex
+    std::vector<P2PMappingRecord> mappings;
+    {
+        std::lock_guard<std::mutex> lock(p2pMutex);
+        mappings = p2pMappings;
+    }
+    std::vector<PeerMemoryInfo> result;
+    for (const auto &m : mappings) {
+        // 只处理以本设备为使用方的映射
+        if (m.deviceId != deviceId) {
+            continue;
+        }
+        auto &owner = Instance(m.ownerDeviceId);
+        std::lock_guard<std::mutex> allocationLock(owner.memoryMutex_);
+        // 取得分配锁后再核对映射仍存活，防止快照复制后发生Free/重分配
+        std::lock_guard<std::mutex> mappingLock(p2pMutex);
+        bool active = std::any_of(p2pMappings.begin(), p2pMappings.end(), [&m](const P2PMappingRecord &current) {
+            return current.deviceId == m.deviceId && current.ownerDeviceId == m.ownerDeviceId &&
+                current.addr == m.addr && current.size == m.size && current.ownerAddr == m.ownerAddr;
+        });
+        if (!active) {
+            continue;
+        }
+        // 沿用在线范围的来源筛选及用户权限，映射不能绕过EXTRA/MSTX等已有约束
+        for (const auto &range : owner.ExtractValidMems(owner.memoryOpAddrInfos_)) {
+            if (range.addr > UINT64_MAX - range.size) {
+                continue;
+            }
+            const uint64_t begin = std::max(m.addr, range.addr);
+            const uint64_t end = std::min(m.addr + m.size, range.addr + range.size);
+            if (begin < end) {
+                result.push_back({begin, end - begin, range.permission, m.ownerDeviceId});
+            }
+        }
+    }
+    return result;
+}
+
+void MemoryManage::ResetDevice(int32_t deviceId)
+{
+    auto &memory = Instance(deviceId);
+    std::lock_guard<std::mutex> allocationLock(memory.memoryMutex_);
+    std::lock_guard<std::mutex> mappingLock(p2pMutex);
+    // 撤销该设备作为使用方或所有方的全部映射
+    p2pMappings.erase(std::remove_if(p2pMappings.begin(), p2pMappings.end(), [deviceId](const P2PMappingRecord &m) {
+        return m.deviceId == deviceId || m.ownerDeviceId == deviceId;
+    }), p2pMappings.end());
+    // 再清空本设备分配表
+    memory.Reset();
+}
+
+void MemoryManage::RevokeP2PMappings(int32_t deviceId, int32_t ownerDeviceId)
+{
+    std::lock_guard<std::mutex> lock(p2pMutex);
+    p2pMappings.erase(std::remove_if(p2pMappings.begin(), p2pMappings.end(),
+        [deviceId, ownerDeviceId](const P2PMappingRecord &m) {
+            return m.deviceId == deviceId && m.ownerDeviceId == ownerDeviceId;
+        }), p2pMappings.end());
 }
 
 PeerAccessState &PeerAccessState::Instance() {

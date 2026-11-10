@@ -167,6 +167,16 @@ aclError aclrtResetDeviceForceImpl(int32_t deviceId)
     return ACL_SUCCESS;
 }
 
+// 默认模拟真实资源已释放；引用仍活跃及查询失败由场景UT单独控制
+aclError aclrtGetPrimaryCtxStateImpl(int32_t, uint32_t *flags, int32_t *active)
+{
+    if (flags != nullptr || active == nullptr) {
+        return ACL_ERROR_INTERNAL_ERROR;
+    }
+    *active = 0;
+    return ACL_SUCCESS;
+}
+
 aclError aclrtGetDeviceImpl(int32_t *deviceId)
 {
     deviceId = 0;
@@ -221,5 +231,11 @@ aclError aclrtGetFunctionAttributeImpl(aclrtFuncHandle funcHandle, aclrtFuncAttr
 
 aclError aclrtStreamAbortImpl(aclrtStream stream)
 {
+    return ACL_SUCCESS;
+}
+
+aclError aclrtGetCurrentContextImpl(aclrtContext *context)
+{
+    if (context != nullptr) { *context = reinterpret_cast<aclrtContext>(1); }
     return ACL_SUCCESS;
 }

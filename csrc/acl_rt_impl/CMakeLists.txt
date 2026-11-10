@@ -19,6 +19,7 @@ file(GLOB INJECTION_SRC
     HijackedFuncOfAclrtMemcpyAsyncImpl.cpp
     HijackedFuncOfAclrtMemcpy2dImpl.cpp
     HijackedFuncOfAclrtMemcpy2dAsyncImpl.cpp
+    HijackedFuncOfAclrtMemP2PMapImpl.cpp
     HijackedFuncOfAclrtMapMemImpl.cpp
     HijackedFuncOfAclrtUnmapMemImpl.cpp
     HijackedFuncOfAclrtIpcMemGetExportKeyImpl.cpp

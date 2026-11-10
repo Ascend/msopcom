@@ -158,6 +158,7 @@ enum class PacketType : uint32_t {
     SANITIZER_RECORD,    // 用于上报 SanitizerRecord 记录
     GM_ADDR_OUT_OF_BOUND_RECORD,  // GM地址越界写记录
     PEER_ACCESS_RECORD, // ACL P2P 访存关系
+    P2P_MAPPING_RECORD, // 成功P2PMap产生的精确地址映射
 
     TEXT = 2000,
 
@@ -330,6 +331,7 @@ struct HostMemoryInfo {
 };
 
 // 在线 SIMT 检查使用的远端分配快照；deviceId 是分配所属设备
+// 同一设备的多个范围可以合并覆盖一次访存，精确P2PMap窗口与设备级授权使用同一套合并规则
 struct PeerMemoryInfo {
     uint64_t addr;
     uint64_t size;
@@ -589,16 +591,25 @@ struct IPCMemRecord {
     };
 };
 
-// 跨设备访问授权类型
+// 跨设备访问授权的变更操作
 enum class PeerAccessOp : uint32_t {
     ENABLE = 0,
     DISABLE,
     RESET
 };
 
+// 进程内跨设备的精确地址区间映射记录
+struct P2PMappingRecord {
+    int32_t deviceId; // 使用共享内存地址的设备，来自显式dstDevId
+    int32_t ownerDeviceId; // 分配共享内存地址的设备
+    uint64_t addr; // 窗口起始地址；与 ownerAddr 同一虚拟地址空间，映射不改变业务地址
+    uint64_t size; // 映射的长度
+    uint64_t ownerAddr; // 原分配起点，释放/重分配时撤销所有关联映射
+};
+
 // 跨设备访问授权记录，供工具更新访问方到目标设备的有向关系
 struct PeerAccessRecord {
-    int32_t deviceId; // ENABLE/DISABLE: 访问方; RESET: 重置的设备
+    int32_t deviceId; // ENABLE/DISABLE 的访问方；RESET 时为重置的设备
     int32_t peerDeviceId; // ENABLE/DISABLE 的目标设备；RESET 时为 -1
     PeerAccessOp operation;
 };
@@ -639,6 +650,8 @@ enum class ResponseStatus : uint32_t { SUCCESS = 0, FAIL = 1000 };
 struct IPCResponse {
     IPCOperationType type;
     ResponseStatus status;
+    // MAP成功时返回导出方的逻辑窗口长度，供注入侧在线检测使用
+    uint64_t size;
 };
 
 struct KernelRecordResponse {

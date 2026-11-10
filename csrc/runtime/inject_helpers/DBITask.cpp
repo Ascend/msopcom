@@ -15,6 +15,7 @@
  * ------------------------------------------------------------------------- */
 
 #include "DBITask.h"
+#include "ThreadContext.h"
 
 #include <chrono>
 #include <elf.h>
@@ -165,10 +166,22 @@ bool DBITask::ReuseConverted(uint64_t launchId) const
 FuncContextSP DBITask::Run(const LaunchContextSP &launchCtx)
 {
     uint64_t launchId = launchCtx->GetLaunchId();
-    if (ReuseConverted(launchId)) {
+    auto funcCtx = launchCtx->GetFuncContext();
+    const int32_t deviceId = ThreadContext::Instance().GetDeviceId();
+    const uint64_t generation = DeviceContext::Instance(deviceId).GetContextGeneration();
+    aclrtContext context = nullptr;
+    // HCCL 场景下，同一 launchId 可能对应新的源函数对象（同名函数重新创建、句柄地址复用），
+    // 或 Context 被重建（reset + 新建 Context 可能拿到相同指针），
+    // 此时只比较 launchId 会命中旧缓存，返回属于旧 Context 的插桩函数，导致检测错乱甚至崩溃
+    // 因此需要同时比较多个新增的身份字段，全部命中才复用
+    const bool contextKnown = aclrtGetCurrentContextImplOrigin(&context) == ACL_SUCCESS && context != nullptr;
+    if (contextKnown && sourceFuncCtx_ == funcCtx && context_ == context &&
+        deviceId_ == deviceId && contextGeneration_ == generation && ReuseConverted(launchId)) {
         return funcCtx_;
     }
-    auto funcCtx = launchCtx->GetFuncContext();
+    // 新源函数必须重新注册；转换失败时也不能回退到旧Context的函数
+    funcCtx_.reset();
+    sourceFuncCtx_.reset();
     const auto &taskConfig = DBITaskConfig::Instance();
     string tmpLaunchDir = taskConfig.GetOutputDir(launchId);
     if (!MkdirRecusively(tmpLaunchDir)) {
@@ -208,6 +221,10 @@ FuncContextSP DBITask::Run(const LaunchContextSP &launchCtx)
         DEBUG_LOG("Replace handle failed: register function failed.");
         return nullptr;
     }
+    sourceFuncCtx_ = contextKnown ? funcCtx : nullptr;
+    context_ = context;
+    deviceId_ = deviceId;
+    contextGeneration_ = generation;
     launchId_ = launchId;
     return funcCtx_;
 }

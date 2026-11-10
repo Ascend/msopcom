@@ -68,8 +68,9 @@ bool WriteAllToFd(int fd, char const *data, size_t length) {
 } // namespace
 
 LocalProcess::ProcessState &LocalProcess::State() {
-    static ProcessState state;
-    return state;
+    // HCCL 的业务全局对象可能在工具静态析构之后释放设备内存，连接和编号须存活至进程退出，改成 new 后交给操作系统回收
+    static ProcessState *state = new ProcessState;
+    return *state;
 }
 
 void LocalProcess::CheckProcessOwner() {
