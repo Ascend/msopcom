@@ -32,6 +32,7 @@ void AscendclImplOriginCtor()
     REGISTER_LIBRARY(AclRuntimeLibName());
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtSetDeviceImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtGetDeviceImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtGetDeviceInfoImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtGetCurrentContextImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtGetPrimaryCtxStateImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtResetDeviceForceImpl);
@@ -111,8 +112,11 @@ aclError aclrtGetDeviceImplOrigin(int32_t *deviceId)
     LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtGetDeviceImpl, deviceId);
 }
 
-aclError aclrtGetPrimaryCtxStateImplOrigin(int32_t deviceId, uint32_t *flags, int32_t *active)
-{
+aclError aclrtGetDeviceInfoImplOrigin(uint32_t deviceId, aclrtDevAttr attr, int64_t *value) {
+    LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtGetDeviceInfoImpl, deviceId, attr, value);
+}
+
+aclError aclrtGetPrimaryCtxStateImplOrigin(int32_t deviceId, uint32_t *flags, int32_t *active) {
     LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtGetPrimaryCtxStateImpl, deviceId, flags, active);
 }
 
@@ -392,7 +396,6 @@ aclError aclrtLaunchSIMTKernelWithArgsArrayImplOrigin(void *func, dim3 gridDim, 
     LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtLaunchSIMTKernelWithArgsArrayImpl, func, gridDim, blockDim, dynUbufSize, stream, cfg, args);
 }
 
-aclError aclrtGetCurrentContextImplOrigin(aclrtContext *context)
-{
+aclError aclrtGetCurrentContextImplOrigin(aclrtContext *context) {
     LOAD_FUNCTION_BODY(AclRuntimeLibName(), aclrtGetCurrentContextImpl, context);
 }

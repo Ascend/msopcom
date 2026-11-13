@@ -20,6 +20,7 @@
 #include "acl_rt_impl/AscendclImplOrigin.h"
 #include "utils/InjectLogger.h"
 #include "core/FuncSelector.h"
+#include "core/PlatformConfig.h"
 #include "ProfConfig.h"
 #include "ThreadContext.h"
 
@@ -46,6 +47,12 @@ const std::string &DeviceContext::GetSocVersion()
     char const *name = aclrtGetSocNameImplOrigin();
     if (name) {
         socVersion_ = name;
+        // 精确匹配返回具体型号，前缀兜底返回系列值。
+        const auto type = GetProductTypeBySocVersion(socVersion_);
+        if (type != ChipProductType::UNKNOWN_PRODUCT_TYPE && type == GetProductSeriesType(type)) {
+            INFO_LOG("Automatic SoC adaptation: soc=%s, series=%u (prefix match).", socVersion_.c_str(),
+                static_cast<uint32_t>(type));
+        }
     }
     return socVersion_;
 }
@@ -106,8 +113,7 @@ int32_t DeviceContext::GetRunningDeviceId()
 }
 
 // 查询默认 Context 的引用是否已全部释放；仍有引用时调用方不撤销设备内存与映射记录
-bool DeviceContext::IsPrimaryContextReleased(int32_t deviceId)
-{
+bool DeviceContext::IsPrimaryContextReleased(int32_t deviceId) {
     int32_t active = 0;
     // active 表示默认 Context 的激活状态：0 未激活，1 已激活
     // ACL 接口约束 flags 为保留参数，必须传 nullptr

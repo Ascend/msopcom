@@ -2,6 +2,7 @@ file(GLOB SOURCE
     HijackedFuncOfP2PMappingTest.cpp
     AclRuntimeConfigTest.cpp
     AscendclImplOriginTest.cpp
+    DeviceAttrTest.cpp
     HijackedFuncOfKernelArgsInitTest.cpp
     HijackedFuncOfKernelArgsAppendTest.cpp
     HijackedFuncOfKernelArgsAppendPlaceHolderTest.cpp

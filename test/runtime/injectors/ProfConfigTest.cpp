@@ -14,6 +14,8 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
+#include <sstream>
+
 #define private public
 #include "runtime/inject_helpers/ProfDataCollect.h"
 #include "runtime/inject_helpers/ProfConfig.h"

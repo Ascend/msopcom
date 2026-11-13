@@ -45,6 +45,7 @@ file(GLOB SOURCE
     injectors/MemoryContextTest.cpp
     injectors/KernelReplacementTest.cpp
     injectors/ProfDataCollectTest.cpp
+    injectors/ClearL2ParamTest.cpp
     injectors/ProfTaskTest.cpp
     injectors/MsTxTest.cpp
     injectors/ProfConfigTest.cpp

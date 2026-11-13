@@ -40,6 +40,7 @@
 #include "runtime/inject_helpers/ArgsManager.h"
 #include "runtime/inject_helpers/RegisterContext.h"
 #include "runtime/RuntimeOrigin.h"
+#include "acl_rt_impl/AscendclImplOrigin.h"
 #include "stub/FakeElf.h"
 #include "utils/Protocol.h"
 #include "utils/Serialize.h"
@@ -830,10 +831,18 @@ TEST(MemoryDataCollect, report_mc2_op_malloc_910c_with_null_next_device_ptr_expe
 
 TEST(MemoryDataCollect, get_mc2_addr_infos_from_arg_addr_with_unsupported_soc_expect_empty) {
     ArgsManager::Instance().Clear();
-    DeviceContext::Local().SetSocVersion("Ascend310P3");
+    const std::string previousSoc = DeviceContext::Local().GetSocVersion();
+    // 不支持的系列不能按 910B/93 布局读取参数，避免错误分支返回空而掩盖误判。
+    MOCKER(&aclrtMallocHostImplOrigin).expects(never());
+    MOCKER(&aclrtMemcpyImplOrigin).expects(never());
     HcclCombinOpParam opParam = CreateHcclCombineOpParams(0, 4);
-    auto addrs = ArgsManager::Instance().GetMc2AddrInfosFromArgAddr(reinterpret_cast<uint64_t>(&opParam));
-    ASSERT_TRUE(addrs.empty());
+    for (const auto *soc : {"Ascend310P3", "Ascend950PR_9589", "Ascend950PR_958x", "Ascend950DT_959x", "UnknownSoc"}) {
+        SCOPED_TRACE(soc);
+        DeviceContext::Local().SetSocVersion(soc);
+        auto addrs = ArgsManager::Instance().GetMc2AddrInfosFromArgAddr(reinterpret_cast<uint64_t>(&opParam));
+        EXPECT_TRUE(addrs.empty());
+    }
+    DeviceContext::Local().SetSocVersion(previousSoc);
     GlobalMockObject::verify();
 }
 

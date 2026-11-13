@@ -8,6 +8,7 @@ file(GLOB SOURCE
     RemoteProcessTest.cpp
     DomainSocketTest.cpp
     HijackedLayerManagerTest.cpp
+    PlatformConfigTest.cpp
 )
 list(SORT SOURCE)
 target_sources(core_test_obj PRIVATE ${SOURCE})

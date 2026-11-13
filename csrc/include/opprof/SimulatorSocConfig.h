@@ -33,7 +33,8 @@ inline bool MatchesA5Family(const std::string &socVersion, const std::string &fa
  * 新增后缀映射到同 PR/DT、同系列的代表型号，供仿真任务和解析器判断产品系列。
  */
 inline ChipProductType GetSimulatorProductTypeBySocVersion(const std::string &socVersion) {
-    ChipProductType exactType = ::GetProductTypeBySocVersion(socVersion);
+    // 仿真需要具体代表型号，不能让通用系列兜底跳过下面的细分规则。
+    ChipProductType exactType = ::GetExactProductTypeBySocVersion(socVersion);
     if (exactType != ChipProductType::UNKNOWN_PRODUCT_TYPE) {
         return exactType;
     }

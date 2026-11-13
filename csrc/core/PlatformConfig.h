@@ -21,6 +21,7 @@
 #include <cstdint>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 
 /* 此文件定义所有芯片平台和硬件信息相关的枚举和结构，
  * 所有工具复用此文件中的枚举
@@ -35,8 +36,11 @@ enum class DeviceType : uint32_t {
     ASCEND_910B2,
     ASCEND_910B3,
     ASCEND_910B4,
+    // 未收录的 910B / 93 系型号使用默认项，数值需与 sanitizer 保持一致。
+    ASCEND_910B_DEFAULT,
     ASCEND_910B_END,
 
+    // 该值会随设备摘要落盘，新增默认项后仍保持原协议值。
     ASCEND_310P,
 
     ASCEND_950_START = 10,
@@ -72,6 +76,7 @@ enum class DeviceType : uint32_t {
     ASCEND_950PR_9589,
     ASCEND_950PR_958b,
     ASCEND_950PR_9599,
+    ASCEND_950_DEFAULT,
     ASCEND_950_END,
 
     INVALID = 0xFFFFFFFFU,
@@ -172,8 +177,8 @@ const std::unordered_map<std::string, ChipProductType> SOC_STRING_TO_CHIP_PRODUC
     {"Ascend910B1", ChipProductType::ASCEND910B1},
     {"Ascend910B2", ChipProductType::ASCEND910B2},
     {"Ascend910B3", ChipProductType::ASCEND910B3},
-    {"Ascend910B4", ChipProductType::ASCEND910B4},
     {"Ascend910B2C", ChipProductType::ASCEND910B2C},
+    {"Ascend910B4", ChipProductType::ASCEND910B4},
     {"Ascend910B4-1", ChipProductType::ASCEND910B4_1},
 
     {"Ascend910_9391", ChipProductType::ASCEND910_9391},
@@ -202,6 +207,7 @@ const std::unordered_map<std::string, ChipProductType> SOC_STRING_TO_CHIP_PRODUC
     {"Ascend910ProA", ChipProductType::ASCEND910PROA},
     {"Ascend910ProB", ChipProductType::ASCEND910PROB},
     {"AscendPremiumA", ChipProductType::ASCEND910PREMIUMA},
+    {"Ascend910PremiumA", ChipProductType::ASCEND910PREMIUMA},
 
     {"Ascend950DT_950x", ChipProductType::ASCEND950DT_950X},
     {"Ascend950DT_950y", ChipProductType::ASCEND950DT_950Y},
@@ -236,6 +242,10 @@ const std::unordered_map<std::string, ChipProductType> SOC_STRING_TO_CHIP_PRODUC
     {"Ascend950PR_958b", ChipProductType::ASCEND950PR_958B},
     {"Ascend950PR_9599", ChipProductType::ASCEND950PR_9599},
 };
+
+// 仅在精确映射未命中时查询，按完整 SoC 名称禁止自动适配。
+// 各工具统一复用此名单和下面的解析入口，不再维护独立名单。
+const std::unordered_set<std::string> SOC_AUTO_ADAPT_DENYLIST = {};
 
 const std::unordered_map<ChipProductType, DeviceType> CHIP_PRODUCT_TO_DEVICE_TYPE = {
     {ChipProductType::ASCEND910PREMIUMA, DeviceType::ASCEND_910_PREMIUM_A},
@@ -304,11 +314,54 @@ inline bool IsChipSeriesTypeValid(const ChipProductType& inputType, const ChipPr
     return GetProductSeriesType(inputType) == requiredType;
 }
 
-inline ChipProductType GetProductTypeBySocVersion(const std::string &socVersion)
-{
+inline bool MatchesSocVersionPrefix(
+    const std::string &socVersion, const std::string &prefix, bool requireNumericSuffix = false) {
+    if (socVersion.size() <= prefix.size() || socVersion.compare(0, prefix.size(), prefix) != 0) {
+        return false;
+    }
+    const char suffix = socVersion[prefix.size()];
+    return !requireNumericSuffix || (suffix >= '0' && suffix <= '9');
+}
+
+// 只接受已支持系列的命名前缀，不查询设备属性，也不推断具体型号规格。
+inline ChipProductType ResolveProductSeriesBySocVersionPrefix(const std::string &socVersion) {
+    if (SOC_AUTO_ADAPT_DENYLIST.count(socVersion) != 0) {
+        return ChipProductType::UNKNOWN_PRODUCT_TYPE;
+    }
+    // 裸型号 Ascend910B 属于旧 910A 系列，要求前缀后至少有一个数字。
+    if (MatchesSocVersionPrefix(socVersion, "Ascend910B", true)) {
+        return ChipProductType::ASCEND910B_SERIES;
+    }
+    const bool is93 = MatchesSocVersionPrefix(socVersion, "Ascend910_93");
+    const bool is950 =
+        MatchesSocVersionPrefix(socVersion, "Ascend950DT_95") || MatchesSocVersionPrefix(socVersion, "Ascend950PR_95");
+    if (is93 || is950) {
+        // 93/95 型号下划线后必须恰好四位字母或数字，例如 9399、958x、95A1。
+        const auto modelStart = socVersion.find('_') + 1;
+        if (socVersion.size() != modelStart + 4) {
+            return ChipProductType::UNKNOWN_PRODUCT_TYPE;
+        }
+        for (auto i = modelStart; i < socVersion.size(); ++i) {
+            const char c = socVersion[i];
+            if (!((c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))) {
+                return ChipProductType::UNKNOWN_PRODUCT_TYPE;
+            }
+        }
+        return is93 ? ChipProductType::ASCEND910_93_SERIES : ChipProductType::ASCEND950_SERIES;
+    }
+    return ChipProductType::UNKNOWN_PRODUCT_TYPE;
+}
+
+inline ChipProductType GetExactProductTypeBySocVersion(const std::string &socVersion) {
     auto it = SOC_STRING_TO_CHIP_PRODUCT.find(socVersion);
-    ChipProductType chipType = it == SOC_STRING_TO_CHIP_PRODUCT.end() ? ChipProductType::UNKNOWN_PRODUCT_TYPE : it->second;
-    return chipType;
+    return it == SOC_STRING_TO_CHIP_PRODUCT.end() ? ChipProductType::UNKNOWN_PRODUCT_TYPE : it->second;
+}
+
+// 已收录型号返回具体产品类型；未收录型号仅返回匹配到的系列值。
+inline ChipProductType GetProductTypeBySocVersion(const std::string &socVersion) {
+    ChipProductType chipType = GetExactProductTypeBySocVersion(socVersion);
+    return chipType == ChipProductType::UNKNOWN_PRODUCT_TYPE ? ResolveProductSeriesBySocVersionPrefix(socVersion)
+                                                             : chipType;
 }
 
 inline ChipProductType GetProductSeriesType(const std::string &socVersion)
@@ -322,11 +375,20 @@ inline ChipProductType GetProductSeriesType(const std::string &socVersion)
 
 inline DeviceType GetDeviceTypeBySocVersion(const std::string &socVersion)
 {
-    auto it = SOC_STRING_TO_CHIP_PRODUCT.find(socVersion);
-    ChipProductType chipType = it == SOC_STRING_TO_CHIP_PRODUCT.end() ? ChipProductType::UNKNOWN_PRODUCT_TYPE : it->second;
-    auto it2 = CHIP_PRODUCT_TO_DEVICE_TYPE.find(chipType);
-    DeviceType deviceType = it2 == CHIP_PRODUCT_TO_DEVICE_TYPE.end() ? DeviceType::INVALID : it2->second;
-    return deviceType;
+    ChipProductType chipType = GetProductTypeBySocVersion(socVersion);
+    auto it = CHIP_PRODUCT_TO_DEVICE_TYPE.find(chipType);
+    if (it != CHIP_PRODUCT_TO_DEVICE_TYPE.end()) {
+        return it->second;
+    }
+    switch (chipType) {
+    case ChipProductType::ASCEND910B_SERIES:
+    case ChipProductType::ASCEND910_93_SERIES:
+        return DeviceType::ASCEND_910B_DEFAULT;
+    case ChipProductType::ASCEND950_SERIES:
+        return DeviceType::ASCEND_950_DEFAULT;
+    default:
+        return DeviceType::INVALID;
+    }
 }
 
 // mix算子运行时，blockDim = 1对应1个cube + 2个vec

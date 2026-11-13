@@ -24,6 +24,7 @@ void AscendclImplOriginCtor();
 
 aclError aclrtSetDeviceImplOrigin(int32_t deviceId);
 aclError aclrtGetDeviceImplOrigin(int32_t *deviceId);
+aclError aclrtGetDeviceInfoImplOrigin(uint32_t deviceId, aclrtDevAttr attr, int64_t *value);
 aclError aclrtGetCurrentContextImplOrigin(aclrtContext *context);
 aclError aclrtGetPrimaryCtxStateImplOrigin(int32_t deviceId, uint32_t *flags, int32_t *active);
 aclError aclrtResetDeviceForceImplOrigin(int32_t deviceId);

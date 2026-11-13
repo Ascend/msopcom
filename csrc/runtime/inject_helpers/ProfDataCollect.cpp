@@ -33,6 +33,7 @@
 #include "utils/FileSystem.h"
 #include "utils/Environment.h"
 #include "utils/PipeCall.h"
+#include "utils/DeviceAttr.h"
 #include "utils/signal.h"
 #include "MemoryContext.h"
 #include "ascend_hal/AscendHalOrigin.h"
@@ -72,6 +73,45 @@ struct L2CacheClearTiling {
     uint64_t clearSizePerCore; // B
     uint32_t aicCoreNum;
 };
+
+// 与 ClearL2Cache kernel 的 TILE_LENGTH 保持一致，避免尾部数据未被触碰。
+constexpr uint64_t L2_CLEAR_TILE_LENGTH = 512;
+
+inline uint64_t CalcClearSizePerCore(uint64_t l2CacheSize, uint32_t coreNum) {
+    if (coreNum == 0) {
+        return 0;
+    }
+    uint64_t perCore = (l2CacheSize + coreNum - 1) / coreNum;
+    return (perCore + L2_CLEAR_TILE_LENGTH - 1) / L2_CLEAR_TILE_LENGTH * L2_CLEAR_TILE_LENGTH;
+}
+
+inline bool QueryClearL2Tiling(const std::string &socVersion, int32_t devId, L2CacheClearTiling &tiling) {
+    if (ResolveProductSeriesBySocVersionPrefix(socVersion) == ChipProductType::UNKNOWN_PRODUCT_TYPE) {
+        return false;
+    }
+    uint64_t l2CacheSize = 0;
+    if (!DeviceAttr::QueryL2CacheSize(devId, l2CacheSize)) {
+        WARN_LOG("Cannot get L2Cache size when clear L2Cache, socVersion=%s, deviceId=%d", socVersion.c_str(), devId);
+        return false;
+    }
+    uint32_t aicCoreNum = 0;
+    if (!DeviceAttr::QueryAicoreCoreNum(devId, aicCoreNum)) {
+        WARN_LOG(
+            "Cannot get aicore core num when clear L2Cache, socVersion=%s, deviceId=%d", socVersion.c_str(), devId);
+        return false;
+    }
+    tiling.clearSizePerCore = CalcClearSizePerCore(l2CacheSize, aicCoreNum);
+    tiling.aicCoreNum = aicCoreNum;
+    if (tiling.clearSizePerCore == 0) {
+        return false;
+    }
+    INFO_LOG("Automatic SoC adaptation: soc=%s, runtime L2 cache tiling: L2=%lu bytes, cores=%u, bytes/core=%lu, "
+             "deviceId=%d.",
+        socVersion.c_str(), static_cast<unsigned long>(l2CacheSize), aicCoreNum,
+        static_cast<unsigned long>(tiling.clearSizePerCore), devId);
+    return true;
+}
+
 static std::map<std::string, L2CacheClearTiling> l2CacheClearTilingMap = {
     {"Ascend910B1", {8388608, 24}},
     {"Ascend910B2", {8388608, 24}},
@@ -1360,13 +1400,17 @@ void DataCollectInDevice::WarmUp(const rtStream_t &stream, const aclmdlRI &model
 }
 
 bool DataCollectInDevice::PrepareClearL2CacheParam(L2cacheParam &param) const {
-    std::string socVersion = DeviceContext::Local().GetSocVersion();
+    const std::string &socVersion = DeviceContext::Local().GetSocVersion();
+    const int32_t devId = ProfConfig::Instance().IsSimulator() ? 0 : deviceId_;
+    L2CacheClearTiling tiling{};
     auto it = l2CacheClearTilingMap.find(socVersion);
-    if (it == l2CacheClearTilingMap.end()) {
-        WARN_LOG("Cannot get L2Cache info when clear L2Cache.");
+    if (it != l2CacheClearTilingMap.end()) {
+        tiling = it->second;
+    } else if (!QueryClearL2Tiling(socVersion, devId, tiling)) {
+        WARN_LOG("Cannot get L2Cache info when clear L2Cache, socVersion=%s, deviceId=%d", socVersion.c_str(), devId);
         return false;
     }
-    uint64_t bufferSize = it->second.clearSizePerCore * it->second.aicCoreNum;
+    uint64_t bufferSize = tiling.clearSizePerCore * tiling.aicCoreNum;
     param.bufferSize = bufferSize;
     if (!MallocBuffer(param)) {
         return false;
@@ -1383,7 +1427,7 @@ bool DataCollectInDevice::PrepareClearL2CacheParam(L2cacheParam &param) const {
     }
     shared_ptr<void> hostBlockLenDefer(
         nullptr, [&hostBlockLen](std::nullptr_t &) { aclrtFreeHostImplOrigin(hostBlockLen); });
-    *(uint64_t *)hostBlockLen = it->second.clearSizePerCore;
+    *(uint64_t *)hostBlockLen = tiling.clearSizePerCore;
     // runtime接口好像不会补齐到32字节，申请小块的内存会出现访问时直接挂掉的情况
     if (aclrtMallocImplOrigin(&param.blockLen, 32, ACL_MEM_MALLOC_HUGE_FIRST) != ACL_SUCCESS) {
         WARN_LOG("Malloc tiling info failed when clear L2Cache.");
@@ -1398,8 +1442,9 @@ bool DataCollectInDevice::PrepareClearL2CacheParam(L2cacheParam &param) const {
         aclrtFreeImplOrigin(param.blockLen);
         return false;
     }
-    param.blockDim = it->second.aicCoreNum;
-    DEBUG_LOG("Prepare clear L2Cache param success.");
+    param.blockDim = tiling.aicCoreNum;
+    DEBUG_LOG("Prepare clear L2Cache param success, socVersion=%s, clearSizePerCore=%lu, aicCoreNum=%u.",
+        socVersion.c_str(), static_cast<unsigned long>(tiling.clearSizePerCore), tiling.aicCoreNum);
     return true;
 }
 

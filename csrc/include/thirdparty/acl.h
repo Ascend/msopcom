@@ -130,6 +130,7 @@ typedef enum {
     ACL_DEV_ATTR_AICPU_CORE_NUM  = 1,    // AI CPU数量
     ACL_DEV_ATTR_AICORE_CORE_NUM = 101,  // AI Core数量
     ACL_DEV_ATTR_VECTOR_CORE_NUM = 201,  // Vector Core数量
+    ACL_DEV_ATTR_L2_CACHE_SIZE = 302, // L2 Cache容量，单位字节
 } aclrtDevAttr;
 typedef enum {
     ACL_RT_MEM_ATTR_RSV = 0U,   // 预留值
@@ -297,6 +298,8 @@ aclError aclrtGetFunctionAddrImpl(aclrtFuncHandle funcHandle, void **aicAddr, vo
 aclError aclrtCreateContextImpl(aclrtContext *context, int32_t deviceId);
 aclError aclrtQueryDeviceStatusImpl(int32_t deviceId, aclrtDeviceStatus *deviceStatus);
 aclError aclrtGetDeviceCountImpl(uint32_t *count);
+aclError aclrtGetDevice(int32_t *deviceId);
+aclError aclrtGetDeviceInfo(uint32_t deviceId, aclrtDevAttr attr, int64_t *value);
 aclError aclrtGetDeviceInfoImpl(uint32_t deviceId, aclrtDevAttr attr, int64_t *value);
 const char *aclrtGetSocNameImpl();
 typedef enum {

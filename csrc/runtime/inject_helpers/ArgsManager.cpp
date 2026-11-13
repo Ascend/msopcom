@@ -277,9 +277,9 @@ std::vector<AddrInfo> ArgsManager::GetMc2AddrInfosFromArgAddr(uint64_t addr) con
     std::string socVersion = DeviceContext::Local().GetSocVersion();
     auto chipType = GetProductSeriesType(socVersion);
     // 910C
-    if (static_cast<uint32_t>(chipType) & static_cast<uint32_t>(ChipProductType::ASCEND910_93_SERIES)) {
+    if (chipType == ChipProductType::ASCEND910_93_SERIES) {
         return GetMc2AddrInfosFromArgAddr910C(addr);
-    } else if (static_cast<uint32_t>(chipType) & static_cast<uint32_t>(ChipProductType::ASCEND910B_SERIES)) {
+    } else if (chipType == ChipProductType::ASCEND910B_SERIES) {
         return GetMc2AddrInfosFromArgAddr910B(addr);
     } else {
         // unsupport
