@@ -19,29 +19,26 @@
 #include "HijackedFunc.h"
 #include "core/FuncSelector.h"
 #include "acl_rt_impl/AscendclImplOrigin.h"
-#include "runtime/inject_helpers/LocalDevice.h"
 #include "runtime/inject_helpers/MemoryContext.h"
 #include "runtime/inject_helpers/ProfConfig.h"
 #include "runtime/inject_helpers/MemoryDataCollect.h"
-#include "utils/Protocol.h"
-#include "utils/Serialize.h"
 
 HijackedFuncOfAclrtUnmapMemImpl::HijackedFuncOfAclrtUnmapMemImpl()
     : HijackedFuncType(AclRuntimeLibName(), "aclrtUnmapMemImpl") {}
 
 void HijackedFuncOfAclrtUnmapMemImpl::Pre(void* virPtr)
 {
-    if (IsSanitizer()) {
-        PacketHead head = { PacketType::MEMORY_RECORD };
-        HostMemRecord record{};
-        record.type = MemOpType::FREE;
-        record.infoSrc = MemInfoSrc::ACL;
-        record.dstAddr = reinterpret_cast<uint64_t>(virPtr);
-        record.memSize = 0;
-        MemoryManage::Instance().CacheMemory<MemoryOpType::FREE>(record.dstAddr, MemInfoSrc::ACL);
-        LocalDevice::Local().Notify(Serialize(head, record));
+    pointer_ = virPtr;
+}
+
+aclError HijackedFuncOfAclrtUnmapMemImpl::Post(aclError ret)
+{
+    // 仅在解除映射成功后更新 sanitizer/profiler 记录；失败时保留原有记录。
+    if (IsSanitizer() && ret == ACL_ERROR_NONE) {
+        ReportFree(reinterpret_cast<uint64_t>(pointer_), MemInfoSrc::ACL);
     }
-    if (IsOpProf() && !ProfConfig::Instance().IsSimulator()) {
-        MemoryContext::Instance().Discard(virPtr);
+    if (IsOpProf() && !ProfConfig::Instance().IsSimulator() && ret == ACL_ERROR_NONE) {
+        MemoryContext::Instance().Discard(pointer_);
     }
+    return ret;
 }

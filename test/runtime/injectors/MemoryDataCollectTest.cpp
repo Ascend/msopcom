@@ -438,7 +438,7 @@ TEST(MemoryDataCollect, report_op_malloc_info_with_shape_info_expect_get_correct
     auto secondPtrInfos = CreateSecondPtrInfos();
     args.insert(args.end(), secondPtrInfos.begin(), secondPtrInfos.end());
     argsInfo.args = args.data();
-    argsInfo.argsSize = args.size();
+    argsInfo.argsSize = args.size() * sizeof(args[0]);
     argsInfo.hostInputInfoNum = 1;
     // create host input infos
     auto hostInputInfos = CreateHostInputInfos();
@@ -594,7 +594,6 @@ TEST(MemoryDataCollect, report_mc2_op_malloc_with_adump_info_expect_get_correct_
     MOCKER(IsSanitizer).stubs().will(returnValue(true));
     MOCKER(ReportMalloc).stubs();
     MOCKER(ReportMemset).stubs();
-    MOCKER(&KernelContext::GetMc2CtxFlag).stubs().will(returnValue(true));
     MOCKER(&rtMemcpyOrigin).stubs().will(invoke(RtMemcpyStubFunc));
     MOCKER(&aclrtMemcpyImplOrigin).stubs().will(invoke(MemcpyStub));
     MOCKER(&aclrtGetDeviceImplOrigin).stubs().will(invoke(GetDeviceOriginStub));
@@ -605,6 +604,7 @@ TEST(MemoryDataCollect, report_mc2_op_malloc_with_adump_info_expect_get_correct_
     // SetSocVersion需在aclrtGetDeviceImplOrigin桩函数设置之后，保证Local()解析到的deviceId与读取时一致
     DeviceContext::Local().SetSocVersion("Ascend910B1");
     KernelContext::OpMemInfo opMemInfo = CreateOpMemInfo();
+    opMemInfo.hasMc2Ctx = true;
     // create tensor addr
     rtArgsEx_t argsInfo {};
     uint32_t rankNum = RandNum(4, 8);
@@ -614,7 +614,7 @@ TEST(MemoryDataCollect, report_mc2_op_malloc_with_adump_info_expect_get_correct_
     std::vector<uint64_t> args{mc2ContextAddr, 0x256};
 
     argsInfo.args = args.data();
-    argsInfo.argsSize = args.size();
+    argsInfo.argsSize = args.size() * sizeof(args[0]);
 
     ReportOpMallocInfo(&argsInfo, opMemInfo);
 
@@ -644,7 +644,6 @@ TEST(MemoryDataCollect, report_mc2_op_malloc_with_no_adump_info_expect_get_corre
     MOCKER(IsSanitizer).stubs().will(returnValue(true));
     MOCKER(ReportMalloc).stubs();
     MOCKER(ReportMemset).stubs();
-    MOCKER(&KernelContext::GetMc2CtxFlag).stubs().will(returnValue(true));
     ArgsManager::Instance().SetThroughAdumpFlag(false);
     MOCKER(&rtMemcpyOrigin).stubs().will(invoke(RtMemcpyStubFunc));
     MOCKER(&aclrtMemcpyImplOrigin).stubs().will(invoke(MemcpyStub));
@@ -656,6 +655,7 @@ TEST(MemoryDataCollect, report_mc2_op_malloc_with_no_adump_info_expect_get_corre
     // SetSocVersion需在aclrtGetDeviceImplOrigin桩函数设置之后，保证Local()解析到的deviceId与读取时一致
     DeviceContext::Local().SetSocVersion("Ascend910B1");
     KernelContext::OpMemInfo opMemInfo = CreateOpMemInfo();
+    opMemInfo.hasMc2Ctx = true;
     // create tensor addr
     rtArgsEx_t argsInfo {};
     uint32_t rankNum = RandNum(4, 8);
@@ -665,7 +665,7 @@ TEST(MemoryDataCollect, report_mc2_op_malloc_with_no_adump_info_expect_get_corre
     std::vector<uint64_t> args{mc2ContextAddr, 0x256};
 
     argsInfo.args = args.data();
-    argsInfo.argsSize = args.size();
+    argsInfo.argsSize = args.size() * sizeof(args[0]);
 
     ReportOpMallocInfo(&argsInfo, opMemInfo);
 
@@ -700,11 +700,11 @@ TEST(MemoryDataCollect, report_mc2_op_malloc_910c_with_adump_info_expect_get_cor
     MOCKER(IsSanitizer).stubs().will(returnValue(true));
     MOCKER(ReportMalloc).stubs();
     MOCKER(ReportMemset).stubs();
-    MOCKER(&KernelContext::GetMc2CtxFlag).stubs().will(returnValue(true));
     MOCKER(&aclrtMemcpyImplOrigin).stubs().will(invoke(MemcpyStub));
     MOCKER(&aclrtMallocHostImplOrigin).stubs().will(invoke(AclrtMallocHostStub));
     MOCKER(&aclrtFreeHostImplOrigin).stubs().will(invoke(AclrtFreeHostStub));
     KernelContext::OpMemInfo opMemInfo = CreateOpMemInfo();
+    opMemInfo.hasMc2Ctx = true;
     rtArgsEx_t argsInfo{};
     uint32_t rankSize = RandNum(4, 8);
     uint32_t localUsrRankId = g_testMc2DevId;
@@ -715,7 +715,7 @@ TEST(MemoryDataCollect, report_mc2_op_malloc_910c_with_adump_info_expect_get_cor
     std::vector<uint64_t> args{mc2ContextAddr, 0x256};
 
     argsInfo.args = args.data();
-    argsInfo.argsSize = args.size();
+    argsInfo.argsSize = args.size() * sizeof(args[0]);
 
     ReportOpMallocInfo(&argsInfo, opMemInfo);
 
@@ -742,11 +742,11 @@ TEST(MemoryDataCollect, report_mc2_op_malloc_910c_without_adump_info_expect_get_
     MOCKER(IsSanitizer).stubs().will(returnValue(true));
     MOCKER(ReportMalloc).stubs();
     MOCKER(ReportMemset).stubs();
-    MOCKER(&KernelContext::GetMc2CtxFlag).stubs().will(returnValue(true));
     MOCKER(&aclrtMemcpyImplOrigin).stubs().will(invoke(MemcpyStub));
     MOCKER(&aclrtMallocHostImplOrigin).stubs().will(invoke(AclrtMallocHostStub));
     MOCKER(&aclrtFreeHostImplOrigin).stubs().will(invoke(AclrtFreeHostStub));
     KernelContext::OpMemInfo opMemInfo = CreateOpMemInfo();
+    opMemInfo.hasMc2Ctx = true;
     rtArgsEx_t argsInfo{};
     uint32_t rankSize = RandNum(4, 8);
     uint32_t localUsrRankId = g_testMc2DevId;
@@ -757,7 +757,7 @@ TEST(MemoryDataCollect, report_mc2_op_malloc_910c_without_adump_info_expect_get_
     std::vector<uint64_t> args{mc2ContextAddr, 0x256};
 
     argsInfo.args = args.data();
-    argsInfo.argsSize = args.size();
+    argsInfo.argsSize = args.size() * sizeof(args[0]);
 
     ReportOpMallocInfo(&argsInfo, opMemInfo);
 
@@ -786,11 +786,11 @@ TEST(MemoryDataCollect, report_mc2_op_malloc_910c_with_null_next_device_ptr_expe
     MOCKER(IsSanitizer).stubs().will(returnValue(true));
     MOCKER(ReportMalloc).stubs();
     MOCKER(ReportMemset).stubs();
-    MOCKER(&KernelContext::GetMc2CtxFlag).stubs().will(returnValue(true));
     MOCKER(&aclrtMemcpyImplOrigin).stubs().will(invoke(MemcpyStub));
     MOCKER(&aclrtMallocHostImplOrigin).stubs().will(invoke(AclrtMallocHostStub));
     MOCKER(&aclrtFreeHostImplOrigin).stubs().will(invoke(AclrtFreeHostStub));
     KernelContext::OpMemInfo opMemInfo = CreateOpMemInfo();
+    opMemInfo.hasMc2Ctx = true;
     rtArgsEx_t argsInfo{};
     uint32_t rankSize = RandNum(4, 8);
     uint32_t localUsrRankId = g_testMc2DevId;
@@ -804,7 +804,7 @@ TEST(MemoryDataCollect, report_mc2_op_malloc_910c_with_null_next_device_ptr_expe
     std::vector<uint64_t> args{mc2ContextAddr, 0x256};
 
     argsInfo.args = args.data();
-    argsInfo.argsSize = args.size();
+    argsInfo.argsSize = args.size() * sizeof(args[0]);
 
     ReportOpMallocInfo(&argsInfo, opMemInfo);
 
@@ -1183,4 +1183,158 @@ TEST(PeerOnlineProcess, ExecChildStartsWithoutParentAuthorizationOrAllocations) 
     EXPECT_EQ(state.Snapshot(A).size(), 1);
     state.Apply(A, -1, PeerAccessOp::RESET);
     MemoryManage::Instance(B).CacheMemory<MemoryOpType::FREE>(0x1000, MemInfoSrc::ACL);
+}
+
+namespace {
+std::vector<KernelContext::AddrInfo> reportedSnapshotAllocations;
+bool snapshotThroughAdump;
+void CaptureSnapshotAllocation(uint64_t addr, uint64_t size, MemInfoSrc src, MemInfoDesc desc, uint64_t paramsNo)
+{
+    reportedSnapshotAllocations.push_back({addr, size, src, desc, paramsNo});
+}
+} // namespace
+
+class MemorySnapshotReport : public testing::Test {
+protected:
+    void SetUp() override
+    {
+        reportedSnapshotAllocations.clear();
+        snapshotThroughAdump = false;
+        MOCKER(ReportMalloc).stubs().will(invoke(CaptureSnapshotAllocation));
+        MOCKER(ReportMemset).stubs();
+        MOCKER(&ArgsManager::GetMc2AddrInfosFromArgAddr).stubs()
+            .will(returnValue(std::vector<KernelContext::AddrInfo>{}));
+        MOCKER(&ArgsManager::GetThroughAdumpFlag).stubs().will(invoke(+[](ArgsManager *) {
+            return snapshotThroughAdump;
+        }));
+        KernelContext::Instance().ClearArgsInfo();
+    }
+    void TearDown() override
+    {
+        KernelContext::Instance().ClearArgsInfo();
+        GlobalMockObject::verify();
+    }
+    void ExpectAllocation(size_t index, uint64_t addr, uint64_t size, uint64_t paramsNo,
+        MemInfoDesc desc = MemInfoDesc::INPUT)
+    {
+        ASSERT_LT(index, reportedSnapshotAllocations.size());
+        const auto &allocation = reportedSnapshotAllocations[index];
+        EXPECT_EQ(allocation.addr, addr);
+        EXPECT_EQ(allocation.length, size);
+        EXPECT_EQ(allocation.memInfoSrc, MemInfoSrc::EXTRA);
+        EXPECT_EQ(allocation.memInfoDesc, desc);
+        EXPECT_EQ(allocation.paramsNo, paramsNo);
+    }
+};
+
+TEST_F(MemorySnapshotReport, ReportUsesSnapshotMc2FlagAfterLiveContextWasCleared)
+{
+    uint64_t slots[]{0x111000, 0x222000};
+    rtArgsEx_t args{};
+    args.args = slots;
+    args.argsSize = sizeof(slots);
+    KernelContext::OpMemInfo snapshot;
+    snapshot.hasMc2Ctx = true;
+    snapshot.inputParamsAddrInfos = {{0, 64, MemInfoSrc::EXTRA, MemInfoDesc::HCCL_MC2_CONTEXT, 0},
+        {0, 128, MemInfoSrc::EXTRA, MemInfoDesc::INPUT, 2}};
+    ReportOpMallocInfo(&args, snapshot);
+    ASSERT_EQ(snapshot.uniqueAddrInfos.size(), 1);
+    EXPECT_EQ(snapshot.uniqueAddrInfos[0].addr, slots[1]);
+    EXPECT_EQ(snapshot.uniqueAddrInfos[0].paramsNo, 1);
+    ASSERT_EQ(reportedSnapshotAllocations.size(), 1);
+    ExpectAllocation(0, slots[1], 128, 1);
+}
+
+TEST_F(MemorySnapshotReport, ReportOrdinarySnapshotIgnoresLiveMc2Flag)
+{
+    KernelContext::Instance().GetOpMemInfo().hasMc2Ctx = true;
+    uint64_t slots[]{0x333000};
+    rtArgsEx_t args{};
+    args.args = slots;
+    args.argsSize = sizeof(slots);
+    KernelContext::OpMemInfo snapshot;
+    snapshot.inputParamsAddrInfos = {{0, 64, MemInfoSrc::EXTRA, MemInfoDesc::INPUT, 1}};
+    ReportOpMallocInfo(&args, snapshot);
+    ASSERT_EQ(snapshot.uniqueAddrInfos.size(), 1);
+    EXPECT_EQ(snapshot.uniqueAddrInfos[0].addr, slots[0]);
+    EXPECT_EQ(snapshot.uniqueAddrInfos[0].paramsNo, 1);
+    ASSERT_EQ(reportedSnapshotAllocations.size(), 1);
+    ExpectAllocation(0, slots[0], 64, 1);
+}
+
+// 使用真实 parser 的 MC2 编号约定：隐藏 context 为 0，普通参数从签名中的 1 基序号换算。
+TEST_F(MemorySnapshotReport, SkippedSlotsAndAdumpContextPreserveReportingFields)
+{
+    uint64_t slots[]{0x999000, 0x111000, 0x222000};
+    snapshotThroughAdump = true;
+    for (uint32_t skipNum : {0U, 1U}) {
+        reportedSnapshotAllocations.clear();
+        rtArgsEx_t args{};
+        args.args = skipNum == 0 ? slots + 1 : slots;
+        args.argsSize = (2 + skipNum) * sizeof(uint64_t);
+        KernelContext::OpMemInfo snapshot;
+        snapshot.skipNum = skipNum;
+        snapshot.hasMc2Ctx = true;
+        snapshot.inputParamsAddrInfos = {{0, 64, MemInfoSrc::EXTRA, MemInfoDesc::HCCL_MC2_CONTEXT, 0},
+            {0, 128, MemInfoSrc::EXTRA, MemInfoDesc::INPUT, 2 + skipNum}};
+        ReportOpMallocInfo(&args, snapshot);
+        ASSERT_EQ(reportedSnapshotAllocations.size(), 2);
+        ExpectAllocation(0, slots[1], 64, 0, MemInfoDesc::HCCL_MC2_CONTEXT);
+        ExpectAllocation(1, slots[2], 128, 1);
+    }
+}
+
+TEST_F(MemorySnapshotReport, ParameterNumbersAtOrBelowHiddenSlotsRemainUnnumbered)
+{
+    uint64_t slots[]{0x999000, 0x111000, 0x222000};
+    rtArgsEx_t args{};
+    args.args = slots;
+    args.argsSize = sizeof(slots);
+    for (uint64_t paramsNo : {0U, 1U, 2U}) {
+        reportedSnapshotAllocations.clear();
+        KernelContext::OpMemInfo snapshot;
+        snapshot.skipNum = 1;
+        snapshot.hasMc2Ctx = true;
+        snapshot.inputParamsAddrInfos = {{0, 64, MemInfoSrc::EXTRA, MemInfoDesc::HCCL_MC2_CONTEXT, 0},
+            {0, 128, MemInfoSrc::EXTRA, MemInfoDesc::INPUT, paramsNo}};
+        ReportOpMallocInfo(&args, snapshot);
+        ASSERT_EQ(reportedSnapshotAllocations.size(), 1);
+        ExpectAllocation(0, slots[2], 128, 0);
+    }
+}
+
+TEST_F(MemorySnapshotReport, RejectsInputSlotsOutsideDeclaredBufferAndAcceptsExactEnd)
+{
+    // 第三个槽物理存在，但不在声明的 argsSize 内；不能将其作为有效参数上报。
+    uint64_t slots[]{0x111000, 0x222000, 0x333000};
+    rtArgsEx_t args{};
+    args.args = slots;
+    args.argsSize = 2 * sizeof(uint64_t);
+    for (const auto &bounds : {std::pair<uint32_t, uint32_t>{3, 0}, {2, 1}, {1, 2}}) {
+        KernelContext::OpMemInfo snapshot;
+        snapshot.skipNum = bounds.first;
+        snapshot.inputParamsAddrInfos.resize(bounds.second, {0, 64, MemInfoSrc::EXTRA, MemInfoDesc::INPUT, 2});
+        ReportOpMallocInfo(&args, snapshot);
+        EXPECT_TRUE(snapshot.uniqueAddrInfos.empty());
+        EXPECT_TRUE(reportedSnapshotAllocations.empty());
+    }
+    KernelContext::OpMemInfo snapshot;
+    snapshot.skipNum = 1;
+    snapshot.inputParamsAddrInfos = {{0, 64, MemInfoSrc::EXTRA, MemInfoDesc::INPUT, 2}};
+    ReportOpMallocInfo(&args, snapshot);
+    ASSERT_EQ(reportedSnapshotAllocations.size(), 1);
+    ExpectAllocation(0, slots[1], 64, 1);
+}
+
+TEST_F(MemorySnapshotReport, RejectsTilingAddressSlotAtBufferEnd)
+{
+    uint64_t slots[]{0x111000, 0x222000, 0x333000};
+    rtArgsEx_t args{};
+    args.args = slots;
+    args.argsSize = 2 * sizeof(uint64_t);
+    args.hasTiling = 1;
+    args.tilingAddrOffset = args.argsSize;
+    KernelContext::OpMemInfo snapshot;
+    ReportOpMallocInfo(&args, snapshot);
+    EXPECT_TRUE(reportedSnapshotAllocations.empty());
 }

@@ -72,8 +72,11 @@ struct TaskKey {
     const void *stubFunc {nullptr};
     std::string tilingKey;
     std::string pluginPath;
-    TaskKey(BIType biType, const void * stubFunc, std::string tilingKey, std::string pluginPath) : biType(biType),
-        stubFunc(stubFunc), tilingKey(std::move(tilingKey)), pluginPath(std::move(pluginPath)) {}
+    // 参数长度决定插桩代码读取记录指针的位置，必须区分不同布局的转换缓存。
+    uint32_t argsSize;
+    TaskKey(BIType biType, const void * stubFunc, std::string tilingKey, std::string pluginPath,
+        uint32_t argsSize = 0) : biType(biType),
+        stubFunc(stubFunc), tilingKey(std::move(tilingKey)), pluginPath(std::move(pluginPath)), argsSize(argsSize) {}
     bool operator<(const TaskKey &taskKey) const
     {
         if (biType != taskKey.biType) {
@@ -85,17 +88,19 @@ struct TaskKey {
         if (tilingKey != taskKey.tilingKey) {
             return tilingKey < taskKey.tilingKey;
         }
-        return pluginPath < taskKey.pluginPath;
+        if (pluginPath != taskKey.pluginPath) {
+            return pluginPath < taskKey.pluginPath;
+        }
+        return argsSize < taskKey.argsSize;
     }
     bool operator==(const TaskKey &taskKey) const
     {
         return ((biType == taskKey.biType) && (stubFunc == taskKey.stubFunc) && (tilingKey == taskKey.tilingKey) &&
-                (pluginPath != taskKey.pluginPath));
+                (pluginPath == taskKey.pluginPath) && (argsSize == taskKey.argsSize));
     }
 };
 
-// 动态插桩的任务创建与销毁,对于同一个kernel, tilingKey,
-// 只保留一个插桩任务,避免冗余插桩行为
+// 按 kernel、tilingKey、插桩类型、插件路径及参数长度缓存插桩任务，避免复用不同记录指针偏移的代码。
 class DBITaskFactory {
 public:
     static DBITaskFactory &Instance();
@@ -111,7 +116,7 @@ public:
     void Reset();
 
 private:
-    // TaskKey后续应该使用kernelName即可，regId+kernelName确定一个kernelFunction
+    // 同一注册身份下仍需区分函数、插桩配置和参数长度，不能仅按 kernel 名称复用。
     std::map<uint64_t, std::map<TaskKey, DBITaskSP>> taskPool_;
 };
 

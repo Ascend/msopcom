@@ -335,6 +335,10 @@ public:
     explicit HijackedFuncOfAclrtUnmapMemImpl();
     ~HijackedFuncOfAclrtUnmapMemImpl() override = default;
     void Pre(void *virPtr) override;
+    aclError Post(aclError ret) override;
+
+private:
+    void *pointer_{nullptr};
 };
 
 class HijackedFuncOfAclrtBinaryLoadFromFileImpl

@@ -17,6 +17,7 @@ file(GLOB INJECTION_SRC
     HijackedFuncOfSetExceptionExtInfo.cpp
     HijackedFuncOfKernelLaunchWithFlagV2.cpp
     HijackedFuncOfKernelLaunchWithHandleV2.cpp
+    HijackedFuncOfFusionLaunch.cpp
     HijackedFuncOfSetDevice.cpp
     HijackedFuncOfSetDeviceV2.cpp
     HijackedFuncOfSetDeviceEx.cpp

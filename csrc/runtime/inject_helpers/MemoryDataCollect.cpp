@@ -506,6 +506,12 @@ void ReportOpMallocInfo(const rtArgsEx_t *const argsInfo, KernelContext::OpMemIn
     std::vector<uint64_t> order;
     std::unordered_map<uint64_t, KernelContext::AddrInfo> addrMap;
     if (argsInfo == nullptr || argsInfo->args == nullptr) { return; }
+    // 在读取参数槽前校验完整范围，减法前先检查 skipNum，避免无符号下溢。
+    const uint64_t slots = argsInfo->argsSize / sizeof(uint64_t);
+    if (opMemInfo.skipNum > slots || opMemInfo.inputParamsAddrInfos.size() > slots - opMemInfo.skipNum) {
+        WARN_LOG("Operator input slots exceed the argument buffer; skipping memory collection.");
+        return;
+    }
     auto updateAddrInfos = [&](const KernelContext::AddrInfo &addrInfo) {
         std::pair<decltype(addrMap)::iterator, bool> it = addrMap.insert(std::make_pair(addrInfo.addr, addrInfo));
         // 部分算子存在内存复用情况，输入和输出为相同地址，这里计算相同地址的最大长度作为malloc上报时的长度
@@ -517,10 +523,13 @@ void ReportOpMallocInfo(const rtArgsEx_t *const argsInfo, KernelContext::OpMemIn
     uint32_t index = 0U;
     for (auto &it : opMemInfo.inputParamsAddrInfos) {
         it.addr = *(buff + opMemInfo.skipNum + index);
-        it.paramsNo -= opMemInfo.skipNum + KernelContext::Instance().GetMc2CtxFlag();
+        // 参数编号和 MC2 context 过滤均使用传入元数据的标志，避免依赖已被清空的实时标志。
+        const uint64_t hiddenSlots = static_cast<uint64_t>(opMemInfo.skipNum) + opMemInfo.hasMc2Ctx;
+        // MC2 context 和部分外部元数据用 0 表示无参数编号；不能将它减成 UINT64_MAX。
+        it.paramsNo = it.paramsNo > hiddenSlots ? it.paramsNo - hiddenSlots : 0;
         KernelContext::Instance().ParseSecondPtrAddrs(*argsInfo, opMemInfo, index);
-        // 如果当前算子不是mc2算子或者是mc2但index位置不是mc2_context，则缓存当前addr
-        if (!KernelContext::Instance().GetMc2CtxFlag() || index != MC2_CONTEXT_PARAMS_INDEX ||
+        // 普通参数直接缓存；MC2 context 先交给专用逻辑处理，再由其返回值决定是否缓存 context 地址。
+        if (!opMemInfo.hasMc2Ctx || index != MC2_CONTEXT_PARAMS_INDEX ||
             ProcessMc2CtxAddr(it.addr, updateAddrInfos)) {
             updateAddrInfos(it);
         }
@@ -548,7 +557,12 @@ void ReportOpMallocInfo(const rtArgsEx_t *const argsInfo, KernelContext::OpMemIn
 
     // 上报tiling地址信息
     if (argsInfo->hasTiling == 0U) { return; }
-    uint64_t tilingAddr = *(buff + argsInfo->tilingAddrOffset / 8);
+    // tiling 地址也是参数缓冲区中的一个完整槽，必须先验证边界再读取。
+    if (argsInfo->tilingAddrOffset > argsInfo->argsSize ||
+        argsInfo->argsSize - argsInfo->tilingAddrOffset < sizeof(uint64_t)) { return; }
+    uint64_t tilingAddr = 0;
+    std::memcpy(&tilingAddr, static_cast<const uint8_t *>(argsInfo->args) + argsInfo->tilingAddrOffset,
+        sizeof(tilingAddr));
     /// adump接口更新后，tiling末尾会多一些shape信息，此时，tilingData的准确长度为从.o解析出的长度
     /// 为了保证兼容性，这里取max。为了适配DFX，对齐到 32 字节后再进行检测。
     if (argsInfo->argsSize < argsInfo->tilingDataOffset) { return; }
@@ -600,7 +614,7 @@ void ReportOpMallocInfo(const AclrtLaunchArgsInfo &launchArgs, OpMemInfo &opMemI
     for (auto &it : opMemInfo.inputParamsAddrInfos) {
         it.addr = *(buff + opMemInfo.skipNum + index);
         ArgsManager::Instance().ParseSecondPtrAddrs(launchArgs, opMemInfo, index);
-        // 如果当前算子不是mc2算子或者是mc2但index位置不是mc2_context，则缓存当前addr
+        // 普通参数直接缓存；MC2 context 先交给专用逻辑处理，再由其返回值决定是否缓存 context 地址。
         if (!opMemInfo.hasMc2Ctx || index != MC2_CONTEXT_PARAMS_INDEX || ProcessMc2CtxAddr(it.addr, updateAddrInfos)) {
             updateAddrInfos(it);
         }

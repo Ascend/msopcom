@@ -19,10 +19,7 @@
 #include "HijackedFunc.h"
 #include "RuntimeConfig.h"
 #include "core/FuncSelector.h"
-#include "runtime/inject_helpers/LocalDevice.h"
 #include "runtime/inject_helpers/MemoryDataCollect.h"
-#include "utils/Protocol.h"
-#include "utils/Serialize.h"
 #include "inject_helpers/MemoryContext.h"
 #include "inject_helpers/ProfConfig.h"
 
@@ -31,17 +28,17 @@ HijackedFuncOfUnmapMem::HijackedFuncOfUnmapMem()
 
 void HijackedFuncOfUnmapMem::Pre(void* devPtr)
 {
-    if (IsSanitizer()) {
-        PacketHead head = { PacketType::MEMORY_RECORD };
-        HostMemRecord record{};
-        record.type = MemOpType::FREE;
-        record.infoSrc = MemInfoSrc::RT;
-        record.dstAddr = reinterpret_cast<uint64_t>(devPtr);
-        record.memSize = 0;
-        MemoryManage::Instance().CacheMemory<MemoryOpType::FREE>(record.dstAddr, MemInfoSrc::RT);
-        LocalDevice::Local().Notify(Serialize(head, record));
+    pointer_ = devPtr;
+}
+
+rtError_t HijackedFuncOfUnmapMem::Post(rtError_t ret)
+{
+    // 仅在解除映射成功后更新 sanitizer/profiler 记录；失败时保留原有记录。
+    if (IsSanitizer() && ret == RT_ERROR_NONE) {
+        ReportFree(reinterpret_cast<uint64_t>(pointer_), MemInfoSrc::RT);
     }
-    if (IsOpProf() && !ProfConfig::Instance().IsSimulator()) {
-        MemoryContext::Instance().Discard(devPtr);
+    if (IsOpProf() && !ProfConfig::Instance().IsSimulator() && ret == RT_ERROR_NONE) {
+        MemoryContext::Instance().Discard(pointer_);
     }
+    return ret;
 }

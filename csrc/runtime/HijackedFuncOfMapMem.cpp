@@ -25,7 +25,6 @@
 #include "inject_helpers/MemoryContext.h"
 #include "inject_helpers/ProfConfig.h"
 #include "inject_helpers/KernelContext.h"
-#include "runtime/inject_helpers/LocalDevice.h"
 
 HijackedFuncOfMapMem::HijackedFuncOfMapMem()
     : HijackedFuncType(RuntimeLibName(), "rtMapMem") {}

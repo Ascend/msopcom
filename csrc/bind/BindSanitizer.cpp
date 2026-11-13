@@ -47,6 +47,7 @@ void HijackedAscendclImplCtor()
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtDeviceDisablePeerAccessImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMallocImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMallocAlign32Impl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMallocCachedImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMallocHostImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMallocHostWithCfgImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtFreeImpl);
@@ -106,6 +107,7 @@ void __attribute__ ((constructor)) HijackedCtor()
     REGISTER_FUNCTION("runtime", rtFunctionRegister);
     REGISTER_FUNCTION("runtime", rtKernelLaunch);
     REGISTER_FUNCTION("runtime", rtKernelLaunchWithHandleV2);
+    REGISTER_FUNCTION("runtime", rtFusionLaunch);
     REGISTER_FUNCTION("runtime", rtKernelLaunchWithFlagV2);
     REGISTER_FUNCTION("runtime", rtSetExceptionExtInfo);
     REGISTER_FUNCTION("runtime", rtKernelLaunchWithHandle);
@@ -245,6 +247,13 @@ rtError_t rtKernelLaunch(const void *stubFunc, uint32_t blockDim, void *args,
     PRINT_ENTER_INSTRUMENTOR;
     HijackedFuncOfKernelLaunch instance;
     return instance.Call(stubFunc, blockDim, args, argsSize, smDesc, stm);
+}
+
+rtError_t rtFusionLaunch(void *fusionInfo, rtStream_t stm, rtFusionArgsEx_t *argsInfo)
+{
+    PRINT_ENTER_INSTRUMENTOR;
+    HijackedFuncOfFusionLaunch instance;
+    return instance.Call(fusionInfo, stm, argsInfo);
 }
 
 rtError_t rtKernelLaunchWithHandleV2(void *hdl, const uint64_t tilingKey, uint32_t blockDim,
@@ -661,6 +670,13 @@ aclError aclrtMallocImpl(void **devPtr, size_t size, aclrtMemMallocPolicy policy
 aclError aclrtMallocAlign32Impl(void **devPtr, size_t size, aclrtMemMallocPolicy policy) {
     LayerGuard guard(HijackedLayerManager::Instance(), __func__);
     HijackedFuncOfAclrtMallocAlign32Impl instance;
+    return instance.Call(devPtr, size, policy);
+}
+
+aclError aclrtMallocCachedImpl(void **devPtr, size_t size, aclrtMemMallocPolicy policy)
+{
+    LayerGuard guard(HijackedLayerManager::Instance(), __func__);
+    HijackedFuncOfAclrtMallocCachedImpl instance;
     return instance.Call(devPtr, size, policy);
 }
 

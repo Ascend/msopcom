@@ -40,6 +40,11 @@ using namespace std;
 
 class DBITaskTest : public testing::Test {
 public:
+    void SetUp() override
+    {
+        DBITaskFactory::Instance().Reset();
+        DBITaskConfig::Instance().Reset();
+    }
     void MockFuncContext()
     {
         regCtx_ = std::make_shared<RegisterContext>();
@@ -64,6 +69,7 @@ public:
         stubFuncCtx_.reset();
         tilingFuncCtx_.reset();
         launchCtx_.reset();
+        DBITaskFactory::Instance().Reset();
         DBITaskConfig::Instance().Reset();
         GlobalMockObject::verify();
     }
@@ -602,6 +608,11 @@ TEST_F(DBITaskTest, RunDBITask_handle_static_stub_with_keep_outputs_expect_dump)
 TEST_F(DBITaskTest, SourceFunctionLifetimeControlsReuse)
 {
     MockFuncContext();
+    // 复用的前提是可查询到稳定的非空 Context，不能依赖设备替身的默认返回值。
+    MOCKER(aclrtGetCurrentContextImplOrigin).stubs().will(invoke(+[](aclrtContext *ctx) -> aclError {
+        *ctx = reinterpret_cast<aclrtContext>(0x286);
+        return ACL_SUCCESS;
+    }));
     MOCKER(&DBITask::Convert).expects(exactly(2)).will(returnValue(true));
     MOCKER_CPP(&RegisterContext::Clone).stubs().will(returnValue(regCtx_));
     MOCKER_CPP(&aclrtBinaryGetFunctionByEntryImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
@@ -626,6 +637,11 @@ TEST_F(DBITaskTest, SourceFunctionLifetimeControlsReuse)
 TEST_F(DBITaskTest, NewSourceConversionFailureNeverReusesStaleFunction)
 {
     MockFuncContext();
+    // 复用的前提是可查询到稳定的非空 Context，不能依赖设备替身的默认返回值。
+    MOCKER(aclrtGetCurrentContextImplOrigin).stubs().will(invoke(+[](aclrtContext *ctx) -> aclError {
+        *ctx = reinterpret_cast<aclrtContext>(0x286);
+        return ACL_SUCCESS;
+    }));
     MOCKER(&DBITask::Convert).expects(exactly(3)).will(returnValue(true))
         .then(returnValue(false)).then(returnValue(true));
     MOCKER_CPP(&RegisterContext::Clone).stubs().will(returnValue(regCtx_));
@@ -690,4 +706,35 @@ TEST_F(DBITaskTest, UnknownContextDisablesConvertedFunctionReuse)
     ASSERT_NE(first, nullptr);
     ASSERT_NE(second, nullptr);
     EXPECT_NE(first, second);
+}
+
+TEST_F(DBITaskTest, CacheIdentityIncludesArgumentLengthForHandleAndStubEntries)
+{
+    auto &factory = DBITaskFactory::Instance();
+    auto &config = DBITaskConfig::Instance();
+    uint64_t stub = 0;
+    config.argsSize_ = 24;
+    auto handle24 = factory.GetOrCreate(286, std::string("52"), BIType::CUSTOMIZE);
+    auto stub24 = factory.GetOrCreate(286, &stub, BIType::CUSTOMIZE);
+    config.argsSize_ = 32;
+    EXPECT_NE(factory.GetOrCreate(286, std::string("52"), BIType::CUSTOMIZE), handle24);
+    EXPECT_NE(factory.GetOrCreate(286, &stub, BIType::CUSTOMIZE), stub24);
+    config.argsSize_ = 24;
+    EXPECT_EQ(factory.GetOrCreate(286, std::string("52"), BIType::CUSTOMIZE), handle24);
+    EXPECT_EQ(factory.GetOrCreate(286, &stub, BIType::CUSTOMIZE), stub24);
+}
+
+TEST_F(DBITaskTest, TaskKeyEqualityAndOrderingAgreeOnPluginAndArgumentLength)
+{
+    TaskKey first{BIType::CUSTOMIZE, nullptr, "52", "plugin-a", 24};
+    TaskKey equal{BIType::CUSTOMIZE, nullptr, "52", "plugin-a", 24};
+    TaskKey differentSize{BIType::CUSTOMIZE, nullptr, "52", "plugin-a", 32};
+    TaskKey differentPlugin{BIType::CUSTOMIZE, nullptr, "52", "plugin-b", 24};
+    EXPECT_TRUE(first == equal);
+    EXPECT_FALSE(first < equal);
+    EXPECT_FALSE(equal < first);
+    EXPECT_FALSE(first == differentSize);
+    EXPECT_TRUE(first < differentSize);
+    EXPECT_FALSE(first == differentPlugin);
+    EXPECT_TRUE(first < differentPlugin);
 }

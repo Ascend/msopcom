@@ -187,8 +187,8 @@ TEST_F(P2PMapping, SnapshotPreservesOwnerPermission) {
     EXPECT_EQ(ranges[0].permission, 1);
 }
 
-// 测试场景：ACL Map失败、成功，随后按既有Pre流程解除映射
-// 测试预期：Map成功登记范围，Unmap在Pre撤销范围并上报释放事件
+// 测试场景：ACL Map失败、成功，随后Unmap失败、成功
+// 测试预期：Unmap失败保留范围，成功后撤销范围并上报释放事件
 TEST_F(P2PMapping, AclMapAndUnmapUseExistingReleaseTiming) {
     const auto va = reinterpret_cast<void *>(BASE + 0x1000);
     HijackedFuncOfAclrtMapMemImpl map;
@@ -200,6 +200,10 @@ TEST_F(P2PMapping, AclMapAndUnmapUseExistingReleaseTiming) {
     EXPECT_EQ(MemoryManage::Instance().GetMallocCount(), 2);
     HijackedFuncOfAclrtUnmapMemImpl unmap;
     unmap.Pre(va);
+    EXPECT_EQ(unmap.Post(ACL_ERROR_INTERNAL_ERROR), ACL_ERROR_INTERNAL_ERROR);
+    EXPECT_EQ(MemoryManage::Instance().GetMallocCount(), 2);
+    ASSERT_EQ(packets.size(), 1);
+    EXPECT_EQ(unmap.Post(ACL_SUCCESS), ACL_SUCCESS);
     ASSERT_EQ(packets.size(), 2);
     HostMemRecord added{};
     HostMemRecord removed{};
@@ -213,8 +217,8 @@ TEST_F(P2PMapping, AclMapAndUnmapUseExistingReleaseTiming) {
     EXPECT_EQ(MemoryManage::Instance().GetMallocCount(), 1);
 }
 
-// 测试场景：Runtime直调Map成功及既有Unmap撤销流程
-// 测试预期：Map失败保持状态、成功登记，Unmap在Pre撤销范围
+// 测试场景：Runtime直调Map和Unmap的失败、成功流程
+// 测试预期：失败保持状态，Map成功登记，Unmap成功撤销范围
 TEST_F(P2PMapping, RuntimeMapAndUnmapUseExistingReleaseTiming) {
     const auto va = reinterpret_cast<void *>(BASE + 0x1000);
     HijackedFuncOfMapMem map;
@@ -225,6 +229,9 @@ TEST_F(P2PMapping, RuntimeMapAndUnmapUseExistingReleaseTiming) {
     EXPECT_EQ(MemoryManage::Instance().GetMallocCount(), 2);
     HijackedFuncOfUnmapMem unmap;
     unmap.Pre(va);
+    EXPECT_EQ(unmap.Post(RT_ERROR_RESERVED), RT_ERROR_RESERVED);
+    EXPECT_EQ(MemoryManage::Instance().GetMallocCount(), 2);
+    EXPECT_EQ(unmap.Post(RT_ERROR_NONE), RT_ERROR_NONE);
     EXPECT_EQ(MemoryManage::Instance().GetMallocCount(), 1);
 }
 
