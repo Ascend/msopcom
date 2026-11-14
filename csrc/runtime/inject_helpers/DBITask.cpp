@@ -36,6 +36,17 @@
 #include "core/LocalProcess.h"
 
 using namespace std;
+namespace {
+// Compiler arguments belong to one DBI task. Clear them after every exit,
+// including conversion failure, cached reuse and skips before conversion.
+struct ExtraCompilerArgsGuard {
+    ~ExtraCompilerArgsGuard()
+    {
+        DBITaskConfig::Instance().extraCompilerArgs_.clear();
+    }
+};
+} // namespace
+
 
 // 此重载用于 aclrt 启动路径 (RunDBITask(launchCtx))，通过 RegisterContext::Save 落盘，与动态插桩 Dump kernel object 的处理保持一致（含 e_flags 修正）。
 void DumpStaticStubKernel(uint64_t launchId, const RegisterContextSP &regCtx)
@@ -446,6 +457,7 @@ uint8_t* InitMemory(uint64_t memSize)
 
 bool RunDBITask(const StubFunc **stubFunc)
 {
+    ExtraCompilerArgsGuard extraCompilerArgsGuard;
     if (!IsPlatformSupportDBI()) {
         DEBUG_LOG("Unsupported platform, exit DBI");
         return false;
@@ -484,6 +496,7 @@ bool RunDBITask(const StubFunc **stubFunc)
 
 bool RunDBITask(void **hdl, const uint64_t tilingKey)
 {
+    ExtraCompilerArgsGuard extraCompilerArgsGuard;
     if (!IsPlatformSupportDBI()) {
         DEBUG_LOG("Unsupported platform, exit DBI");
         return false;
@@ -517,6 +530,7 @@ bool RunDBITask(void **hdl, const uint64_t tilingKey)
 
 FuncContextSP RunDBITask(const LaunchContextSP &launchCtx)
 {
+    ExtraCompilerArgsGuard extraCompilerArgsGuard;
     if (!IsPlatformSupportDBI()) {
         DEBUG_LOG("Unsupported platform, exit DBI");
         return nullptr;

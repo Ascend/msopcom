@@ -169,3 +169,16 @@ TEST_F(HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImplTest, test_operand_re
     ASSERT_TRUE(capture.find("ExpandArgs failed"));
     GlobalMockObject::verify();
 }
+
+// Failed preparation must not publish parameters to the next BBCount task.
+TEST_F(HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImplTest, prepare_failure_does_not_leave_compiler_args)
+{
+    DBITaskConfig::Instance().Reset();
+    HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl inst;
+    inst.refreshParamFunc_ = []() {};
+    inst.argsCtx_ = argsBinCtx_;
+    MOCKER(&InitMemory).stubs().will(returnValue(static_cast<uint8_t *>(nullptr)));
+    EXPECT_FALSE(inst.PrepareDbiTask(ProfDBIType::INSTR_PROF_START, 64));
+    EXPECT_TRUE(DBITaskConfig::Instance().extraCompilerArgs_.empty());
+    DBITaskConfig::Instance().Reset();
+}

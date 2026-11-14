@@ -20,6 +20,7 @@
 
 #include <gtest/gtest.h>
 #include "runtime/inject_helpers/DBITask.h"
+#include "runtime/inject_helpers/ProfConfig.h"
 #include "mockcpp/mockcpp.hpp"
 
 #include "runtime/inject_helpers/KernelContext.h"
@@ -360,21 +361,27 @@ TEST_F(DBITaskTest, RunDBITask_stub_task_success)
     MOCKER(run).stubs().will(returnValue(true));
 
     const void *stubFunc = nullptr;
+    DBITaskConfig::Instance().extraCompilerArgs_ = {START_STUB_COMPILER_ARGS, APPEND_HBMOUT_PARAMINFO_ARGS};
     EXPECT_TRUE(RunDBITask(&stubFunc));
+    EXPECT_TRUE(DBITaskConfig::Instance().extraCompilerArgs_.empty());
 }
 
 TEST_F(DBITaskTest, RunDBITask_stub_task_failed_when_platform_not_support)
 {
     DeviceContext::Local().SetSocVersion("Ascend310P");
     const void *stubFunc = nullptr;
+    DBITaskConfig::Instance().extraCompilerArgs_ = {START_STUB_COMPILER_ARGS, APPEND_HBMOUT_PARAMINFO_ARGS};
     EXPECT_FALSE(RunDBITask(&stubFunc));
+    EXPECT_TRUE(DBITaskConfig::Instance().extraCompilerArgs_.empty());
 }
 
 TEST_F(DBITaskTest, RunDBITask_stub_task_failed_when_get_dev_binary_failed)
 {
     DeviceContext::Local().SetSocVersion("Ascend910B");
     const void *stubFunc = nullptr;
+    DBITaskConfig::Instance().extraCompilerArgs_ = {START_STUB_COMPILER_ARGS, APPEND_HBMOUT_PARAMINFO_ARGS};
     EXPECT_FALSE(RunDBITask(&stubFunc));
+    EXPECT_TRUE(DBITaskConfig::Instance().extraCompilerArgs_.empty());
 }
 
 TEST_F(DBITaskTest, RunDBITask_stub_task_failed_when_run_failed)
@@ -391,7 +398,9 @@ TEST_F(DBITaskTest, RunDBITask_stub_task_failed_when_run_failed)
     MOCKER(HasStaticStub).stubs().will(returnValue(false));
 
     const void *stubFunc = nullptr;
+    DBITaskConfig::Instance().extraCompilerArgs_ = {START_STUB_COMPILER_ARGS, APPEND_HBMOUT_PARAMINFO_ARGS};
     EXPECT_FALSE(RunDBITask(&stubFunc));
+    EXPECT_TRUE(DBITaskConfig::Instance().extraCompilerArgs_.empty());
 }
 
 TEST_F(DBITaskTest, RunDBITask_tiling_task_success)
@@ -419,7 +428,9 @@ TEST_F(DBITaskTest, RunDBITask_tiling_task_success)
 
     void *hdl = nullptr;
     const uint64_t tilingKey = 1;
+    DBITaskConfig::Instance().extraCompilerArgs_ = {START_STUB_COMPILER_ARGS, APPEND_HBMOUT_PARAMINFO_ARGS};
     EXPECT_TRUE(RunDBITask(&hdl, tilingKey));
+    EXPECT_TRUE(DBITaskConfig::Instance().extraCompilerArgs_.empty());
 }
 
 TEST_F(DBITaskTest, RunDBITask_tiling_task_failed_when_platform_not_support)
@@ -427,7 +438,9 @@ TEST_F(DBITaskTest, RunDBITask_tiling_task_failed_when_platform_not_support)
     DeviceContext::Local().SetSocVersion("Ascend310P");
     void *hdl = nullptr;
     const uint64_t tilingKey = 1;
+    DBITaskConfig::Instance().extraCompilerArgs_ = {START_STUB_COMPILER_ARGS, APPEND_HBMOUT_PARAMINFO_ARGS};
     EXPECT_FALSE(RunDBITask(&hdl, tilingKey));
+    EXPECT_TRUE(DBITaskConfig::Instance().extraCompilerArgs_.empty());
 }
 
 TEST_F(DBITaskTest, RunDBITask_tiling_task_failed_when_get_dev_binary_failed)
@@ -435,7 +448,9 @@ TEST_F(DBITaskTest, RunDBITask_tiling_task_failed_when_get_dev_binary_failed)
     DeviceContext::Local().SetSocVersion("Ascend910B");
     void *hdl = nullptr;
     const uint64_t tilingKey = 1;
+    DBITaskConfig::Instance().extraCompilerArgs_ = {START_STUB_COMPILER_ARGS, APPEND_HBMOUT_PARAMINFO_ARGS};
     EXPECT_FALSE(RunDBITask(&hdl, tilingKey));
+    EXPECT_TRUE(DBITaskConfig::Instance().extraCompilerArgs_.empty());
 }
 
 TEST_F(DBITaskTest, RunDBITask_tiling_task_failed_when_run_failed)
@@ -453,7 +468,9 @@ TEST_F(DBITaskTest, RunDBITask_tiling_task_failed_when_run_failed)
 
     void *hdl = nullptr;
     const uint64_t tilingKey = 1;
+    DBITaskConfig::Instance().extraCompilerArgs_ = {START_STUB_COMPILER_ARGS, APPEND_HBMOUT_PARAMINFO_ARGS};
     EXPECT_FALSE(RunDBITask(&hdl, tilingKey));
+    EXPECT_TRUE(DBITaskConfig::Instance().extraCompilerArgs_.empty());
 }
 
 TEST_F(DBITaskTest, mock_launch_context_then_RunDBITask_expect_success)
@@ -470,7 +487,9 @@ TEST_F(DBITaskTest, mock_launch_context_then_RunDBITask_expect_success)
     FuncContextSP (DBITask::*run)(const LaunchContextSP &) = &DBITask::Run;
     MOCKER(run).stubs().will(returnValue(stubFuncCtx_));
 
+    DBITaskConfig::Instance().extraCompilerArgs_ = {START_STUB_COMPILER_ARGS, APPEND_HBMOUT_PARAMINFO_ARGS};
     EXPECT_NE(RunDBITask(launchCtx_), nullptr);
+    EXPECT_TRUE(DBITaskConfig::Instance().extraCompilerArgs_.empty());
 }
 
 TEST_F(DBITaskTest, mock_launch_context_and_run_failed_then_RunDBITask_expect_nullptr)
@@ -487,7 +506,9 @@ TEST_F(DBITaskTest, mock_launch_context_and_run_failed_then_RunDBITask_expect_nu
     FuncContextSP (DBITask::*run)(const LaunchContextSP &) = &DBITask::Run;
     MOCKER(run).stubs().will(returnValue(FuncContextSP(nullptr)));
 
+    DBITaskConfig::Instance().extraCompilerArgs_ = {START_STUB_COMPILER_ARGS, APPEND_HBMOUT_PARAMINFO_ARGS};
     EXPECT_EQ(RunDBITask(launchCtx_), nullptr);
+    EXPECT_TRUE(DBITaskConfig::Instance().extraCompilerArgs_.empty());
 }
 
 // 静态桩场景：开启 keepTaskOutputs(INJ_LOG_LEVEL=0) 后，kernel.o 落盘到 launch 目录
@@ -515,7 +536,9 @@ TEST_F(DBITaskTest, RunDBITask_launch_ctx_static_stub_with_keep_outputs_expect_d
     LaunchParam param{ 1, &data[0], true, 1};
     launchCtx_ = make_shared<LaunchContext>(tilingFuncCtx_, argsBinCtx, param);
 
+    DBITaskConfig::Instance().extraCompilerArgs_ = {START_STUB_COMPILER_ARGS, APPEND_HBMOUT_PARAMINFO_ARGS};
     auto funcCtx = RunDBITask(launchCtx_);
+    EXPECT_TRUE(DBITaskConfig::Instance().extraCompilerArgs_.empty());
     EXPECT_EQ(funcCtx, nullptr);
     // TearDown 中 GlobalMockObject::verify() 校验 RegisterContext::Save 恰好被调用一次
 }
@@ -545,7 +568,9 @@ TEST_F(DBITaskTest, RunDBITask_launch_ctx_static_stub_without_keep_outputs_expec
     LaunchParam param{ 1, &data[0], true, 1};
     launchCtx_ = make_shared<LaunchContext>(tilingFuncCtx_, argsBinCtx, param);
 
+    DBITaskConfig::Instance().extraCompilerArgs_ = {START_STUB_COMPILER_ARGS, APPEND_HBMOUT_PARAMINFO_ARGS};
     auto funcCtx = RunDBITask(launchCtx_);
+    EXPECT_TRUE(DBITaskConfig::Instance().extraCompilerArgs_.empty());
     EXPECT_EQ(funcCtx, nullptr);
     // TearDown 中 GlobalMockObject::verify() 校验 RegisterContext::Save 未被调用
 }
@@ -572,7 +597,9 @@ TEST_F(DBITaskTest, RunDBITask_stub_func_static_stub_with_keep_outputs_expect_du
     MOCKER(&WriteBinary).expects(exactly(1)).will(returnValue(size_t(sizeof(data))));
 
     const void *stubFunc = nullptr;
+    DBITaskConfig::Instance().extraCompilerArgs_ = {START_STUB_COMPILER_ARGS, APPEND_HBMOUT_PARAMINFO_ARGS};
     EXPECT_FALSE(RunDBITask(&stubFunc));
+    EXPECT_TRUE(DBITaskConfig::Instance().extraCompilerArgs_.empty());
     // TearDown 中 GlobalMockObject::verify() 校验 WriteBinary 被调用一次（落盘 kernel.o）
 }
 
@@ -599,8 +626,106 @@ TEST_F(DBITaskTest, RunDBITask_handle_static_stub_with_keep_outputs_expect_dump)
 
     void *hdl = nullptr;
     const uint64_t tilingKey = 1;
+    DBITaskConfig::Instance().extraCompilerArgs_ = {START_STUB_COMPILER_ARGS, APPEND_HBMOUT_PARAMINFO_ARGS};
     EXPECT_FALSE(RunDBITask(&hdl, tilingKey));
+    EXPECT_TRUE(DBITaskConfig::Instance().extraCompilerArgs_.empty());
     // TearDown 中 GlobalMockObject::verify() 校验 WriteBinary 被调用一次（落盘 kernel.o）
+}
+
+// All public entries must consume task-local arguments even when no conversion runs.
+TEST_F(DBITaskTest, extra_args_cleared_on_unsupported_platform_for_all_entries)
+{
+    DeviceContext::Local().SetSocVersion("Ascend310P");
+    const void *stub = nullptr;
+    void *handle = nullptr;
+    auto &args = DBITaskConfig::Instance().extraCompilerArgs_;
+    args = {START_STUB_COMPILER_ARGS};
+    EXPECT_FALSE(RunDBITask(&stub));
+    EXPECT_TRUE(args.empty());
+    args = {"--dfx-region-instr-pipe=all"};
+    EXPECT_FALSE(RunDBITask(&handle, 0));
+    EXPECT_TRUE(args.empty());
+    args = {APPEND_HBMOUT_PARAMINFO_ARGS};
+    EXPECT_EQ(RunDBITask(LaunchContextSP{}), nullptr);
+    EXPECT_TRUE(args.empty());
+}
+
+// Inspect the real compiler configuration: START/DFX/HBM arguments survive until
+// conversion, but must not leak into BBCount's three-argument Init overload.
+TEST_F(DBITaskTest, acl_compile_args_preserved_then_cleared_before_next_task)
+{
+    DeviceContext::Local().SetSocVersion("Ascend950PR");
+    MockFuncContext();
+    MOCKER_CPP(&RegisterContext::HasStaticStub).stubs().will(returnValue(false));
+    auto capture = [](DBITask *, const BinaryInstrumentation::Config &config,
+                      const string &, const string &, const string &) -> bool {
+        EXPECT_EQ(config.extraArgs, DBITaskConfig::Instance().extraCompilerArgs_);
+        EXPECT_EQ(config.extraArgs.size(), 2U);
+        EXPECT_EQ(config.extraArgs.back(), APPEND_HBMOUT_PARAMINFO_ARGS);
+        return false; // Also exercise cleanup after conversion failure.
+    };
+    MOCKER(&DBITask::Convert).expects(exactly(2)).will(invoke(+capture));
+    for (const string &arg : {string(START_STUB_COMPILER_ARGS), string("--dfx-region-instr-pipe=all")}) {
+        DBITaskConfig::Instance().Init(BIType::CUSTOMIZE, "pluginPath", KernelMatcher::Config{}, "", "",
+            {arg, APPEND_HBMOUT_PARAMINFO_ARGS});
+        EXPECT_EQ(RunDBITask(launchCtx_), nullptr);
+        EXPECT_TRUE(DBITaskConfig::Instance().extraCompilerArgs_.empty());
+        DBITaskConfig::Instance().Init(BIType::BB_COUNT, make_shared<KernelMatcher>(KernelMatcher::Config{}));
+        EXPECT_TRUE(DBITaskConfig::Instance().extraCompilerArgs_.empty());
+    }
+}
+
+TEST_F(DBITaskTest, rt_compile_args_preserved_then_cleared_on_failure)
+{
+    DeviceContext::Local().SetSocVersion("Ascend950PR");
+    using GetBinary = bool(KernelContext::*)(KernelContext::KernelHandlePtr, rtDevBinary_t &, bool) const;
+    GetBinary getBinary = &KernelContext::GetDevBinary;
+    MOCKER(getBinary).stubs().will(returnValue(true));
+    MOCKER(HasStaticStub).stubs().will(returnValue(false));
+    KernelContext::LaunchEvent event{};
+    MOCKER(&KernelContext::GetLaunchEvent).stubs().with(any(), outBound(event)).will(returnValue(true));
+    using DumpObject = bool(KernelContext::*)(uint64_t, const string &);
+    DumpObject dumpObject = &KernelContext::DumpKernelObject;
+    MOCKER(dumpObject).stubs().will(returnValue(true));
+    MOCKER(&MkdirRecusively).stubs().will(returnValue(true));
+    auto capture = [](DBITask *, const BinaryInstrumentation::Config &config,
+                      const string &, const string &, const string &) -> bool {
+        EXPECT_EQ(config.extraArgs, vector<string>({START_STUB_COMPILER_ARGS}));
+        return false;
+    };
+    MOCKER(&DBITask::Convert).expects(exactly(1)).will(invoke(+capture));
+    DBITaskConfig::Instance().Init(BIType::CUSTOMIZE, "args-lifetime-rt", KernelMatcher::Config{}, "", "",
+        {START_STUB_COMPILER_ARGS});
+    void *handle = nullptr;
+    EXPECT_FALSE(RunDBITask(&handle, 197));
+    EXPECT_TRUE(DBITaskConfig::Instance().extraCompilerArgs_.empty());
+}
+
+TEST_F(DBITaskTest, acl_cached_task_also_clears_extra_args)
+{
+    DeviceContext::Local().SetSocVersion("Ascend950PR");
+    MockFuncContext();
+    MOCKER_CPP(&RegisterContext::HasStaticStub).stubs().will(returnValue(false));
+    MOCKER(&DBITask::Convert).expects(exactly(1)).will(returnValue(true));
+    MOCKER_CPP(&RegisterContext::Clone).stubs().will(returnValue(regCtx_));
+    MOCKER_CPP(&aclrtBinaryGetFunctionByEntryImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
+    // Cache reuse requires a stable, non-null runtime context.
+    MOCKER(&aclrtGetCurrentContextImplOrigin).stubs().will(invoke(+[](aclrtContext *ctx) -> aclError {
+        *ctx = reinterpret_cast<aclrtContext>(0x197);
+        return ACL_SUCCESS;
+    }));
+    FuncContextSP previous;
+    for (int i = 0; i < 2; ++i) {
+        DBITaskConfig::Instance().Init(BIType::CUSTOMIZE, "args-lifetime-cache", KernelMatcher::Config{}, "", "",
+            {START_STUB_COMPILER_ARGS});
+        auto current = RunDBITask(launchCtx_);
+        ASSERT_NE(current, nullptr);
+        EXPECT_TRUE(DBITaskConfig::Instance().extraCompilerArgs_.empty());
+        if (previous != nullptr) {
+            EXPECT_EQ(current, previous);
+        }
+        previous = current;
+    }
 }
 
 // 测试场景：同源函数重复启动，以及原始句柄重用后创建同名新函数

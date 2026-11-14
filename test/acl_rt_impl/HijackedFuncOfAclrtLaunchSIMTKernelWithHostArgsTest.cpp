@@ -222,3 +222,17 @@ TEST_F(HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsTest, sanitizer_pre_expect
     ASSERT_LT(g_sectionOrder.sectionsCallSeq, g_sectionOrder.sanitizerInitCallSeq);
     GlobalMockObject::verify();
 }
+
+// Failed preparation must not publish parameters to the next BBCount task.
+TEST_F(HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsTest, prepare_failure_does_not_leave_compiler_args)
+{
+    DBITaskConfig::Instance().Reset();
+    HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsImpl inst;
+    inst.refreshParamFunc_ = []() {};
+    inst.launchCtx_ = std::make_shared<LaunchContext>(tilingFuncCtx_, argsBinCtx_,
+        LaunchParam{1, nullptr, true, 1});
+    MOCKER(&InitMemory).stubs().will(returnValue(static_cast<uint8_t *>(nullptr)));
+    EXPECT_FALSE(inst.PrepareDbiTask(ProfDBIType::INSTR_PROF_START, 64));
+    EXPECT_TRUE(DBITaskConfig::Instance().extraCompilerArgs_.empty());
+    DBITaskConfig::Instance().Reset();
+}

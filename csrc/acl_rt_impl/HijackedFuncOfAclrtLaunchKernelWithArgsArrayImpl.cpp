@@ -163,7 +163,6 @@ bool HijackedFuncOfAclrtLaunchKernelWithArgsArrayImpl::PrepareDbiTask(ProfDBITyp
     std::string tuneLogPath;
     DbiRecordTaskHelper::AppendExtraInfo(mode, ProfDataCollect::GetAicoreOutputPath(devId_), tuneLogPath, extraArgs);
     DbiRecordTaskHelper::AppendHbmOutParamInfoArgs(extraArgs);
-    DBITaskConfig::Instance().Init(BIType::CUSTOMIZE, pluginPath, matchConfig, path, tuneLogPath, extraArgs);
     memSize_ = memSize;
     memInfo_ = InitMemory(memSize_);
     uint32_t paramOffset = 0;
@@ -173,6 +172,8 @@ bool HijackedFuncOfAclrtLaunchKernelWithArgsArrayImpl::PrepareDbiTask(ProfDBITyp
         WARN_LOG("Stub run failed, because of ExpandArgs failed, dbi mode is %d", static_cast<uint32_t>(mode));
         return false;
     }
+    // Publish compiler arguments only after preparation succeeds.
+    DBITaskConfig::Instance().Init(BIType::CUSTOMIZE, pluginPath, matchConfig, path, tuneLogPath, extraArgs);
     DBITaskConfig::Instance().argsSize_ = paramOffset;
     auto newFuncCtx = RunDBITask(launchCtx_);
     if (newFuncCtx) {
@@ -223,7 +224,6 @@ void HijackedFuncOfAclrtLaunchKernelWithArgsArrayImpl::Pre(
         return;
     }
     auto bbCountTask = [this](const std::string &outputPath = "") {
-        DBITaskConfig::Instance().extraCompilerArgs_.clear();
         DBITaskConfig::Instance().argsSize_ = launchCtx_->GetArgsContext()->GetLastParamOffset();
         DbiRecordTaskHelper::AppendHbmOutParamInfoToConfig();
         auto stubCtx = BBCountDumper::Instance().Replace(launchCtx_, outputPath);
