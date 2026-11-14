@@ -35,7 +35,7 @@ enum class ProfPacketType : uint32_t {
 
 struct MstxProfConfig {
     bool isMstxEnable {false};
-    char mstxEnabledMessage[NAME_MAX_LENGTH] {'\0'}; // op_profiling/common/defs.h:MAX_KERNEL_NAME_LENGTH + 1
+    char mstxEnabledMessage[NAME_MAX_LENGTH]{'\0'}; // MAX_MSTX_INCLUDE_NAME_LENGTH + 1，包含末尾NUL。
 };
 
 struct ProfDataPathConfig {

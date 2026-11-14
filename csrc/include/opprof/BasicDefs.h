@@ -18,7 +18,7 @@
 
 #include <cstdint>
 constexpr uint16_t PATH_MAX_LENGTH = 4096U;
-constexpr uint16_t NAME_MAX_LENGTH = 1024U;
+constexpr uint16_t NAME_MAX_LENGTH = 1025U; // 最多1024字节名称，额外保留末尾NUL。
 constexpr uint32_t UINT32_INVALID = UINT32_MAX;
 constexpr uint32_t PMU_EVENT_MAX_NUM = 8U;
 constexpr uint32_t EVENT_MAX_NUM = 96U;

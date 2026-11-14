@@ -135,7 +135,7 @@ TEST_F(TimelineLaunchTest, prefix_and_wildcard_matches_expect_only_selected_json
 /* | 用例集 | TimelineLaunchTest
 /* |测试函数| MsTx::RecordTimelineLaunch()
 /* | 用例名 | invalid_arguments_or_no_active_range_expect_no_metadata_file
-/* |用例描述| 空算子名、空输出目录或无活动范围时，不创建timeline_mstx.json记录文件
+/* |用例描述| 空算子名、空输出目录、无活动范围或MSTX关闭时，不创建timeline_mstx.json记录文件
 */
 TEST_F(TimelineLaunchTest, invalid_arguments_or_no_active_range_expect_no_metadata_file) {
     Select(0, "mstx1", "kernel");
@@ -144,6 +144,9 @@ TEST_F(TimelineLaunchTest, invalid_arguments_or_no_active_range_expect_no_metada
     const auto range = mstx.MstxRangeAdd("mstx1");
     mstx.RecordTimelineLaunch(0, "", "/output/dump");
     mstx.RecordTimelineLaunch(0, "kernel", "");
+    ProfConfig::Instance().profConfig_.mstxProfConfig.isMstxEnable = false;
+    EXPECT_TRUE(mstx.IsInMstxRange());
+    mstx.RecordTimelineLaunch(0, "kernel", "/output/dump");
     mstx.MstxRangeEnd(range);
     mstx.RecordTimelineLaunch(0, "kernel", "/output/dump");
     ProfConfig::Instance().profConfig_.mstxProfConfig.isMstxEnable = false;

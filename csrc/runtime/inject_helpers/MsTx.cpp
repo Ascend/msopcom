@@ -142,7 +142,8 @@ void MsTx::WriteTimelineRecord(const std::string &record) {
 }
 
 void MsTx::RecordTimelineLaunch(int32_t deviceId, const std::string &kernelName, const std::string &outputPath) {
-    if (kernelName.empty() || outputPath.empty() || !IsInMstxRange()) {
+    if (!ProfConfig::Instance().GetConfig().mstxProfConfig.isMstxEnable || kernelName.empty() || outputPath.empty() ||
+        !IsInMstxRange()) {
         return;
     }
     const auto &selections = ProfConfig::Instance().GetConfig().timelineMergeConfigs;

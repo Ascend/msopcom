@@ -156,9 +156,9 @@ struct MstxMemPermissionsAssignBatch {
 
 constexpr int MSTX_SUCCESS = 0;
 constexpr int MSTX_FAIL = 1;
-constexpr int MAX_MESSAGE_LENGTH = 1023;
+constexpr int MAX_MESSAGE_LENGTH = 1024;
 constexpr int MAX_DOMAIN_LENGTH = 1023;
-constexpr int MAX_KERNEL_NAME_LENGTH = 1023;
+constexpr int MAX_KERNEL_NAME_LENGTH = 1024;
 
 constexpr uint64_t MSTX_TOOL_MSSANITIZER_ID = 0x1002;
 constexpr uint64_t MSTX_TOOL_MSPROFOP_ID = 0x1001;
