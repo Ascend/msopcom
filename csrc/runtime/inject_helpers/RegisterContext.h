@@ -142,6 +142,9 @@ public:
 
     bool HasSimtSymbol() const;
 
+    // 二进制符号扫描是否成功。扫描失败时 hasSimt 无意义，调用方需要按“含 SIMT”保守处理
+    bool IsSimtScanSucceeded() const { return simtScanSucceeded_; }
+
 private:
     std::string binPath_;
     std::vector<char> elfData_;
@@ -156,6 +159,7 @@ private:
     bool inited_{false};
     bool isFromFile_ {false};
     bool hasSimt_{false};
+    bool simtScanSucceeded_{false};
     aclrtBinaryLoadOptionType type_ {aclrtBinaryLoadOptionType::NONE};
 
     std::shared_ptr<RegisterContext> CloneFromBin(const std::string &newBinPath) const;

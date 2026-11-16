@@ -296,6 +296,7 @@ bool RegisterContext::Init(vector<char> elfData, aclrtBinHandle binHandle, const
     }
     DEBUG_LOG("Get total %lu kernelNames", kernelSymbolNames_.size());
     hasSimt_ = hasSimt;
+    simtScanSucceeded_ = true;
     // 一次解析节头表同时判定 static stub / debug_line（此前 HasStaticStub/HasDebugLine 各扫描一次）
     std::map<std::string, Elf64_Shdr> sectionHeaders;
     if (ElfLoader::ScanSectionHeaders(elfData_.data(), elfData_.size(), sectionHeaders)) {

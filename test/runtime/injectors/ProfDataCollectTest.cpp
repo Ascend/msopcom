@@ -834,12 +834,14 @@ TEST_F(ProfDataCollectTest, gen_dbi_data_failed)
     MOCKER(aclrtMemcpyImplOrigin)
         .expects(exactly(2))
         .will(returnValue(ACL_ERROR_BAD_ALLOC)).then(returnValue(ACL_SUCCESS));
-    profDataCollect.GenDBIData(BLOCK_MEM_SIZE, memInfo);
+    const uint64_t blockMemSize =
+        GetMemoryChartBlockDataSize(DeviceContext::Local().IsAscend950()) + BLOCK_GAP;
+    profDataCollect.GenDBIData(blockMemSize, memInfo);
 
     MOCKER(&LocalProcess::Notify)
         .stubs()
         .will(returnValue(0UL));
-    profDataCollect.GenDBIData(BLOCK_MEM_SIZE, memInfo);
+    profDataCollect.GenDBIData(blockMemSize, memInfo);
 }
 
 TEST_F(ProfDataCollectTest, prof_init_common_operator)

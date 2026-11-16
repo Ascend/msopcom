@@ -54,6 +54,9 @@ public:
     bool InstrProfData(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc);
     void GenBBcountFile(uint64_t regId, uint64_t memSize, uint8_t *memInfo) const;
     void GenDBIData(uint64_t memSize, uint8_t *memInfo) const;
+    // 预写 MemoryChart 布局标识：确认纯 SIMD 用整块，含 SIMT 或识别不确定固定 2049 槽。
+    // 返回 false 表示本次 MemoryChart 回放必须终止（缓冲区非法/预写失败）。
+    bool InitMemoryChartLayout(uint8_t *memInfo, uint64_t memSize, bool simtScanKnown, bool hasSimt) const;
     void GenRecordData(uint64_t memSize, uint8_t *memInfo, const std::string &recordName) const;
     void PostProcess() const; // device
     bool IsNeedProf() const;

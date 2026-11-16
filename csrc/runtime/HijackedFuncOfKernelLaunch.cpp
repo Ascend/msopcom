@@ -188,6 +188,11 @@ void HijackedFuncOfKernelLaunch::RunDbiRecordTask(ProfDBIType mode)
     if (!PrepareDbiTask(mode, memSize) || originfunc_ == nullptr) {
         return;
     }
+    if (mode == ProfDBIType::MEMORY_CHART &&
+        !DbiRecordTaskHelper::InitMemoryChartLayout(profObj_.get(), mode, regId_, memInfo_, memSize_)) {
+        WARN_LOG("Memory chart layout init failed, skip this replay");
+        return;
+    }
     originfunc_(stubFunc_, blockDim_, args_, argsSize_, smDesc_, stm_);
     rtError_t launchRet = rtStreamSynchronizeOrigin(stm_);
     if (launchRet != RT_ERROR_NONE) {

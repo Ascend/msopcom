@@ -124,6 +124,9 @@ public:
         std::vector<uint8_t> binData;
         bool isKernelWithDBI = false;
         bool hasDebugLine = false;
+        // 该二进制符号扫描得到的 SIMT 信息：simtScanKnown 为 false 时 hasSimt 无意义，调用方需按含 SIMT 保守处理
+        bool simtScanKnown = false;
+        bool hasSimt = false;
     };
 
     struct LaunchEvent {
@@ -247,6 +250,9 @@ public:
     uint32_t GetBlockId();
 
     bool GetRegisterEvent(uint64_t regId, RegisterEvent &event);
+
+    // 只取布局所需的 SIMT 识别结果，避免整份 RegisterEvent（含完整二进制）被拷贝
+    bool GetRegisterSimtInfo(uint64_t regId, bool &known, bool &hasSimt) const;
 
     uint64_t GetRegisterId(uint64_t launchId);
 

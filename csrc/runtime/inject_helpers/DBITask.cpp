@@ -444,12 +444,12 @@ uint8_t* InitMemory(uint64_t memSize)
     void *memInfo;
     aclError ret = DevMemManager::Instance().MallocMemory(&memInfo, memSize);
     if (ret != ACL_ERROR_NONE) {
-        ERROR_LOG("malloc memInfo error: %d", ret);
+        ERROR_LOG("malloc memInfo error: %d, memSize: %lu, device memory may be insufficient", ret, memSize);
         return nullptr;
     }
     aclError error = aclrtMemsetImplOrigin(memInfo, memSize, 0x00, memSize);
     if (error != ACL_ERROR_NONE) {
-        ERROR_LOG("init rtMemset memInfo error: %d", error);
+        ERROR_LOG("init rtMemset memInfo error: %d, memSize: %lu", error, memSize);
         return nullptr;
     }
     return static_cast<uint8_t *>(memInfo);

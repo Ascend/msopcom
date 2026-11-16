@@ -371,7 +371,16 @@ void HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::RunDbiRecordTask(Prof
         WARN_LOG("Restore input data before DBI record task failed, mode=%u", static_cast<uint32_t>(mode));
     }
     uint64_t memSize = DbiRecordTaskHelper::GetDbiRecordMemSize(mode, blockNum_, MAX_BLOCK);
+    // ACL 注册 ID 与 rt 注册表是两套编号，不能用 regId_ 查 rt 注册表；直接取本次 launch 的注册上下文
+    // funcCtx_ 可能已被前置 DBI 流程替换为插桩/桩上下文，SIMT 识别必须用本次 launch 的原始注册上下文
+    const RegisterContextSP regCtx = (launchCtx_ != nullptr && launchCtx_->GetFuncContext() != nullptr) ?
+        launchCtx_->GetFuncContext()->GetRegisterContext() : nullptr;
     if (!PrepareDbiTask(mode, memSize) || originfunc_ == nullptr) {
+        return;
+    }
+    if (mode == ProfDBIType::MEMORY_CHART &&
+        !DbiRecordTaskHelper::InitMemoryChartLayout(profObj_.get(), mode, regCtx, memInfo_, memSize_)) {
+        WARN_LOG("Memory chart layout init failed, skip this replay");
         return;
     }
     auto argsArrayCtx = std::static_pointer_cast<ArgsArrayContext>(

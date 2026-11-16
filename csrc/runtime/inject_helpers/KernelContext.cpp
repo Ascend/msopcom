@@ -699,10 +699,24 @@ uint64_t KernelContext::GetRegisterId(const void *key, bool withHandle)
 
 bool KernelContext::GetRegisterEvent(uint64_t regId, RegisterEvent &event)
 {
+    std::lock_guard<std::mutex> guard(this->mtx_);
     if (regId >= registerEvents_.size()) {
         return false;
     }
     event = registerEvents_[regId];
+    return true;
+}
+
+bool KernelContext::GetRegisterSimtInfo(uint64_t regId, bool &known, bool &hasSimt) const
+{
+    // 注册（AddHdlRegisterEvent）可能在另一线程触发 vector 扩容，查询必须与写入使用同一把锁
+    std::lock_guard<std::mutex> guard(this->mtx_);
+    if (regId >= registerEvents_.size()) {
+        return false;
+    }
+    const auto &event = registerEvents_[regId];
+    known = event.simtScanKnown;
+    hasSimt = event.hasSimt;
     return true;
 }
 
@@ -911,12 +925,19 @@ void KernelContext::AddHdlRegisterEvent(const KernelHandle *hdl, const rtDevBina
         event.hasDebugLine = sectionHeaders.find(".debug_line") != sectionHeaders.cend();
     }
     bool hasSimt = false;
-    ScanKernelSymbols(
+    // 每个二进制单独保存扫描结果，避免多个二进制交替注册时全局标志被覆盖
+    event.simtScanKnown = ScanKernelSymbols(
         static_cast<const char *>(bin->data), bin->length, event.kernelNames, event.kernelOffsets, hasSimt);
+    event.hasSimt = hasSimt;
+    if (!event.simtScanKnown) {
+        WARN_LOG("Scan kernel symbols failed when register, treat as simt for memory chart layout");
+    }
     if (!event.kernelNames.empty()) {
         DEBUG_LOG("Register first kernelName is %s", event.kernelNames.front().c_str());
     }
     hasSimt_ = hasSimt;
+    // 映射与 vector 追加必须与查询侧（GetRegisterId/GetRegisterEvent/GetRegisterSimtInfo）互斥
+    std::lock_guard<std::mutex> guard(this->mtx_);
     hdlToRegId_[hdl] = registerEvents_.size();
     registerEvents_.push_back(std::move(event));
 }

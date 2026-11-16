@@ -253,6 +253,11 @@ public:
 
     virtual void GenDBIData(uint64_t memSize, uint8_t *memInfo) {};
 
+    virtual bool InitMemoryChartLayout(uint8_t *memInfo, uint64_t memSize, bool simtScanKnown, bool hasSimt)
+    {
+        return true;
+    }
+
     virtual void GenRecordData(uint64_t memSize, uint8_t *memInfo, const std::string &recordName) const {};
 };
 std::map<int32_t, std::string> DataCollect::deviceOutputPathMap_; // 静态成员类外初始化
@@ -308,6 +313,7 @@ public:
     bool InstrProfData(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc) override;
     void GenBBcountFile(uint64_t regId, uint64_t memSize, uint8_t *memInfo) override;
     void GenDBIData(uint64_t memSize, uint8_t *memInfo) override;
+    bool InitMemoryChartLayout(uint8_t *memInfo, uint64_t memSize, bool simtScanKnown, bool hasSimt) override;
     void GenRecordData(uint64_t memSize, uint8_t *memInfo, const std::string &recordName) const override;
     bool RangeReplay(const rtStream_t &stream, const aclmdlRI &modelRI) override;
 
@@ -850,39 +856,137 @@ void DataCollectInDevice::GenBBcountFile(uint64_t regId, uint64_t memSize, uint8
     }
 }
 
+bool DataCollectInDevice::InitMemoryChartLayout(
+    uint8_t *memInfo, uint64_t memSize, bool simtScanKnown, bool hasSimt) {
+    if (memInfo == nullptr) {
+        ERROR_LOG("MemoryChart memInfo is null");
+        return false;
+    }
+    // 只有带 SIMT 的芯片（A5）才需要预留线程槽位；A2/A3 没有 SIMT，始终使用整块单槽。
+    // A5 上只有确认二进制不含 SIMT 才使用整块；含 SIMT 或识别失败一律保守分槽，
+    // 保证普通 launch 内含 SIMT 区域时记录仍落在预留槽位内，不会漏记或越界。
+    const bool hasSimtHardware = DeviceContext::Local().IsAscend950();
+    const uint64_t layoutId = (!hasSimtHardware || (simtScanKnown && !hasSimt)) ? 0U : MAX_THREAD_NUM;
+    if (hasSimtHardware && !simtScanKnown) {
+        WARN_LOG("MemoryChart simt scan unknown, use conservative layout with %lu slots",
+            static_cast<uint64_t>(MAX_THREAD_NUM) + 1U);
+    }
+    const uint64_t blockDataSize = GetMemoryChartBlockDataSize(hasSimtHardware);
+    const uint64_t blockMemSize = blockDataSize + BLOCK_GAP;
+    if (memSize == 0U || memSize % blockMemSize != 0U) {
+        ERROR_LOG("MemoryChart invalid memSize %lu for block size %lu", memSize, blockMemSize);
+        return false;
+    }
+    // 布局标识和魔数都要写入：纯 SIMD（layoutId == 0）也写魔数，回收时可据此发现 host 与设备桩口径不一致
+    const MemoryChartLayoutHeader layoutHeader{layoutId, MC_LAYOUT_TAG};
+    const uint64_t blockNum = memSize / blockMemSize;
+    for (uint64_t i = 0; i < blockNum; ++i) {
+        aclError error = aclrtMemcpyImplOrigin(memInfo + i * blockMemSize, sizeof(layoutHeader), &layoutHeader,
+            sizeof(layoutHeader), aclrtMemcpyKind::ACL_MEMCPY_HOST_TO_DEVICE);
+        if (error != RT_ERROR_NONE) {
+            ERROR_LOG("MemoryChart write layout id failed: %d, block %lu", error, i);
+            return false;
+        }
+    }
+    return true;
+}
+
 void DataCollectInDevice::GenDBIData(uint64_t memSize, uint8_t *memInfo) {
     DEBUG_LOG("Gen DBI data, memSize is %lu", memSize);
     if (memSize == 0) {
         return;
     }
-    std::vector<uint8_t> memInfoHost(MAX_BLOCK_DATA_SIZE);
-    uint64_t count = memSize / BLOCK_MEM_SIZE;
+    const uint64_t blockDataSize = GetMemoryChartBlockDataSize(DeviceContext::Local().IsAscend950());
+    const uint64_t blockMemSize = blockDataSize + BLOCK_GAP;
+    const uint64_t segmentArea = blockDataSize - sizeof(BlockHeader);
+    if (memSize % blockMemSize != 0U) {
+        ERROR_LOG("MemoryChart invalid memSize %lu for block size %lu", memSize, blockMemSize);
+        return;
+    }
+    std::vector<uint8_t> memInfoHost(blockDataSize);
+    const uint64_t count = memSize / blockMemSize;
+    uint64_t droppedTotal = 0;
+    uint64_t corruptedSegTotal = 0;
     for (uint64_t i = 0; i < count; ++i) {
-        aclError error = aclrtMemcpyImplOrigin(memInfoHost.data(), MAX_BLOCK_DATA_SIZE, memInfo + i * BLOCK_MEM_SIZE,
-            MAX_BLOCK_DATA_SIZE, aclrtMemcpyKind::ACL_MEMCPY_DEVICE_TO_HOST);
+        aclError error = aclrtMemcpyImplOrigin(memInfoHost.data(), blockDataSize, memInfo + i * blockMemSize,
+            blockDataSize, aclrtMemcpyKind::ACL_MEMCPY_DEVICE_TO_HOST);
         if (error != RT_ERROR_NONE) {
             ERROR_LOG("dump basic block data rtMemcpy memInfo error: %d", error);
             break;
         }
-        auto bh = reinterpret_cast<const BlockHeader *>(memInfoHost.data());
-        uint64_t length = bh->length;
-        if (length == 0) {
+        // 布局标识和魔数都由 host 在 launch 前写入：0 表示整块单槽，MAX_THREAD_NUM 表示 2049 槽。
+        // 魔数不一致说明 host 与设备桩的布局口径不同（混版或 block 大小取错），整块丢弃并明确报错。
+        const auto *blockHeader = reinterpret_cast<const BlockHeader *>(memInfoHost.data());
+        const uint64_t layoutId = blockHeader->threadNum;
+        if (!MemoryChartLayoutIsValid(layoutId) || blockHeader->length != MC_LAYOUT_TAG) {
+            ERROR_LOG("MemoryChart layout mismatch, block %lu: layout id %lu, tag 0x%lx, expect 0x%lx", i, layoutId,
+                static_cast<unsigned long>(blockHeader->length), static_cast<unsigned long>(MC_LAYOUT_TAG));
             continue;
         }
-        uint64_t overflow = 0;
-        if ((bh->length & RECORD_OVERFLOW_BIT) != 0) {
-            if (((bh->length ^ RECORD_OVERFLOW_BIT) == bh->count) || ((bh->length ^ RECORD_OVERFLOW_BIT) < bh->count)) {
-                continue;
+        const uint64_t segNum = MemoryChartSegmentNum(layoutId);
+        const uint64_t capacity = MemoryChartSegmentCapacity(segmentArea, layoutId);
+        // 分区头校验：记录长度随指令类型变化，且按 4 字节对齐，不能要求 8 字节整除；
+        // 这里只校验容量上限，并用 8 字节作 count 的宽松下界（分区的 length 是各条记录长度之和）
+        auto getSegmentLength = [&](uint64_t seg, uint64_t &length) {
+            const auto *segHeader = reinterpret_cast<const MemoryChartSegmentHeader *>(
+                memInfoHost.data() + MemoryChartSegmentOffsetInBlock(segmentArea, seg, layoutId));
+            length = segHeader->length;
+            if (segHeader->count == 0) {
+                // count 与 length 都是 0 才是合法空分区；count 为 0 而 length 非 0 说明分区头被部分写入或已损坏，
+                // 不能当作空分区静默跳过，否则会产出"看起来正常但不完整"的结果
+                if (segHeader->length != 0) {
+                    ERROR_LOG("MemoryChart segment corrupted, block %lu segment %lu count 0 length %lu",
+                        i, seg, segHeader->length);
+                    ++corruptedSegTotal;
+                }
+                return false;
             }
-            overflow = (bh->length ^ RECORD_OVERFLOW_BIT) - bh->count;
-            length = MAX_BLOCK_DATA_SIZE - sizeof(BlockHeader);
+            if (length == 0 || length > capacity || segHeader->count > length / MC_MIN_RECORD_BYTES) {
+                ERROR_LOG("MemoryChart segment invalid, block %lu segment %lu count %lu length %lu",
+                    i, seg, segHeader->count, length);
+                return false;
+            }
+            return true;
+        };
+        // 每个 (block, slot) 分区由一个写者独占（0 号槽为 SIMD），这里把该 block 下所有非空分区按槽位顺序拼成一个包发出
+        std::vector<uint64_t> validSegs;
+        validSegs.reserve(segNum);
+        uint64_t totalCount = 0;
+        uint64_t totalDropped = 0;
+        uint64_t payloadSize = 0;
+        for (uint64_t seg = 0; seg < segNum; ++seg) {
+            const auto *segHeader = reinterpret_cast<const MemoryChartSegmentHeader *>(
+                memInfoHost.data() + MemoryChartSegmentOffsetInBlock(segmentArea, seg, layoutId));
+            totalDropped += segHeader->dropped;
+            uint64_t length = 0;
+            if (getSegmentLength(seg, length)) {
+                validSegs.push_back(seg);
+                totalCount += segHeader->count;
+                payloadSize += length;
+            }
         }
-        DBIDataHeader dbiDataHeader{bh->count, length, overflow, static_cast<uint16_t>(i), 0};
-        ProfPacketHead head{ProfPacketType::DBI_DATA, static_cast<uint32_t>(length + sizeof(dbiDataHeader))};
+        droppedTotal += totalDropped;
+        if (totalCount == 0 && totalDropped == 0) {
+            continue;
+        }
+        DBIDataHeader dbiDataHeader{totalCount, payloadSize, totalDropped, static_cast<uint16_t>(i), 0};
+        ProfPacketHead head{ProfPacketType::DBI_DATA,
+            static_cast<uint32_t>(payloadSize + sizeof(dbiDataHeader))};
         std::string msg = Serialize(head, dbiDataHeader);
-        auto begin = memInfoHost.begin() + sizeof(BlockHeader);
-        msg.insert(msg.end(), begin, begin + static_cast<long>(length));
+        msg.reserve(msg.size() + payloadSize);
+        for (uint64_t seg : validSegs) {
+            const auto *segBase = memInfoHost.data() + MemoryChartSegmentOffsetInBlock(segmentArea, seg, layoutId);
+            const auto *segHeader = reinterpret_cast<const MemoryChartSegmentHeader *>(segBase);
+            msg.append(reinterpret_cast<const char *>(segBase + MC_SEGMENT_HEADER_SIZE),
+                static_cast<std::size_t>(segHeader->length));
+        }
         ProfConfig::Instance().SendMsg(msg);
+    }
+    if (droppedTotal > 0) {
+        WARN_LOG("MemoryChart dropped %lu records due to insufficient slot capacity", droppedTotal);
+    }
+    if (corruptedSegTotal > 0) {
+        WARN_LOG("MemoryChart found %lu corrupted segments, result may be incomplete", corruptedSegTotal);
     }
     DBIDataHeader dbiHeader{0, outputPath_.size(), 0, 0, 1};
     ProfPacketHead head{ProfPacketType::DBI_DATA, static_cast<uint32_t>(dbiHeader.length + sizeof(dbiHeader))};
@@ -1722,6 +1826,11 @@ bool ProfDataCollect::IsNeedRunOriginLaunch() {
 
 void ProfDataCollect::GenDBIData(uint64_t memSize, uint8_t *memInfo) const {
     dataCollect_->GenDBIData(memSize, memInfo);
+}
+
+bool ProfDataCollect::InitMemoryChartLayout(
+    uint8_t *memInfo, uint64_t memSize, bool simtScanKnown, bool hasSimt) const {
+    return dataCollect_->InitMemoryChartLayout(memInfo, memSize, simtScanKnown, hasSimt);
 }
 
 void ProfDataCollect::GenRecordData(uint64_t memSize, uint8_t *memInfo, const std::string &recordName) const {

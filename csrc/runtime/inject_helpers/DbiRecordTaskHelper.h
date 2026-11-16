@@ -20,6 +20,8 @@
 #include <algorithm>
 #include <cstdint>
 #include "include/opprof/DbiDefs.h"
+#include "runtime/inject_helpers/KernelContext.h"
+#include "runtime/inject_helpers/RegisterContext.h"
 #include "runtime/inject_helpers/ProfConfig.h"
 #include "runtime/inject_helpers/ProfDataCollect.h"
 #include "runtime/inject_helpers/DBITask.h"
@@ -65,7 +67,8 @@ inline uint64_t GetDbiRecordMemSize(ProfDBIType mode, uint64_t numBlocks, uint64
     switch (mode) {
         case ProfDBIType::MEMORY_CHART: {
             uint64_t coreNum = memoryChartCoreNum == 0 ? GetCoreNumForDbi(numBlocks) : memoryChartCoreNum;
-            return BLOCK_MEM_SIZE * coreNum;
+            const uint64_t blockDataSize = GetMemoryChartBlockDataSize(DeviceContext::Local().IsAscend950());
+            return (blockDataSize + BLOCK_GAP) * coreNum;
         }
         case ProfDBIType::OPERAND_RECORD: {
             uint64_t sizePerAllType = static_cast<uint32_t>(OperandType::END) * sizeof(OperandRecord) +
@@ -80,6 +83,37 @@ inline uint64_t GetDbiRecordMemSize(ProfDBIType mode, uint64_t numBlocks, uint64
         default:
             return 0;
     }
+}
+
+// MemoryChart 布局初始化：按当前 launch 对应二进制的识别结果预写布局标识。
+// 识别失败时按含 SIMT 保守处理；预写失败返回 false，调用方必须终止本次 MemoryChart 回放。
+inline bool InitMemoryChartLayout(ProfDataCollect *profObj, ProfDBIType mode, const RegisterContextSP &regCtx,
+                                  uint8_t *memInfo, uint64_t memSize)
+{
+    if (mode != ProfDBIType::MEMORY_CHART) {
+        return true;
+    }
+    // ACL 注册 ID 与 rt 注册表是两套编号，不能拿 ACL 的 regId 去查 rt 注册表；
+    // ACL 入口直接使用当前 launch 自己的注册上下文，拿不到时按含 SIMT 保守处理。
+    if (regCtx == nullptr) {
+        return profObj->InitMemoryChartLayout(memInfo, memSize, false, false);
+    }
+    return profObj->InitMemoryChartLayout(memInfo, memSize, regCtx->IsSimtScanSucceeded(),
+        regCtx->HasSimtSymbol());
+}
+
+// rt 入口的 regId 与注册表同源，按 launch 查到对应二进制后再取识别结果
+inline bool InitMemoryChartLayout(ProfDataCollect *profObj, ProfDBIType mode, uint64_t regId,
+                                  uint8_t *memInfo, uint64_t memSize)
+{
+    if (mode != ProfDBIType::MEMORY_CHART) {
+        return true;
+    }
+    bool simtScanKnown = false;
+    bool hasSimt = false;
+    // 未命中时保持 false/false，由 InitMemoryChartLayout 按含 SIMT 保守布局处理
+    KernelContext::Instance().GetRegisterSimtInfo(regId, simtScanKnown, hasSimt);
+    return profObj->InitMemoryChartLayout(memInfo, memSize, simtScanKnown, hasSimt);
 }
 
 inline void CollectData(ProfDataCollect *profObj, ProfDBIType mode, uint64_t memSize, uint8_t *memInfo)
