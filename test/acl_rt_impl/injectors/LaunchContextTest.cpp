@@ -104,3 +104,15 @@ TEST_F(CpuFunctionRegistrationTest, registration_marks_only_successful_function_
     EXPECT_EQ(context->GetKernelName(), "cpu_entry");
     EXPECT_TRUE(context->isAiCpu);
 }
+
+TEST_F(CpuFunctionRegistrationTest, failed_context_creation_keeps_original_result_without_null_deref) {
+    MOCKER_CPP(&FuncManager::CreateContext,
+               FuncContextSP(FuncManager::*)(void *, const char *, void *))
+        .stubs()
+        .will(returnValue(FuncContextSP()));
+    aclrtFuncHandle result = funcHandle_;
+    HijackedFuncOfAclrtRegisterCpuFuncImpl hook;
+    hook.Pre(binHandle_, "cpu_entry", "cpu_kernel", &result);
+    EXPECT_EQ(hook.Post(ACL_SUCCESS), ACL_SUCCESS);
+    EXPECT_FALSE(tilingFuncCtx_->isAiCpu);
+}
