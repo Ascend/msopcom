@@ -75,6 +75,7 @@ file(GLOB SOURCE
     BinaryGetFunctionByEntryTest.cpp
     FuncManagerTest.cpp
     FuncContextTest.cpp
+    RuntimeHelpersTest.cpp
 )
 list(SORT SOURCE)
 target_sources(injection_test_obj PUBLIC ${SOURCE})
