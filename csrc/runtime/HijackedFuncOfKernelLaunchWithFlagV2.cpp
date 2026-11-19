@@ -199,7 +199,7 @@ void HijackedFuncOfKernelLaunchWithFlagV2::ProfPreForInstrProf(const std::functi
                                                                rtStream_t stm)
 {
     auto funcStub = [this]() {
-        return (rtKernelLaunchWithFlagV2Origin(this->stubFunc_, this->blockDim_, this->argsInfo_, this->smDesc_,
+        return (rtKernelLaunchWithFlagV2Origin(this->stubFunc_, this->blockDim_, &this->newArgsInfo_, this->smDesc_,
                                                 this->stm_, this->flags_, this->cfgInfo_) == RT_ERROR_NONE);
     };
     if (profObj_->IsPCSamplingNeedGen() && KernelContext::Instance().HasSimtSymbol()) {

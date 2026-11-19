@@ -10,6 +10,7 @@ file(GLOB SOURCE
     RegisterAllKernelTest.cpp
     KernelLaunchTest.cpp
     KernelLaunchWithFlagV2Test.cpp
+    InstrProfLaunchArgsTest.cpp
     AicpuKernelLaunchWithArgsTest.cpp
     DevBinaryRegisterTest.cpp
     KernelLaunchWithHandleV2Test.cpp

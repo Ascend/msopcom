@@ -123,7 +123,7 @@ void HijackedFuncOfKernelLaunchWithHandleV2::ProfPreForInstrProf(const std::func
                                                                  rtStream_t stm)
 {
     auto funcStub = [this]() {
-        return (rtKernelLaunchWithHandleV2Origin(hdl_, tilingKey_, blockDim_, argsInfo_, smDesc_, stm_, cfgInfo_) == RT_ERROR_NONE);
+        return (rtKernelLaunchWithHandleV2Origin(hdl_, tilingKey_, blockDim_, &newArgsInfo_, smDesc_, stm_, cfgInfo_) == RT_ERROR_NONE);
     };
     if (profObj_->IsPCSamplingNeedGen() && KernelContext::Instance().HasSimtSymbol()) {
         if (PrepareDbiTask(ProfDBIType::INSTR_PROF_START, INSTR_PROF_MEMSIZE)) {
