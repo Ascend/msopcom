@@ -18,10 +18,7 @@
 
 #include "HijackedFunc.h"
 #include "core/FuncSelector.h"
-#include "runtime/inject_helpers/LocalDevice.h"
 #include "runtime/inject_helpers/MemGuard.h"
-#include "utils/Protocol.h"
-#include "utils/Serialize.h"
 #include "utils/InjectLogger.h"
 #include "RuntimeConfig.h"
 #include "inject_helpers/MemoryContext.h"
@@ -35,13 +32,7 @@ void HijackedFuncOfFree::Pre(void *devPtr)
 {
     this->devPtr_ = devPtr;
     if (IsSanitizer()) {
-        PacketHead head = { PacketType::MEMORY_RECORD };
-        HostMemRecord record{};
-        record.type = MemOpType::FREE;
-        record.infoSrc = MemInfoSrc::RT;
-        record.dstAddr = reinterpret_cast<uint64_t>(devPtr);
-        MemoryManage::Instance().CacheMemory<MemoryOpType::FREE>(record.dstAddr, record.infoSrc);
-        LocalDevice::Local().Notify(Serialize(head, record));
+        ReportFree(reinterpret_cast<uint64_t>(devPtr), MemInfoSrc::RT);
 
         MemoryGuard::Instance().FreeProc(devPtr_);
     }

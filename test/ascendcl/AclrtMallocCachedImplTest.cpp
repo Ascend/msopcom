@@ -118,9 +118,17 @@ public:
         };
     }
 };
+
+void *const kGuardedPointer = reinterpret_cast<void *>(0xccb0000);
+
+void RewriteToGuardedPointer(MemoryGuard *, void **pointer, size_t) {
+    if (pointer != nullptr) {
+        *pointer = kGuardedPointer;
+    }
+}
 } // namespace
 
-class CachedMallocLifecycle : public testing::TestWithParam<std::tuple<bool, aclrtMemMallocPolicy>> {
+class CachedMallocLifecycle : public testing::TestWithParam<std::tuple<bool, aclrtMemMallocPolicy, uint64_t>> {
 protected:
     void SetUp() override
     {
@@ -130,7 +138,7 @@ protected:
         MOCKER(&DeviceContext::IsAscend950).stubs().will(returnValue(std::get<0>(GetParam())));
         MOCKER(&ThreadContext::GetDeviceId).stubs().will(returnValue(767));
         MOCKER(&MemoryGuard::GetTotalSize).stubs().will(returnValue(size_t{64}));
-        MOCKER(&MemoryGuard::MallocProc).stubs();
+        MOCKER(&MemoryGuard::MallocProc).stubs().will(invoke(RewriteToGuardedPointer));
         MOCKER(&MemoryGuard::GetRealPtr).stubs().will(returnValue(reinterpret_cast<void *>(0xccaf000)));
         MOCKER(&MemoryGuard::FreeProc).stubs();
         MOCKER(&LocalDevice::Notify).stubs().will(invoke(CaptureCachedRecord));
@@ -138,7 +146,8 @@ protected:
     void TearDown() override
     {
         // ASSERT 提前退出时也撤销本 fixture 的固定分配，避免污染后续参数组合。
-        MemoryManage::Instance(767).CacheMemory<MemoryOpType::FREE>(0xccaf000, MemInfoSrc::ACL);
+        MemoryManage::Instance(767).CacheMemory<MemoryOpType::FREE>(
+            reinterpret_cast<uint64_t>(kGuardedPointer), MemInfoSrc::ACL);
         GlobalMockObject::verify();
     }
 };
@@ -148,22 +157,23 @@ TEST_P(CachedMallocLifecycle, ReportsAlignedRangeAndRealFreeHookRemovesIt)
     auto &memory = MemoryManage::Instance(767);
     const auto before = memory.GetMallocCount();
     const auto policy = std::get<1>(GetParam());
-    const bool noPadding = std::get<0>(GetParam()) || policy == ACL_MEM_MALLOC_HUGE1G_ONLY ||
-        policy == ACL_MEM_MALLOC_HUGE1G_ONLY_P2P;
+    const auto expectedSize = std::get<2>(GetParam());
     void *pointer = nullptr;
     CachedMallocHook allocation;
     ASSERT_EQ(allocation.Call(&pointer, 33, policy), ACL_ERROR_NONE);
+    EXPECT_EQ(pointer, kGuardedPointer);
     EXPECT_EQ(memory.GetMallocCount(), before + 1);
     const auto ranges = memory.SnapshotOnlineRanges();
     ASSERT_EQ(ranges.size(), 1);
-    EXPECT_EQ(ranges.front().size, noPadding ? 64 : 96);
+    EXPECT_EQ(ranges.front().addr, reinterpret_cast<uint64_t>(kGuardedPointer));
+    EXPECT_EQ(ranges.front().size, expectedSize);
     CachedFreeHook release;
     EXPECT_EQ(release.Call(pointer), ACL_ERROR_NONE);
     EXPECT_EQ(memory.GetMallocCount(), before);
     EXPECT_TRUE(memory.SnapshotOnlineRanges().empty());
     ASSERT_EQ(cachedRecords.size(), 2);
     EXPECT_EQ(cachedRecords[0].type, MemOpType::MALLOC);
-    EXPECT_EQ(cachedRecords[0].memSize, noPadding ? 64 : 96);
+    EXPECT_EQ(cachedRecords[0].memSize, expectedSize);
     EXPECT_EQ(cachedRecords[1].type, MemOpType::FREE);
     for (const auto &record : cachedRecords) {
         EXPECT_EQ(record.dstAddr, reinterpret_cast<uint64_t>(pointer));
@@ -171,9 +181,47 @@ TEST_P(CachedMallocLifecycle, ReportsAlignedRangeAndRealFreeHookRemovesIt)
     }
 }
 
+TEST_P(CachedMallocLifecycle, OtherDeviceAllocatorsReportSameAlignedRange) {
+    const auto policy = std::get<1>(GetParam());
+    const auto expectedSize = std::get<2>(GetParam());
+    void *pointer = reinterpret_cast<void *>(0xccaf000);
+    auto &memory = MemoryManage::Instance(767);
+    const auto before = memory.GetMallocCount();
+    auto checkAndRemove = [&](aclError ret) {
+        EXPECT_EQ(ret, ACL_SUCCESS);
+        EXPECT_EQ(memory.GetMallocCount(), before + 1);
+        const auto ranges = memory.SnapshotOnlineRanges();
+        ASSERT_EQ(ranges.size(), 1U);
+        EXPECT_EQ(ranges.front().addr, reinterpret_cast<uint64_t>(pointer));
+        EXPECT_EQ(ranges.front().size, expectedSize);
+        memory.CacheMemory<MemoryOpType::FREE>(reinterpret_cast<uint64_t>(pointer), MemInfoSrc::ACL);
+    };
+    HijackedFuncOfAclrtMallocImpl mallocHook;
+    mallocHook.Pre(&pointer, 33, policy);
+    checkAndRemove(mallocHook.Post(ACL_SUCCESS));
+    HijackedFuncOfAclrtMallocWithCfgImpl configHook;
+    configHook.Pre(&pointer, 33, policy, nullptr);
+    checkAndRemove(configHook.Post(ACL_SUCCESS));
+    HijackedFuncOfAclrtMallocForTaskSchedulerImpl schedulerHook;
+    schedulerHook.Pre(&pointer, 33, policy, nullptr);
+    checkAndRemove(schedulerHook.Post(ACL_SUCCESS));
+
+    ASSERT_EQ(cachedRecords.size(), 3);
+    for (const auto &record : cachedRecords) {
+        EXPECT_EQ(record.type, MemOpType::MALLOC);
+        EXPECT_EQ(record.infoSrc, MemInfoSrc::ACL);
+        EXPECT_EQ(record.dstAddr, reinterpret_cast<uint64_t>(pointer));
+        EXPECT_EQ(record.memSize, expectedSize);
+    }
+}
+
 INSTANTIATE_TEST_SUITE_P(ChipAndPolicy, CachedMallocLifecycle,
-    testing::Combine(testing::Bool(), testing::Values(ACL_MEM_MALLOC_HUGE_FIRST,
-        ACL_MEM_MALLOC_HUGE1G_ONLY, ACL_MEM_MALLOC_HUGE1G_ONLY_P2P)));
+    testing::Values(std::make_tuple(false, ACL_MEM_MALLOC_HUGE_FIRST, uint64_t{96}),
+        std::make_tuple(false, ACL_MEM_MALLOC_HUGE1G_ONLY, uint64_t{64}),
+        std::make_tuple(false, ACL_MEM_MALLOC_HUGE1G_ONLY_P2P, uint64_t{64}),
+        std::make_tuple(true, ACL_MEM_MALLOC_HUGE_FIRST, uint64_t{64}),
+        std::make_tuple(true, ACL_MEM_MALLOC_HUGE1G_ONLY, uint64_t{64}),
+        std::make_tuple(true, ACL_MEM_MALLOC_HUGE1G_ONLY_P2P, uint64_t{64})));
 
 TEST(aclrtMallocCached, NonSanitizerDoesNotCacheOrReportAllocation)
 {

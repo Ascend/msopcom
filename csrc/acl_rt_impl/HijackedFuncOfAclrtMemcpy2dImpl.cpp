@@ -19,10 +19,8 @@
 #include "HijackedFunc.h"
 #include "acl_rt_impl/AscendclImplOrigin.h"
 #include "core/FuncSelector.h"
-#include "runtime/inject_helpers/LocalDevice.h"
+#include "runtime/inject_helpers/MemoryDataCollect.h"
 #include "utils/InjectLogger.h"
-#include "utils/Protocol.h"
-#include "utils/Serialize.h"
 
 HijackedFuncOfAclrtMemcpy2dImpl::HijackedFuncOfAclrtMemcpy2dImpl()
     : HijackedFuncType(AclRuntimeLibName(), "aclrtMemcpy2dImpl") {}
@@ -35,25 +33,9 @@ void HijackedFuncOfAclrtMemcpy2dImpl::Pre(void *dst, size_t dpitch, const void *
         height = MAX_MEMORY_RECORD_HEIGHT;
     }
     if (IsSanitizer()) {
-        PacketHead head = { PacketType::MEMORY_RECORD };
-        HostMemRecord record{};
-        record.infoSrc = MemInfoSrc::ACL;
-        record.memSize = width;
-        auto dstAddr = reinterpret_cast<uint64_t>(dst);
-        auto srcAddr = reinterpret_cast<uint64_t>(src);
-        for (size_t r = 0; r < height; ++r) {
-            if ((kind == ACL_MEMCPY_HOST_TO_DEVICE || kind == ACL_MEMCPY_DEVICE_TO_DEVICE) &&
-                (dstAddr <= UINT64_MAX - static_cast<uint64_t>(r * dpitch))) {
-                record.type = MemOpType::STORE;
-                record.dstAddr = dstAddr + static_cast<uint64_t>(r * dpitch);
-                LocalDevice::Local().Notify(Serialize(head, record));
-            }
-            if ((kind == ACL_MEMCPY_DEVICE_TO_HOST || kind == ACL_MEMCPY_DEVICE_TO_DEVICE) &&
-                (srcAddr <= UINT64_MAX - static_cast<uint64_t>(r * spitch))) {
-                record.type = MemOpType::LOAD;
-                record.dstAddr = srcAddr + static_cast<uint64_t>(r * spitch);
-                LocalDevice::Local().Notify(Serialize(head, record));
-            }
-        }
+        ReportMemcpy(
+            {dst, ToMemSpace(kind == ACL_MEMCPY_HOST_TO_DEVICE || kind == ACL_MEMCPY_DEVICE_TO_DEVICE), dpitch},
+            {src, ToMemSpace(kind == ACL_MEMCPY_DEVICE_TO_HOST || kind == ACL_MEMCPY_DEVICE_TO_DEVICE), spitch}, width,
+            MemInfoSrc::ACL, height);
     }
 }

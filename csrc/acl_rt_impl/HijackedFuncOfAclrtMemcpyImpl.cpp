@@ -19,9 +19,7 @@
 #include "HijackedFunc.h"
 #include "acl_rt_impl/AscendclImplOrigin.h"
 #include "core/FuncSelector.h"
-#include "runtime/inject_helpers/LocalDevice.h"
-#include "utils/Protocol.h"
-#include "utils/Serialize.h"
+#include "runtime/inject_helpers/MemoryDataCollect.h"
 
 HijackedFuncOfAclrtMemcpyImpl::HijackedFuncOfAclrtMemcpyImpl()
     : HijackedFuncType(AclRuntimeLibName(), "aclrtMemcpyImpl") {}
@@ -29,19 +27,8 @@ HijackedFuncOfAclrtMemcpyImpl::HijackedFuncOfAclrtMemcpyImpl()
 void HijackedFuncOfAclrtMemcpyImpl::Pre(void *dst, size_t destMax, const void *src, size_t count, aclrtMemcpyKind kind)
 {
     if (IsSanitizer()) {
-        PacketHead head = { PacketType::MEMORY_RECORD };
-        HostMemRecord record{};
-        record.infoSrc = MemInfoSrc::ACL;
-        record.memSize = count;
-        if (kind == ACL_MEMCPY_HOST_TO_DEVICE || kind == ACL_MEMCPY_DEVICE_TO_DEVICE) {
-            record.type = MemOpType::STORE;
-            record.dstAddr = reinterpret_cast<uint64_t>(dst);
-            LocalDevice::Local().Notify(Serialize(head, record));
-        }
-        if (kind == ACL_MEMCPY_DEVICE_TO_HOST || kind == ACL_MEMCPY_DEVICE_TO_DEVICE) {
-            record.type = MemOpType::LOAD;
-            record.dstAddr = reinterpret_cast<uint64_t>(src);
-            LocalDevice::Local().Notify(Serialize(head, record));
-        }
+        ReportMemcpy({dst, ToMemSpace(kind == ACL_MEMCPY_HOST_TO_DEVICE || kind == ACL_MEMCPY_DEVICE_TO_DEVICE)},
+            {src, ToMemSpace(kind == ACL_MEMCPY_DEVICE_TO_HOST || kind == ACL_MEMCPY_DEVICE_TO_DEVICE)}, count,
+            MemInfoSrc::ACL);
     }
 }

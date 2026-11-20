@@ -19,10 +19,7 @@
 #include "HijackedFunc.h"
 #include "acl_rt_impl/AscendclImplOrigin.h"
 #include "core/FuncSelector.h"
-#include "utils/Protocol.h"
-#include "utils/Serialize.h"
 #include "utils/InjectLogger.h"
-#include "runtime/inject_helpers/LocalDevice.h"
 #include "runtime/inject_helpers/ProfConfig.h"
 #include "runtime/inject_helpers/MemoryContext.h"
 #include "runtime/inject_helpers/MemoryDataCollect.h"
@@ -34,13 +31,7 @@ HijackedFuncOfAclrtFreeWithDevSyncImpl::HijackedFuncOfAclrtFreeWithDevSyncImpl()
 void HijackedFuncOfAclrtFreeWithDevSyncImpl::Pre(void *devPtr) {
     this->devPtr_ = devPtr;
     if (IsSanitizer()) {
-        PacketHead head = {PacketType::MEMORY_RECORD};
-        HostMemRecord record{};
-        record.type = MemOpType::FREE;
-        record.infoSrc = MemInfoSrc::ACL;
-        record.dstAddr = reinterpret_cast<uint64_t>(devPtr);
-        MemoryManage::Instance().CacheMemory<MemoryOpType::FREE>(record.dstAddr, record.infoSrc);
-        LocalDevice::Local().Notify(Serialize(head, record));
+        ReportFree(reinterpret_cast<uint64_t>(devPtr), MemInfoSrc::ACL);
 
         MemoryGuard::Instance().FreeProc(devPtr_);
     }

@@ -40,7 +40,9 @@
 #include "runtime/inject_helpers/ArgsManager.h"
 #include "runtime/inject_helpers/RegisterContext.h"
 #include "runtime/RuntimeOrigin.h"
+#include "runtime/HijackedFunc.h"
 #include "acl_rt_impl/AscendclImplOrigin.h"
+#include "acl_rt_impl/HijackedFunc.h"
 #include "stub/FakeElf.h"
 #include "utils/Protocol.h"
 #include "utils/Serialize.h"
@@ -249,6 +251,43 @@ TEST(MemoryDataCollect, report_memset_expect_recieve_correct_message)
     PacketHead head = { PacketType::MEMORY_RECORD };
     HostMemRecord record = CreateHostMemRecord(MemOpType::STORE, MemInfoSrc::EXTRA);
     ASSERT_EQ(WithoutOrderIds(g_received), Serialize(head, record));
+}
+
+TEST(MemoryDataCollect, memcpy_hooks_report_only_device_accesses_in_row_order) {
+    MOCKER(IsSanitizer).stubs().will(returnValue(true));
+    MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
+    MOCKER(aclrtGetDeviceImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(&LocalProcess::Notify).stubs().will(invoke(StubNotify));
+
+    constexpr uint64_t dstPitch = 32;
+    constexpr uint64_t srcPitch = 64;
+    auto dst = reinterpret_cast<void *>(ADDR0);
+    auto src = reinterpret_cast<const void *>(ADDR1);
+    g_received.clear();
+    HijackedFuncOfMemcpy().Pre(dst, SIZE0, src, SIZE0, RT_MEMCPY_HOST_TO_DEVICE);
+    HijackedFuncOfAclrtMemcpyImpl().Pre(dst, SIZE0, src, SIZE0, ACL_MEMCPY_DEVICE_TO_HOST);
+    HijackedFuncOfAclrtMemcpyAsyncImpl().Pre(dst, SIZE0, src, SIZE0, ACL_MEMCPY_HOST_TO_HOST, nullptr);
+    HijackedFuncOfAclrtMemcpy2dImpl().Pre(dst, dstPitch, src, srcPitch, SIZE0, 2, ACL_MEMCPY_DEVICE_TO_DEVICE);
+    HijackedFuncOfAclrtMemcpy2dAsyncImpl().Pre(
+        dst, dstPitch, src, srcPitch, SIZE0, 2, ACL_MEMCPY_DEVICE_TO_HOST, nullptr);
+    GlobalMockObject::verify();
+
+    PacketHead head = {PacketType::MEMORY_RECORD};
+    std::string expected;
+    auto append = [&](MemOpType type, MemInfoSrc source, uint64_t addr) {
+        auto record = CreateHostMemRecord(type, source);
+        record.dstAddr = addr;
+        expected += Serialize(head, record);
+    };
+    append(MemOpType::STORE, MemInfoSrc::RT, ADDR0);
+    append(MemOpType::LOAD, MemInfoSrc::ACL, ADDR1);
+    append(MemOpType::STORE, MemInfoSrc::ACL, ADDR0);
+    append(MemOpType::LOAD, MemInfoSrc::ACL, ADDR1);
+    append(MemOpType::STORE, MemInfoSrc::ACL, ADDR0 + dstPitch);
+    append(MemOpType::LOAD, MemInfoSrc::ACL, ADDR1 + srcPitch);
+    append(MemOpType::LOAD, MemInfoSrc::ACL, ADDR1);
+    append(MemOpType::LOAD, MemInfoSrc::ACL, ADDR1 + srcPitch);
+    EXPECT_EQ(WithoutOrderIds(g_received), expected);
 }
 
 TEST(MemoryDataCollect, report_op_malloc_info_with_null_args_info_expect_do_nothing)

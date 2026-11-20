@@ -316,3 +316,37 @@ TYPED_TEST(ProfiledMapping, MissingUnmapSymbolPreservesReplayMemory)
     EXPECT_NE(unmap.Call(this->address), TypeParam::Success());
     EXPECT_TRUE(this->ContainsMapping());
 }
+
+namespace {
+template <typename Api> void ExpectProfilerExclusionSkipsMapping(bool simulator, bool appReplay, bool lccl) {
+    MOCKER(IsSanitizer).stubs().will(returnValue(false));
+    MOCKER(IsOpProf).stubs().will(returnValue(true));
+    MOCKER(&ProfConfig::IsSimulator).stubs().will(returnValue(simulator));
+    MOCKER(&ProfConfig::IsAppReplay).stubs().will(returnValue(appReplay));
+    MOCKER(&KernelContext::GetLcclFlag).stubs().will(returnValue(lccl));
+    MOCKER(&DeviceContext::GetRunningDeviceId).stubs().will(returnValue(766));
+    void *address = reinterpret_cast<void *>(0xccad000);
+    MemoryContext::Instance().Discard(address);
+    typename Api::Map map;
+    map.Pre(address, 64, 0, nullptr, 0);
+    ASSERT_EQ(map.Post(Api::Success()), Api::Success());
+    EXPECT_EQ(MemoryContext::Instance().GetBucket().memSectionMap.count(address), 0U);
+    MemoryContext::Instance().Discard(address);
+    GlobalMockObject::verify();
+}
+} // namespace
+
+TEST(MapProfilerExclusion, simulatorSkipsRtAndAclMapping) {
+    ExpectProfilerExclusionSkipsMapping<RtMapping>(true, false, false);
+    ExpectProfilerExclusionSkipsMapping<AclMapping>(true, false, false);
+}
+
+TEST(MapProfilerExclusion, appReplaySkipsRtAndAclMapping) {
+    ExpectProfilerExclusionSkipsMapping<RtMapping>(false, true, false);
+    ExpectProfilerExclusionSkipsMapping<AclMapping>(false, true, false);
+}
+
+TEST(MapProfilerExclusion, lcclSkipsRtAndAclMapping) {
+    ExpectProfilerExclusionSkipsMapping<RtMapping>(false, false, true);
+    ExpectProfilerExclusionSkipsMapping<AclMapping>(false, false, true);
+}

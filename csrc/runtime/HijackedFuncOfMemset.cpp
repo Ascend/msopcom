@@ -18,10 +18,7 @@
 
 #include "HijackedFunc.h"
 #include "core/FuncSelector.h"
-#include "utils/Protocol.h"
-#include "utils/Serialize.h"
 #include "RuntimeConfig.h"
-#include "runtime/inject_helpers/LocalDevice.h"
 #include "runtime/inject_helpers/MemoryDataCollect.h"
 
 HijackedFuncOfMemset::HijackedFuncOfMemset()
@@ -33,12 +30,6 @@ void HijackedFuncOfMemset::Pre(void *devPtr, uint64_t destMax, uint32_t val, uin
         if (!IsMemoryOnDevice(devPtr)) {
             return;
         }
-        PacketHead head = { PacketType::MEMORY_RECORD };
-        HostMemRecord record{};
-        record.type = MemOpType::STORE;
-        record.infoSrc = MemInfoSrc::RT;
-        record.dstAddr = reinterpret_cast<uint64_t>(devPtr);
-        record.memSize = cnt;
-        LocalDevice::Local().Notify(Serialize(head, record));
+        ReportMemset(reinterpret_cast<uint64_t>(devPtr), cnt, MemInfoSrc::RT);
     }
 }

@@ -18,29 +18,16 @@
 
 #include "HijackedFunc.h"
 #include "core/FuncSelector.h"
-#include "utils/Protocol.h"
-#include "utils/Serialize.h"
 #include "RuntimeConfig.h"
-#include "runtime/inject_helpers/LocalDevice.h"
+#include "inject_helpers/MemoryDataCollect.h"
 HijackedFuncOfMemcpy::HijackedFuncOfMemcpy()
     : HijackedFuncType(RuntimeConfig::Instance().Instance().soName_, "rtMemcpy") {}
 
 void HijackedFuncOfMemcpy::Pre(void *dst, uint64_t destMax, const void *src, uint64_t cnt, rtMemcpyKind_t kind)
 {
     if (IsSanitizer()) {
-        PacketHead head = { PacketType::MEMORY_RECORD };
-        HostMemRecord record{};
-        record.infoSrc = MemInfoSrc::RT;
-        record.memSize = cnt;
-        if (kind == RT_MEMCPY_HOST_TO_DEVICE || kind == RT_MEMCPY_DEVICE_TO_DEVICE) {
-            record.type = MemOpType::STORE;
-            record.dstAddr = reinterpret_cast<uint64_t>(dst);
-            LocalDevice::Local().Notify(Serialize(head, record));
-        }
-        if (kind == RT_MEMCPY_DEVICE_TO_HOST || kind == RT_MEMCPY_DEVICE_TO_DEVICE) {
-            record.type = MemOpType::LOAD;
-            record.dstAddr = reinterpret_cast<uint64_t>(src);
-            LocalDevice::Local().Notify(Serialize(head, record));
-        }
+        ReportMemcpy({dst, ToMemSpace(kind == RT_MEMCPY_HOST_TO_DEVICE || kind == RT_MEMCPY_DEVICE_TO_DEVICE)},
+            {src, ToMemSpace(kind == RT_MEMCPY_DEVICE_TO_HOST || kind == RT_MEMCPY_DEVICE_TO_DEVICE)}, cnt,
+            MemInfoSrc::RT);
     }
 }

@@ -19,17 +19,12 @@
 #include "HijackedFunc.h"
 #include "acl_rt_impl/AscendclImplOrigin.h"
 #include "core/FuncSelector.h"
-#include "utils/Numeric.h"
-#include "utils/Protocol.h"
-#include "utils/Serialize.h"
 #include "utils/InjectLogger.h"
-#include "runtime/inject_helpers/LocalDevice.h"
 #include "runtime/inject_helpers/ProfConfig.h"
 #include "runtime/inject_helpers/KernelContext.h"
 #include "runtime/inject_helpers/MemoryContext.h"
 #include "runtime/inject_helpers/MemoryDataCollect.h"
 #include "runtime/inject_helpers/MemGuard.h"
-#include "runtime/inject_helpers/DeviceContext.h"
 
 HijackedFuncOfAclrtMallocImpl::HijackedFuncOfAclrtMallocImpl()
     : HijackedFuncType(AclRuntimeLibName(), "aclrtMallocImpl"), devPtr_{nullptr}, size_{} {}
@@ -65,22 +60,8 @@ aclError HijackedFuncOfAclrtMallocImpl::Post(aclError ret)
 
         MemoryGuard::Instance().MallocProc(devPtr_, size_);
 
-        constexpr uint64_t blockAlignSize = 32;
-        PacketHead head = { PacketType::MEMORY_RECORD };
-        HostMemRecord record{};
-        record.type = MemOpType::MALLOC;
-        record.infoSrc = MemInfoSrc::ACL;
-        record.dstAddr = reinterpret_cast<uint64_t>(*devPtr_);
-        // acl 接口内存分配上报时 size 与 rt 接口保持一致
-        // Ascend950 或 1G 大页：仅对齐不加 32 字节；其余：对齐后额外加 32 字节
-        if (DeviceContext::Local().IsAscend950() || policy_ == ACL_MEM_MALLOC_HUGE1G_ONLY ||
-            policy_ == ACL_MEM_MALLOC_HUGE1G_ONLY_P2P) {
-            record.memSize = CeilByAlignSize<blockAlignSize>(size_);
-        } else {
-            record.memSize = CeilByAlignSize<blockAlignSize>(size_) + blockAlignSize;
-        }
-        MemoryManage::Instance().CacheMemory<MemoryOpType::MALLOC>(record.dstAddr, record.infoSrc, record.memSize);
-        LocalDevice::Local().Notify(Serialize(head, record));
+        ReportMalloc(
+            reinterpret_cast<uint64_t>(*devPtr_), GetAclDeviceMallocReportSize(size_, policy_), MemInfoSrc::ACL);
     }
     if (IsOpProf() && !ProfConfig::Instance().IsSimulator() && ret == ACL_SUCCESS) {
         if (!ProfConfig::Instance().IsAppReplay() && !KernelContext::Instance().GetLcclFlag() &&

@@ -20,10 +20,7 @@
 #include "acl_rt_impl/AscendclImplOrigin.h"
 #include "core/FuncSelector.h"
 #include "utils/Numeric.h"
-#include "utils/Protocol.h"
-#include "utils/Serialize.h"
 #include "utils/InjectLogger.h"
-#include "runtime/inject_helpers/LocalDevice.h"
 #include "runtime/inject_helpers/ProfConfig.h"
 #include "runtime/inject_helpers/KernelContext.h"
 #include "runtime/inject_helpers/MemoryContext.h"
@@ -62,15 +59,8 @@ aclError HijackedFuncOfAclrtMallocAlign32Impl::Post(aclError ret) {
         MemoryGuard::Instance().MallocProc(devPtr_, size_);
 
         constexpr uint64_t blockAlignSize = 32;
-        PacketHead head = {PacketType::MEMORY_RECORD};
-        HostMemRecord record{};
-        record.type = MemOpType::MALLOC;
-        record.infoSrc = MemInfoSrc::ACL;
-        record.dstAddr = reinterpret_cast<uint64_t>(*devPtr_);
         // aclrtMallocAlign32 仅对用户申请的 size 做 32 字节对齐，不会额外增加 32 字节
-        record.memSize = CeilByAlignSize<blockAlignSize>(size_);
-        MemoryManage::Instance().CacheMemory<MemoryOpType::MALLOC>(record.dstAddr, record.infoSrc, record.memSize);
-        LocalDevice::Local().Notify(Serialize(head, record));
+        ReportMalloc(reinterpret_cast<uint64_t>(*devPtr_), CeilByAlignSize<blockAlignSize>(size_), MemInfoSrc::ACL);
     }
     if (IsOpProf() && !ProfConfig::Instance().IsSimulator() && ret == ACL_SUCCESS) {
         if (!ProfConfig::Instance().IsAppReplay() && !KernelContext::Instance().GetLcclFlag() &&

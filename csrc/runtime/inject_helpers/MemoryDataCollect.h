@@ -25,9 +25,12 @@
 #include <unordered_map>
 #include <vector>
 
+#include "DeviceContext.h"
 #include "KernelContext.h"
+#include "acl.h"
 #include "core/PlatformConfig.h"
 #include "runtime.h"
+#include "utils/Numeric.h"
 
 enum class MemoryOpType : uint8_t {
     MALLOC = 0,
@@ -140,6 +143,17 @@ private:
 void ReportMalloc(uint64_t addr, uint64_t size, MemInfoSrc memInfoSrc, MemInfoDesc memInfoDesc = MemInfoDesc::DEFAULT,
     uint64_t paramsNo = 0);
 
+inline uint64_t GetAclDeviceMallocReportSize(size_t size, aclrtMemMallocPolicy policy) {
+    // Match the runtime's reported range, not the allocator's guarded size.
+    constexpr uint64_t alignment = 32;
+    const auto alignedSize = CeilByAlignSize<alignment>(size);
+    if (DeviceContext::Local().IsAscend950() || policy == ACL_MEM_MALLOC_HUGE1G_ONLY ||
+        policy == ACL_MEM_MALLOC_HUGE1G_ONLY_P2P) {
+        return alignedSize;
+    }
+    return alignedSize + alignment;
+}
+
 /**
  * @brief 上报内存释放信息
  * @param addr 内存释放的地址
@@ -160,6 +174,27 @@ void ReportFree(uint64_t addr, MemInfoSrc memInfoSrc, MemInfoDesc memInfoDesc = 
  */
 void ReportMemset(uint64_t addr, uint64_t size, MemInfoSrc memInfoSrc, MemInfoDesc memInfoDesc = MemInfoDesc::DEFAULT,
     uint64_t paramsNo = 0);
+
+enum class MemSpace {
+    HOST,
+    DEVICE,
+};
+
+inline MemSpace ToMemSpace(bool onDevice) { return onDevice ? MemSpace::DEVICE : MemSpace::HOST; }
+
+struct MemoryCopyEndpoint {
+    MemoryCopyEndpoint(const void *address, MemSpace space, size_t rowPitch = 0)
+        : addr(address), onDevice(space == MemSpace::DEVICE), pitch(rowPitch) {}
+
+    const void *addr;
+    bool onDevice;
+    size_t pitch;
+};
+
+void ReportMemcpy(
+    MemoryCopyEndpoint dst, MemoryCopyEndpoint src, uint64_t width, MemInfoSrc infoSrc, size_t height = 1);
+void RecordMemoryMapping(void *addr, uint64_t size, MemInfoSrc infoSrc);
+void RecordMemoryUnmapping(void *addr, MemInfoSrc infoSrc);
 
 /**
  * @brief 上报算子内存分配信息，kernelLaunch老接口

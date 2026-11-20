@@ -19,10 +19,7 @@
 #include "HijackedFunc.h"
 #include "acl_rt_impl/AscendclImplOrigin.h"
 #include "core/FuncSelector.h"
-#include "runtime/inject_helpers/LocalDevice.h"
 #include "runtime/inject_helpers/MemoryDataCollect.h"
-#include "utils/Protocol.h"
-#include "utils/Serialize.h"
 
 HijackedFuncOfAclrtMemsetAsyncImpl::HijackedFuncOfAclrtMemsetAsyncImpl()
     : HijackedFuncType(AclRuntimeLibName(), "aclrtMemsetAsyncImpl") {}
@@ -33,12 +30,6 @@ void HijackedFuncOfAclrtMemsetAsyncImpl::Pre(void *devPtr, size_t maxCount, int3
         if (!IsMemoryOnDevice(devPtr)) {
             return;
         }
-        PacketHead head = { PacketType::MEMORY_RECORD };
-        HostMemRecord record{};
-        record.type = MemOpType::STORE;
-        record.infoSrc = MemInfoSrc::ACL;
-        record.dstAddr = reinterpret_cast<uint64_t>(devPtr);
-        record.memSize = count;
-        LocalDevice::Local().Notify(Serialize(head, record));
+        ReportMemset(reinterpret_cast<uint64_t>(devPtr), count, MemInfoSrc::ACL);
     }
 }

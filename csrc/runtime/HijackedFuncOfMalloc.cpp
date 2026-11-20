@@ -18,10 +18,7 @@
 
 #include "HijackedFunc.h"
 #include "core/FuncSelector.h"
-#include "runtime/inject_helpers/LocalDevice.h"
 #include "runtime/inject_helpers/MemGuard.h"
-#include "utils/Protocol.h"
-#include "utils/Serialize.h"
 #include "utils/InjectLogger.h"
 #include "RuntimeConfig.h"
 #include "inject_helpers/MemoryContext.h"
@@ -62,14 +59,7 @@ rtError_t HijackedFuncOfMalloc::Post(rtError_t ret)
 
         MemoryGuard::Instance().MallocProc(devPtr_, size_);
 
-        PacketHead head = { PacketType::MEMORY_RECORD };
-        HostMemRecord record{};
-        record.type = MemOpType::MALLOC;
-        record.infoSrc = MemInfoSrc::RT;
-        record.dstAddr = reinterpret_cast<uint64_t>(*devPtr_);
-        record.memSize = size_;
-        MemoryManage::Instance().CacheMemory<MemoryOpType::MALLOC>(record.dstAddr, record.infoSrc, record.memSize);
-        LocalDevice::Local().Notify(Serialize(head, record));
+        ReportMalloc(reinterpret_cast<uint64_t>(*devPtr_), size_, MemInfoSrc::RT);
     }
     if (IsOpProf() && !ProfConfig::Instance().IsSimulator() && ret == RT_ERROR_NONE) {
         if (!ProfConfig::Instance().IsAppReplay() && !KernelContext::Instance().GetLcclFlag() &&
