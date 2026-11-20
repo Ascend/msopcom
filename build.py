@@ -15,6 +15,7 @@
 # See the Mulan PSL v2 for more details.
 # -------------------------------------------------------------------------
 import argparse
+import json
 import logging
 import multiprocessing
 import os
@@ -58,9 +59,25 @@ class BuildManager:
                                      help='Extra build options in KEY=VALUE format, can be specified multiple times')
         self.parsed_arguments = argument_parser.parse_args()
 
-    def _execute_command(self, command_sequence, timeout_seconds=36000, cwd=None, env=None):
+    def _execute_command(self, command_sequence, timeout_seconds=36000, cwd=None, env=None,
+                         capture_stdout=False):
         logging.info("Running: %s", " ".join(command_sequence))
-        subprocess.run(command_sequence, timeout=timeout_seconds, check=True, cwd=cwd, env=env)
+        return subprocess.run(command_sequence, timeout=timeout_seconds, check=True, cwd=cwd, env=env,
+                              stdout=subprocess.PIPE if capture_stdout else None, text=True)
+
+    def _check_ut_line_coverage(self):
+        result = self._execute_command(
+            ["bash", str(self.project_root / "test/generate_coverage.sh"), "--check"],
+            capture_stdout=True)
+        summary = json.loads(result.stdout)
+        total, covered = summary["line_total"], summary["line_covered"]
+        if (type(total) is not int or type(covered) is not int
+                or total <= 0 or not 0 <= covered <= total):
+            raise RuntimeError("Invalid csrc UT line coverage data")
+        logging.info("csrc UT line coverage: %.2f%% (%d/%d), required: 80%%",
+                     covered * 100.0 / total, covered, total)
+        if covered * 100 < total * 80:
+            raise RuntimeError("csrc UT line coverage is below the required 80%")
 
     def run(self):
         os.chdir(self.project_root)
@@ -77,9 +94,14 @@ class BuildManager:
             self._execute_command(["cmake", "..", "-DBUILD_TESTS=ON", "-DCMAKE_BUILD_TYPE=Debug","-DCMAKE_EXPORT_COMPILE_COMMANDS=ON"])
             self._execute_command(["make", "-j", str(self.build_jobs), "injectionTest"])
 
+            # 清理历史计数，确保覆盖率只反映本次测试结果。
+            for counter in unit_test_build_dir.rglob("*.gcda"):
+                counter.unlink()
+
             test_dir = unit_test_build_dir / "test"
             os.environ['LD_LIBRARY_PATH'] = str(test_dir / "stub") + os.pathsep + os.environ.get('LD_LIBRARY_PATH', '')
             self._execute_command(["./injectionTest"], cwd=str(test_dir))
+            self._check_ut_line_coverage()
         else:
             # -------------------- 产品构建 --------------------
             product_build_dir = self.project_root / "build"
