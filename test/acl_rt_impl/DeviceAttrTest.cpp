@@ -20,7 +20,7 @@
 
 #include "acl_rt_impl/AscendclImplOrigin.h"
 #include "mockcpp/mockcpp.hpp"
-#include "utils/DeviceAttr.h"
+#include "runtime/inject_helpers/DeviceAttr.h"
 
 namespace {
 
@@ -29,6 +29,7 @@ struct AttributeQuery {
     int32_t currentDevice = 3;
     aclError deviceStatus = ACL_SUCCESS;
     aclError attributeStatus = ACL_SUCCESS;
+    int64_t npuArch = DeviceAttr::NPU_ARCH_C220;
     int64_t l2Bytes = int64_t{1} << 33;
     int64_t cores = std::numeric_limits<uint32_t>::max();
     std::vector<aclrtDevAttr> attributes;
@@ -42,7 +43,9 @@ aclError GetCurrentDevice(int32_t *device) {
 aclError GetAttribute(uint32_t device, aclrtDevAttr attr, int64_t *value) {
     EXPECT_EQ(query.expectedDevice, device);
     query.attributes.push_back(attr);
-    if (attr == ACL_DEV_ATTR_L2_CACHE_SIZE) {
+    if (attr == ACL_DEV_ATTR_NPU_ARCH) {
+        *value = query.npuArch;
+    } else if (attr == ACL_DEV_ATTR_L2_CACHE_SIZE) {
         *value = query.l2Bytes;
     } else {
         EXPECT_EQ(ACL_DEV_ATTR_AICORE_CORE_NUM, attr);
@@ -57,37 +60,54 @@ protected:
     void TearDown() override { GlobalMockObject::verify(); }
 };
 
-TEST_F(DeviceAttrTest, explicit_device_queries_both_attributes_without_current_context) {
+TEST_F(DeviceAttrTest, explicit_device_queries_all_attributes_without_current_context) {
     constexpr uint32_t deviceId = 7;
-    MOCKER(aclrtGetDeviceImplOrigin).expects(never());
-    MOCKER(aclrtGetDeviceInfoImplOrigin).expects(exactly(2)).will(invoke(GetAttribute));
+    MOCKER(&aclrtGetDeviceImplOrigin).expects(never());
+    MOCKER(&aclrtGetDeviceInfoImplOrigin).expects(exactly(5)).will(invoke(GetAttribute));
 
     uint64_t size = 0;
     uint32_t coreNum = 0;
+    int64_t arch = 0;
+    EXPECT_TRUE(DeviceAttr::QueryNpuArch(deviceId, arch));
+    EXPECT_EQ(DeviceAttr::NPU_ARCH_C220, arch);
     EXPECT_TRUE(DeviceAttr::QueryL2CacheSize(deviceId, size));
     EXPECT_EQ(static_cast<uint64_t>(query.l2Bytes), size);
     EXPECT_TRUE(DeviceAttr::QueryAicoreCoreNum(deviceId, coreNum));
     EXPECT_EQ(std::numeric_limits<uint32_t>::max(), coreNum);
-    EXPECT_EQ((std::vector<aclrtDevAttr>{ACL_DEV_ATTR_L2_CACHE_SIZE, ACL_DEV_ATTR_AICORE_CORE_NUM}), query.attributes);
+    query.npuArch = DeviceAttr::NPU_ARCH_C310;
+    EXPECT_TRUE(DeviceAttr::QueryNpuArch(deviceId, arch));
+    EXPECT_EQ(DeviceAttr::NPU_ARCH_C310, arch);
+    query.cores = int64_t{1} << 32;
+    EXPECT_TRUE(DeviceAttr::QueryAicoreCoreNum(deviceId, coreNum));
+    EXPECT_EQ(static_cast<uint32_t>(query.cores), coreNum);
+    EXPECT_EQ((std::vector<aclrtDevAttr>{ACL_DEV_ATTR_NPU_ARCH, ACL_DEV_ATTR_L2_CACHE_SIZE,
+                  ACL_DEV_ATTR_AICORE_CORE_NUM, ACL_DEV_ATTR_NPU_ARCH, ACL_DEV_ATTR_AICORE_CORE_NUM}),
+        query.attributes);
 }
 
 TEST_F(DeviceAttrTest, negative_device_queries_current_device_then_its_attributes) {
     query.expectedDevice = 3;
+    query.npuArch = DeviceAttr::NPU_ARCH_C310;
     query.l2Bytes = 96 * 1024 * 1024;
     query.cores = 20;
-    MOCKER(aclrtGetDeviceImplOrigin).expects(exactly(2)).will(invoke(GetCurrentDevice));
-    MOCKER(aclrtGetDeviceInfoImplOrigin).expects(exactly(2)).will(invoke(GetAttribute));
+    MOCKER(&aclrtGetDeviceImplOrigin).expects(exactly(3)).will(invoke(GetCurrentDevice));
+    MOCKER(&aclrtGetDeviceInfoImplOrigin).expects(exactly(3)).will(invoke(GetAttribute));
 
     uint64_t size = 0;
     uint32_t coreNum = 0;
+    int64_t arch = 0;
+    EXPECT_TRUE(DeviceAttr::QueryNpuArch(-1, arch));
+    EXPECT_EQ(DeviceAttr::NPU_ARCH_C310, arch);
     EXPECT_TRUE(DeviceAttr::QueryL2CacheSize(-1, size));
     EXPECT_EQ(static_cast<uint64_t>(query.l2Bytes), size);
     EXPECT_TRUE(DeviceAttr::QueryAicoreCoreNum(-1, coreNum));
     EXPECT_EQ(20U, coreNum);
-    EXPECT_EQ((std::vector<aclrtDevAttr>{ACL_DEV_ATTR_L2_CACHE_SIZE, ACL_DEV_ATTR_AICORE_CORE_NUM}), query.attributes);
+    EXPECT_EQ(
+        (std::vector<aclrtDevAttr>{ACL_DEV_ATTR_NPU_ARCH, ACL_DEV_ATTR_L2_CACHE_SIZE, ACL_DEV_ATTR_AICORE_CORE_NUM}),
+        query.attributes);
 }
 
-TEST_F(DeviceAttrTest, invalid_current_device_preserves_outputs_and_skips_attribute_query) {
+TEST_F(DeviceAttrTest, invalid_current_device_fails_all_queries_without_attribute_lookup) {
     struct TestCase {
         aclError status;
         int32_t device;
@@ -97,15 +117,20 @@ TEST_F(DeviceAttrTest, invalid_current_device_preserves_outputs_and_skips_attrib
         SCOPED_TRACE(testCase.device);
         query.currentDevice = testCase.device;
         query.deviceStatus = testCase.status;
-        MOCKER(aclrtGetDeviceImplOrigin).expects(exactly(2)).will(invoke(GetCurrentDevice));
-        MOCKER(aclrtGetDeviceInfoImplOrigin).expects(never());
+        MOCKER(&aclrtGetDeviceImplOrigin).expects(exactly(3)).will(invoke(GetCurrentDevice));
+        MOCKER(&aclrtGetDeviceInfoImplOrigin).expects(never());
         uint64_t size = 123;
         uint32_t coreNum = 45;
+        int64_t arch = 67;
+        EXPECT_FALSE(DeviceAttr::QueryNpuArch(-1, arch));
         EXPECT_FALSE(DeviceAttr::QueryL2CacheSize(-1, size));
         EXPECT_FALSE(DeviceAttr::QueryAicoreCoreNum(-1, coreNum));
+        EXPECT_EQ(67, arch);
         EXPECT_EQ(123U, size);
         EXPECT_EQ(45U, coreNum);
+        EXPECT_TRUE(query.attributes.empty());
         GlobalMockObject::verify();
+        query.attributes.clear();
     }
 }
 
@@ -119,10 +144,12 @@ TEST_F(DeviceAttrTest, failed_or_invalid_attributes_preserve_outputs) {
         {ACL_DEV_ATTR_L2_CACHE_SIZE, 0, ACL_SUCCESS},
         {ACL_DEV_ATTR_L2_CACHE_SIZE, -1, ACL_SUCCESS},
         {ACL_DEV_ATTR_L2_CACHE_SIZE, 1024, ACL_ERROR_INTERNAL_ERROR},
+        {ACL_DEV_ATTR_NPU_ARCH, 0, ACL_SUCCESS},
+        {ACL_DEV_ATTR_NPU_ARCH, -1, ACL_SUCCESS},
+        {ACL_DEV_ATTR_NPU_ARCH, DeviceAttr::NPU_ARCH_C220, ACL_ERROR_INTERNAL_ERROR},
         {ACL_DEV_ATTR_AICORE_CORE_NUM, 0, ACL_SUCCESS},
         {ACL_DEV_ATTR_AICORE_CORE_NUM, -1, ACL_SUCCESS},
         {ACL_DEV_ATTR_AICORE_CORE_NUM, 20, ACL_ERROR_INTERNAL_ERROR},
-        {ACL_DEV_ATTR_AICORE_CORE_NUM, int64_t{1} << 32, ACL_SUCCESS},
     };
     for (const auto &testCase : cases) {
         SCOPED_TRACE(testCase.attr);
@@ -130,19 +157,24 @@ TEST_F(DeviceAttrTest, failed_or_invalid_attributes_preserve_outputs) {
         SCOPED_TRACE(testCase.status);
         query.l2Bytes = testCase.value;
         query.cores = testCase.value;
+        query.npuArch = testCase.value;
         query.attributeStatus = testCase.status;
         query.attributes.clear();
-        MOCKER(aclrtGetDeviceImplOrigin).expects(never());
-        MOCKER(aclrtGetDeviceInfoImplOrigin).expects(once()).will(invoke(GetAttribute));
+        MOCKER(&aclrtGetDeviceImplOrigin).expects(never());
+        MOCKER(&aclrtGetDeviceInfoImplOrigin).expects(once()).will(invoke(GetAttribute));
         uint64_t size = 123;
         uint32_t coreNum = 45;
+        int64_t arch = 67;
         if (testCase.attr == ACL_DEV_ATTR_L2_CACHE_SIZE) {
             EXPECT_FALSE(DeviceAttr::QueryL2CacheSize(7, size));
+            EXPECT_EQ(123U, size);
+        } else if (testCase.attr == ACL_DEV_ATTR_NPU_ARCH) {
+            EXPECT_FALSE(DeviceAttr::QueryNpuArch(7, arch));
+            EXPECT_EQ(67, arch);
         } else {
             EXPECT_FALSE(DeviceAttr::QueryAicoreCoreNum(7, coreNum));
+            EXPECT_EQ(45U, coreNum);
         }
-        EXPECT_EQ(123U, size);
-        EXPECT_EQ(45U, coreNum);
         EXPECT_EQ((std::vector<aclrtDevAttr>{testCase.attr}), query.attributes);
         GlobalMockObject::verify();
     }

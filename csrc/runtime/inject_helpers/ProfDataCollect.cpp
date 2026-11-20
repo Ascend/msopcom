@@ -33,7 +33,7 @@
 #include "utils/FileSystem.h"
 #include "utils/Environment.h"
 #include "utils/PipeCall.h"
-#include "utils/DeviceAttr.h"
+#include "DeviceAttr.h"
 #include "utils/signal.h"
 #include "MemoryContext.h"
 #include "ascend_hal/AscendHalOrigin.h"

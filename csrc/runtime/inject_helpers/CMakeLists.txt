@@ -32,6 +32,7 @@ file(GLOB COMMON_SOURCE
     LaunchManager.cpp
     LaunchContext.cpp
     DeviceContext.cpp
+    DeviceAttr.cpp
     KernelMetaDataParser.cpp
     LocalDevice.cpp
     LaunchInitFinalize.cpp

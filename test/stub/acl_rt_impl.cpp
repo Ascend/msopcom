@@ -208,6 +208,14 @@ aclError aclrtGetDeviceInfoImpl(uint32_t deviceId, aclrtDevAttr attr, int64_t *v
     return ACL_SUCCESS;
 }
 
+#ifdef PUBLIC_ACL_STUB
+aclError aclrtGetDevice(int32_t *deviceId) { return aclrtGetDeviceImpl(deviceId); }
+
+aclError aclrtGetDeviceInfo(uint32_t deviceId, aclrtDevAttr attr, int64_t *value) {
+    return aclrtGetDeviceInfoImpl(deviceId, attr, value);
+}
+#endif
+
 aclError aclmdlRICaptureBeginImpl(aclrtStream stream, aclmdlRICaptureMode mode)
 {
     return ACL_SUCCESS;

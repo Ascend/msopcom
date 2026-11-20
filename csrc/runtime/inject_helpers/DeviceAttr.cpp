@@ -16,8 +16,6 @@
 
 #include "DeviceAttr.h"
 
-#include <limits>
-
 #include "acl_rt_impl/AscendclImplOrigin.h"
 
 namespace {
@@ -27,11 +25,11 @@ bool ResolveDeviceId(int32_t devId, uint32_t &deviceId) {
         deviceId = static_cast<uint32_t>(devId);
         return true;
     }
-    int32_t currentDeviceId = -1;
-    if (aclrtGetDeviceImplOrigin(&currentDeviceId) != ACL_SUCCESS || currentDeviceId < 0) {
+    int32_t runningDeviceId = 0;
+    if (aclrtGetDeviceImplOrigin(&runningDeviceId) != ACL_SUCCESS || runningDeviceId < 0) {
         return false;
     }
-    deviceId = static_cast<uint32_t>(currentDeviceId);
+    deviceId = static_cast<uint32_t>(runningDeviceId);
     return true;
 }
 
@@ -52,9 +50,11 @@ bool QueryAttribute(int32_t devId, aclrtDevAttr attr, int64_t &value) {
 
 namespace DeviceAttr {
 
+bool QueryNpuArch(int32_t devId, int64_t &arch) { return QueryAttribute(devId, ACL_DEV_ATTR_NPU_ARCH, arch); }
+
 bool QueryAicoreCoreNum(int32_t devId, uint32_t &coreNum) {
     int64_t value = 0;
-    if (!QueryAttribute(devId, ACL_DEV_ATTR_AICORE_CORE_NUM, value) || value > std::numeric_limits<uint32_t>::max()) {
+    if (!QueryAttribute(devId, ACL_DEV_ATTR_AICORE_CORE_NUM, value)) {
         return false;
     }
     coreNum = static_cast<uint32_t>(value);

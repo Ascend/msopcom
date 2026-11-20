@@ -5,6 +5,8 @@
 add_library(runtime SHARED runtime.cpp acl_rt_impl.cpp)
 add_library(acl_rt_impl SHARED acl_rt_impl.cpp)
 add_library(ascendcl_impl SHARED acl_rt_impl.cpp)
+add_library(ascendcl SHARED acl_rt_impl.cpp)
+target_compile_definitions(ascendcl PRIVATE PUBLIC_ACL_STUB)
 add_library(ascend_hal SHARED ascend_hal.cpp)
 include_directories(runtime ${HOST_INJECTION_CSRC} ${INJECTION_THIRDPARTY_INCLUDE})
 include_directories(acl_rt_impl ${HOST_INJECTION_CSRC} ${INJECTION_THIRDPARTY_INCLUDE})

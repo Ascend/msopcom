@@ -6,7 +6,7 @@ endif()
 # core_obj 用于承载公共部分
 # injection_test_obj 用于承载差异化插桩部分，给测试使用
 add_library(core_obj OBJECT)
-set_source_files_properties(utils/DeviceAttr.cpp PROPERTIES
+set_source_files_properties(runtime/inject_helpers/DeviceAttr.cpp PROPERTIES
     COMPILE_OPTIONS "-fvisibility=hidden;-fvisibility-inlines-hidden"
 )
 add_library(injection_test_obj OBJECT)

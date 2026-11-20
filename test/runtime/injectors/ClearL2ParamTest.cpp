@@ -130,7 +130,7 @@ protected:
         // 工具线程索引为0，采集对象保存设备7，属性查询必须使用后者。
         MOCKER(&ThreadContext::GetDeviceId).stubs().will(returnValue(0));
         MOCKER(DeviceContext::GetRunningDeviceId).stubs().will(returnValue(int32_t{7}));
-        MOCKER(aclrtGetDeviceImplOrigin).expects(never());
+        MOCKER(&aclrtGetDeviceImplOrigin).expects(never());
         MOCKER(&KernelContext::GetMC2Flag).stubs().will(returnValue(false));
         MOCKER(&KernelContext::GetLcclFlag).stubs().will(returnValue(false));
         MOCKER(&MemoryContext::Backup).stubs().will(returnValue(true));
@@ -182,13 +182,13 @@ protected:
 };
 
 TEST_F(ClearL2ParamTest, known_soc_uses_calibrated_tiling_without_attribute_queries) {
-    MOCKER(aclrtGetDeviceInfoImplOrigin).expects(never());
+    MOCKER(&aclrtGetDeviceInfoImplOrigin).expects(never());
     Replay("Ascend910B4");
     ExpectPrepared(5242880, 20);
 }
 
 TEST_F(ClearL2ParamTest, unknown_soc_queries_target_device_and_aligns_tiling) {
-    MOCKER(aclrtGetDeviceInfoImplOrigin).expects(exactly(2)).will(invoke(QueryTargetAttribute));
+    MOCKER(&aclrtGetDeviceInfoImplOrigin).expects(exactly(2)).will(invoke(QueryTargetAttribute));
     Replay("Ascend910B9999");
     ExpectPrepared(5033472, 20);
     EXPECT_EQ(
@@ -197,14 +197,14 @@ TEST_F(ClearL2ParamTest, unknown_soc_queries_target_device_and_aligns_tiling) {
 
 TEST_F(ClearL2ParamTest, aligned_dynamic_tiling_does_not_add_an_extra_tile) {
     observed_.l2Bytes = 10240;
-    MOCKER(aclrtGetDeviceInfoImplOrigin).expects(exactly(2)).will(invoke(QueryTargetAttribute));
+    MOCKER(&aclrtGetDeviceInfoImplOrigin).expects(exactly(2)).will(invoke(QueryTargetAttribute));
     Replay("Ascend910_93xx");
     ExpectPrepared(512, 20);
 }
 
 TEST_F(ClearL2ParamTest, l2_query_failure_stops_before_core_query_or_buffer_preparation) {
     observed_.failQuery = true;
-    MOCKER(aclrtGetDeviceInfoImplOrigin).expects(once()).will(invoke(QueryTargetAttribute));
+    MOCKER(&aclrtGetDeviceInfoImplOrigin).expects(once()).will(invoke(QueryTargetAttribute));
     Replay("Ascend910B9999");
     EXPECT_TRUE(observed_.allocations.empty());
     EXPECT_EQ(0U, observed_.copiedTiling);
@@ -215,7 +215,7 @@ TEST_F(ClearL2ParamTest, l2_query_failure_stops_before_core_query_or_buffer_prep
 TEST_F(ClearL2ParamTest, core_query_failure_stops_before_buffer_preparation) {
     observed_.failQuery = true;
     observed_.failingAttribute = ACL_DEV_ATTR_AICORE_CORE_NUM;
-    MOCKER(aclrtGetDeviceInfoImplOrigin).expects(exactly(2)).will(invoke(QueryTargetAttribute));
+    MOCKER(&aclrtGetDeviceInfoImplOrigin).expects(exactly(2)).will(invoke(QueryTargetAttribute));
     Replay("Ascend950PR_95A9");
     EXPECT_TRUE(observed_.allocations.empty());
     EXPECT_EQ(0U, observed_.copiedTiling);

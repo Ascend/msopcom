@@ -34,11 +34,13 @@
 
 using namespace std;
 
-DvcLogCbFnUnion_t gCallbacks[4];
+std::array<DvcLogCbFnUnion_t, static_cast<size_t>(DvcLogType::DVC_CCU_LOG) + 1> gCallbacks{};
+std::vector<DvcLogType_t> gRegisteredTypes;
 string gReceivedData;
 
 int RecordDvcCallback(DvcLogType_t logType, DvcLogCbFnUnion_t fnUnion)
 {
+    gRegisteredTypes.push_back(logType);
     gCallbacks[static_cast<int>(logType)] = fnUnion;
     return 0;
 }
@@ -154,20 +156,24 @@ std::string WaitForMessage(size_t index) {
     return g_messages[index];
 }
 }
-class CamodelV2Test : public testing::Test {
+class CamodelV2Test : public testing::TestWithParam<std::string> {
 protected:
     void SetUp() override {
         MOCKER(&GetEnv).stubs().will(returnValue(std::string("true")));
         previousSocVersion_ = ProfConfig::Instance().socVersion_;
-        ProfConfig::Instance().socVersion_ = "Ascend950DT_950x";
+        ProfConfig::Instance().socVersion_ = GetParam();
         MessageOfProfConfig config{};
         config.pmSamplingEnable = true;
         ProfConfig::Instance().Init(config);
         CamodelHelper::Instance().Enable();
+        for (auto &callback : gCallbacks) {
+            callback = {};
+        }
         {
             std::lock_guard<std::mutex> guard(g_messageMutex);
             g_messages.clear();
         }
+        gRegisteredTypes.clear();
         MOCKER(&DvcSetLogLevelOrigin).stubs().will(returnValue(0));
         MOCKER(&DvcAttachLogCallbackOrigin).stubs().will(invoke(RecordDvcCallback));
         MOCKER(&ProfConfig::SendMsg).stubs().will(invoke(RecordMessage));
@@ -184,7 +190,11 @@ private:
     std::string previousSocVersion_;
 };
 
-TEST_F(CamodelV2Test, forwards_v2_fields_and_discards_invalid_optional_json) {
+TEST_P(CamodelV2Test, registers_expected_types_and_forwards_v2_fields) {
+    EXPECT_EQ((std::vector<DvcLogType_t>{
+                  DvcLogType::DVC_INSTR_POPPED_LOG, DvcLogType::DVC_INSTR_LOG, DvcLogType::DVC_MTE_LOG}),
+        gRegisteredTypes);
+
     struct Case {
         DvcLogType_t logType;
         uint64_t time;
@@ -224,3 +234,7 @@ TEST_F(CamodelV2Test, forwards_v2_fields_and_discards_invalid_optional_json) {
     std::lock_guard<std::mutex> guard(g_messageMutex);
     EXPECT_EQ(g_messages.size(), cases.size());
 }
+
+INSTANTIATE_TEST_SUITE_P(A5AndA6, CamodelV2Test,
+    testing::Values(
+        std::string("Ascend950DT_950x"), std::string("Ascend960DT_966B7"), std::string("Ascend960PR_969A1")));

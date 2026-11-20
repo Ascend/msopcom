@@ -274,7 +274,8 @@ void GetSimulatorLogWithoutDump() {
     // platform maps are ready. Use the stable SoC prefix here instead of SOC_STRING_TO_CHIP_PRODUCT.
     const std::string &socVersion = ProfConfig::Instance().GetSocVersion();
     bool isAscend950 = socVersion.compare(0, std::strlen("Ascend950"), "Ascend950") == 0;
-    if (isAscend950) {
+    const bool isAscend960 = socVersion.compare(0, std::strlen("Ascend960"), "Ascend960") == 0;
+    if (isAscend950 || isAscend960) {
         dvcLogCbFnUnion[static_cast<uint32_t>(DvcLogType::DVC_INSTR_POPPED_LOG)].instrLogCbV2 = InstrPoppedLogV2;
         dvcLogCbFnUnion[static_cast<uint32_t>(DvcLogType::DVC_INSTR_LOG)].instrLogCbV2 = InstrLogV2;
     } else {
@@ -282,7 +283,7 @@ void GetSimulatorLogWithoutDump() {
         dvcLogCbFnUnion[static_cast<uint32_t>(DvcLogType::DVC_INSTR_LOG)].instrLogCb = InstrLog;
     }
     dvcLogCbFnUnion[static_cast<uint32_t>(DvcLogType::DVC_MTE_LOG)].mteLogCb = MteLog;
-    if (!isAscend950) {
+    if (!isAscend950 && !isAscend960) {
         dvcLogCbFnUnion[static_cast<uint32_t>(DvcLogType::DVC_ICACHE_LOG)].icacheLogCb = ICacheLog;
         dvcLogCbFnUnion[static_cast<uint32_t>(DvcLogType::DVC_CCU_LOG)].ccuLogCb = CcuLog;
     }
@@ -293,7 +294,7 @@ void GetSimulatorLogWithoutDump() {
         if (i == static_cast<uint32_t>(DvcLogType::DVC_IFU_LOG)) {
             continue;
         }
-        if (isAscend950 &&
+        if ((isAscend950 || isAscend960) &&
             (i == static_cast<uint32_t>(DvcLogType::DVC_ICACHE_LOG) ||
                 i == static_cast<uint32_t>(DvcLogType::DVC_CCU_LOG))) {
             continue;

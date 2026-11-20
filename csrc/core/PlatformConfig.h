@@ -79,6 +79,16 @@ enum class DeviceType : uint32_t {
     ASCEND_950_DEFAULT,
     ASCEND_950_END,
 
+    ASCEND_960_START,
+    ASCEND_960DT_961BY,
+    ASCEND_960DT_966B7,
+    ASCEND_960DT_968B7,
+    ASCEND_960DT_969B5,
+    ASCEND_960DT_969B7,
+    ASCEND_960PR_963A1,
+    ASCEND_960PR_969A1,
+    ASCEND_960_END,
+
     INVALID = 0xFFFFFFFFU,
  };
 
@@ -171,6 +181,15 @@ enum class ChipProductType : uint32_t {
     ASCEND950PR_9589,
     ASCEND950PR_958B,
     ASCEND950PR_9599,
+
+    ASCEND960_SERIES = 10 << RADIX,
+    ASCEND960DT_961BY,
+    ASCEND960DT_966B7,
+    ASCEND960DT_968B7,
+    ASCEND960DT_969B5,
+    ASCEND960DT_969B7,
+    ASCEND960PR_963A1,
+    ASCEND960PR_969A1,
 };
 
 const std::unordered_map<std::string, ChipProductType> SOC_STRING_TO_CHIP_PRODUCT{
@@ -241,6 +260,14 @@ const std::unordered_map<std::string, ChipProductType> SOC_STRING_TO_CHIP_PRODUC
     {"Ascend950PR_9589", ChipProductType::ASCEND950PR_9589},
     {"Ascend950PR_958b", ChipProductType::ASCEND950PR_958B},
     {"Ascend950PR_9599", ChipProductType::ASCEND950PR_9599},
+
+    {"Ascend960DT_961BY", ChipProductType::ASCEND960DT_961BY},
+    {"Ascend960DT_966B7", ChipProductType::ASCEND960DT_966B7},
+    {"Ascend960DT_968B7", ChipProductType::ASCEND960DT_968B7},
+    {"Ascend960DT_969B5", ChipProductType::ASCEND960DT_969B5},
+    {"Ascend960DT_969B7", ChipProductType::ASCEND960DT_969B7},
+    {"Ascend960PR_963A1", ChipProductType::ASCEND960PR_963A1},
+    {"Ascend960PR_969A1", ChipProductType::ASCEND960PR_969A1},
 };
 
 // 仅在精确映射未命中时查询，按完整 SoC 名称禁止自动适配。
@@ -298,6 +325,13 @@ const std::unordered_map<ChipProductType, DeviceType> CHIP_PRODUCT_TO_DEVICE_TYP
     {ChipProductType::ASCEND950PR_9589, DeviceType::ASCEND_950PR_9589},
     {ChipProductType::ASCEND950PR_958B, DeviceType::ASCEND_950PR_958b},
     {ChipProductType::ASCEND950PR_9599, DeviceType::ASCEND_950PR_9599},
+    {ChipProductType::ASCEND960DT_961BY, DeviceType::ASCEND_960DT_961BY},
+    {ChipProductType::ASCEND960DT_966B7, DeviceType::ASCEND_960DT_966B7},
+    {ChipProductType::ASCEND960DT_968B7, DeviceType::ASCEND_960DT_968B7},
+    {ChipProductType::ASCEND960DT_969B5, DeviceType::ASCEND_960DT_969B5},
+    {ChipProductType::ASCEND960DT_969B7, DeviceType::ASCEND_960DT_969B7},
+    {ChipProductType::ASCEND960PR_963A1, DeviceType::ASCEND_960PR_963A1},
+    {ChipProductType::ASCEND960PR_969A1, DeviceType::ASCEND_960PR_969A1},
 };
 
 inline ChipProductType GetProductSeriesType(const ChipProductType& chipProductType)

@@ -131,6 +131,7 @@ typedef enum {
     ACL_DEV_ATTR_AICORE_CORE_NUM = 101,  // AI Core数量
     ACL_DEV_ATTR_VECTOR_CORE_NUM = 201,  // Vector Core数量
     ACL_DEV_ATTR_L2_CACHE_SIZE = 302, // L2 Cache容量，单位字节
+    ACL_DEV_ATTR_NPU_ARCH = 601, // NPU架构
 } aclrtDevAttr;
 typedef enum {
     ACL_RT_MEM_ATTR_RSV = 0U,   // 预留值
