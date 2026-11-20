@@ -110,6 +110,13 @@ public:
      *         >0 表示写入成功，并返回已写入的数据长度
      */
     virtual ssize_t Write(std::string const &msg) = 0;
+
+    /** 发送数据并附带上一个 fd（SCM_RIGHTS）；默认实现不支持，返回 -1（用于内存模式回退） */
+    virtual ssize_t WriteWithFd(std::string const &msg, int fd) {
+        (void)msg;
+        (void)fd;
+        return -1;
+    }
 }; // class CommunicationClient
 
 class Server : public CommunicationServer {
@@ -133,6 +140,8 @@ public:
     bool Connect() override;
     ssize_t Read(std::string &msg) override;
     ssize_t Write(std::string const &msg) override;
+    ssize_t WriteWithFd(std::string const &msg, int fd) override;
+
 private:
     CommType type_;
     std::unique_ptr<CommunicationClient> socketClient_;

@@ -18,7 +18,9 @@
 #pragma once
 
 #include <elf.h>
+#include <cstdint>
 #include <iterator>
+#include <string>
 #include <vector>
 
 using Buffer = std::vector<char>;
@@ -35,3 +37,13 @@ Elf64_Ehdr CreateValidElfHeader(void);
 Buffer CreateValidNameSection(void);
 
 Buffer CreateValidElf(void);
+
+/**
+ * @brief 构造一个包含 .text/.symtab/.strtab/.shstrtab 的最小合法 ELF，用于内核符号解析用例。
+ * @param kernelNames   .text 中的 global FUNC 符号名（写入 .symtab，st_value 依次为 0x10*(i+1)）
+ * @param simtNames     .text 中的 local 符号名（用于触发 SIMT 检测，通常为 "$t*"）
+ * @param strtabAtEnd   true 时把 .strtab 放到文件末尾（其末尾字节紧贴 buffer 末尾）
+ * @param lastSimtNoNul true 时最后一个 SIMT 名字不写结尾 '\0'（用于越界边界用例）
+ */
+std::vector<uint8_t> CreateElfWithKernelSymbols(const std::vector<std::string> &kernelNames,
+    const std::vector<std::string> &simtNames = {}, bool strtabAtEnd = false, bool lastSimtNoNul = false);

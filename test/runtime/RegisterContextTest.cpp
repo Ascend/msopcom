@@ -27,11 +27,9 @@
 #include "stub/FakeElf.h"
 using namespace std;
 
-static bool GetValidNameFromBinary(const char *data,
-    uint64_t length,
-    std::vector<std::string> &kernelNames,
-    std::vector<uint64_t> &kernelOffsets)
-{
+static bool GetValidNameFromBinary(const char *data, uint64_t length, std::vector<std::string> &kernelNames,
+    std::vector<uint64_t> &kernelOffsets, bool &hasSimt) {
+    hasSimt = false;
     kernelNames.emplace_back("valid_kernel_1234_mix_aic");
     kernelNames.emplace_back("valid_kernel_1235_mix_aiv");
     kernelOffsets.emplace_back(0);
@@ -50,7 +48,7 @@ public:
     void SetUp() override
     {
         AscendclImplOriginCtor();
-        MOCKER(&GetSymInfoFromBinary).stubs().will(invoke(GetValidNameFromBinary));
+        MOCKER(&ScanKernelSymbols).stubs().will(invoke(GetValidNameFromBinary));
         MOCKER(&HasStaticStub).stubs().will(returnValue(true));
         const char *path = "empty.o";
         uint32_t data{};
@@ -275,4 +273,50 @@ TEST(RegisterContext, get_meta_section_with_nonexistent_section_expect_return_ze
     std::vector<uint8_t> parsed;
     ASSERT_EQ(GetMetaSection(binary, "missing_kernel", parsed), 0);
     ASSERT_TRUE(parsed.empty());
+}
+
+TEST(RegisterContext, scan_kernel_symbols_with_global_func_symbols_expect_success) {
+    auto elf = CreateElfWithKernelSymbols({"kernel_a_1111", "kernel_b_2222"});
+    std::vector<std::string> names;
+    std::vector<uint64_t> offsets;
+    bool hasSimt = true;
+    ASSERT_TRUE(ScanKernelSymbols(reinterpret_cast<const char *>(elf.data()), elf.size(), names, offsets, hasSimt));
+    ASSERT_FALSE(hasSimt);
+    ASSERT_EQ(names, (std::vector<std::string>{"kernel_a_1111", "kernel_b_2222"}));
+    ASSERT_EQ(offsets, (std::vector<uint64_t>{0x10, 0x20}));
+}
+
+TEST(RegisterContext, scan_kernel_symbols_with_local_simt_symbol_expect_has_simt) {
+    auto elf = CreateElfWithKernelSymbols({"kernel_a_1111"}, {"$t0", "$t1"});
+    std::vector<std::string> names;
+    std::vector<uint64_t> offsets;
+    bool hasSimt = false;
+    ASSERT_TRUE(ScanKernelSymbols(reinterpret_cast<const char *>(elf.data()), elf.size(), names, offsets, hasSimt));
+    ASSERT_TRUE(hasSimt);
+    ASSERT_EQ(names, (std::vector<std::string>{"kernel_a_1111"}));
+}
+
+TEST(RegisterContext, scan_kernel_symbols_with_name_at_strtab_tail_expect_no_overflow) {
+    // 符号名 "$" 恰为 .strtab 最后 1 字节且无结尾 NUL，.strtab 紧贴 buffer 末尾：
+    // 校验符号名解析不会越界读 name[1]（回归 nameBytes 边界修复）
+    auto elf = CreateElfWithKernelSymbols({}, {"$"}, true, true);
+    std::vector<std::string> names;
+    std::vector<uint64_t> offsets;
+    bool hasSimt = true;
+    ASSERT_TRUE(ScanKernelSymbols(reinterpret_cast<const char *>(elf.data()), elf.size(), names, offsets, hasSimt));
+    ASSERT_FALSE(hasSimt);
+}
+
+TEST(RegisterContext, get_sym_info_from_binary_expect_success) {
+    auto elf = CreateElfWithKernelSymbols({"kernel_a_1111", "kernel_b_2222"});
+    std::vector<std::string> names;
+    std::vector<uint64_t> offsets;
+    ASSERT_TRUE(GetSymInfoFromBinary(reinterpret_cast<const char *>(elf.data()), elf.size(), names, offsets));
+    ASSERT_EQ(names, (std::vector<std::string>{"kernel_a_1111", "kernel_b_2222"}));
+    ASSERT_EQ(offsets, (std::vector<uint64_t>{0x10, 0x20}));
+}
+
+TEST(RegisterContext, get_simt_symbol_from_binary_expect_detect_simt) {
+    auto elf = CreateElfWithKernelSymbols({"kernel_a_1111"}, {"$t0"});
+    ASSERT_TRUE(GetSimtSymbolFromBinary(reinterpret_cast<const char *>(elf.data()), elf.size()));
 }

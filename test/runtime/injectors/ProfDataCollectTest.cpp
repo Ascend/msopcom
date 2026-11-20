@@ -51,11 +51,9 @@
 
 constexpr uint64_t MEM_ADDR = 0x12c045400000U;
 constexpr uint64_t MEM_SIZE = 0x1000U;
-static bool GetValidNameFromBinary(const char *data,
-                                   uint64_t length,
-                                   std::vector<std::string> &kernelNames,
-                                   std::vector<uint64_t> &kernelOffsets)
-{
+static bool GetValidNameFromBinary(const char *data, uint64_t length, std::vector<std::string> &kernelNames,
+    std::vector<uint64_t> &kernelOffsets, bool &hasSimt) {
+    hasSimt = false;
     kernelNames.emplace_back("valid_kernel_1234_mix_aic");
     kernelOffsets.emplace_back(0);
     return true;
@@ -467,7 +465,7 @@ TEST_F(ProfDataCollectTest, save_object_success_ctx)
             .stubs()
             .will(returnValue(false))
             .then(returnValue(true));
-    MOCKER(&GetSymInfoFromBinary).stubs().will(invoke(GetValidNameFromBinary));
+    MOCKER(&ScanKernelSymbols).stubs().will(invoke(GetValidNameFromBinary));
     MOCKER(&HasStaticStub).stubs().will(returnValue(true));
     MOCKER(&RegisterContext::Save).stubs().will(returnValue(true));
     MOCKER_CPP(&ReadBinary).stubs().with(any(), outBound(elfData)).will(returnValue(size_t(1)));

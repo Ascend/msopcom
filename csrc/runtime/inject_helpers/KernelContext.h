@@ -354,8 +354,11 @@ public:
             return;
         }
         PacketHead head { PacketType::KERNEL_BINARY };
-        std::string buffer(static_cast<char const *>(binary.data), binary.length);
-        LocalDevice::Local().Notify(Serialize(head, buffer.size()) + std::move(buffer));
+        // 一次性构造「包头 + 长度 + 二进制」，避免 string 构造与 operator+ 的两次全量拷贝
+        std::string buffer = Serialize(head, binary.length);
+        buffer.reserve(buffer.size() + binary.length);
+        buffer.append(static_cast<char const *>(binary.data), binary.length);
+        LocalDevice::Local().Notify(buffer);
     }
 
     OpMemInfo &GetOpMemInfo();

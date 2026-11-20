@@ -17,6 +17,8 @@
 #include "DomainSocket.h"
 #include <vector>
 #include <string>
+#include <algorithm>
+#include <cstring>
 #include <sstream>
 #include <unistd.h>
 #include <sys/socket.h>
@@ -270,6 +272,41 @@ bool DomainSocketClient::Read(std::string &message, size_t maxBytes, size_t &rec
         PrintCommInfo(message, receivedBytes, true, this->sfd_, false);
     }
 
+    return true;
+}
+
+bool DomainSocketClient::WriteWithFd(const std::string &message, int fd, size_t &sentBytes) {
+    sentBytes = 0;
+    if (sfd_ == -1 || fd < 0) {
+        return false;
+    }
+
+    struct iovec iov = {};
+    iov.iov_base = const_cast<char *>(message.data()); // NOLINT(cppcoreguidelines-pro-type-const-cast)
+    iov.iov_len = message.size();
+    alignas(cmsghdr) char control[CMSG_SPACE(sizeof(int))] = {};
+    struct msghdr msgHdr = {};
+    msgHdr.msg_iov = &iov;
+    msgHdr.msg_iovlen = 1;
+    msgHdr.msg_control = control;
+    msgHdr.msg_controllen = sizeof(control);
+    struct cmsghdr *cmsg = CMSG_FIRSTHDR(&msgHdr);
+    cmsg->cmsg_level = SOL_SOCKET;
+    cmsg->cmsg_type = SCM_RIGHTS;
+    cmsg->cmsg_len = CMSG_LEN(sizeof(int));
+    auto *cmsgData = reinterpret_cast<unsigned char *>(CMSG_DATA(cmsg));
+    std::copy_n(reinterpret_cast<const unsigned char *>(&fd), sizeof(int), cmsgData);
+
+    ssize_t ret = 0;
+    {
+        std::lock_guard<std::mutex> lockGuard(mux_);
+        ret = sendmsg(sfd_, &msgHdr, 0);
+    }
+    if (ret < 0) {
+        WARN_LOG("sendmsg with fd failed: %s", std::string(strerror(errno)).c_str());
+        return false;
+    }
+    sentBytes = static_cast<size_t>(ret);
     return true;
 }
 

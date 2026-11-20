@@ -118,7 +118,7 @@ RegisterContextSP RegisterManager::CreateContext(const void *data, size_t length
     bool optionsIsNull{};
     if (options == nullptr) { optionsIsNull = true; }
     RegisterParam param{currentRegId_, magic, options, false, optionsIsNull};
-    if (!ctx->Init(elfData, binHandle, param)) {
+    if (!ctx->Init(std::move(elfData), binHandle, param)) {
         return nullptr;
     }
     currentRegId_++;

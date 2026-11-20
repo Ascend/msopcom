@@ -47,11 +47,9 @@ HijackedFuncOfAclrtLaunchKernelWithHostArgsImpl::HijackedFuncOfAclrtLaunchKernel
 static void ReportKernelBinary(const RegisterContextSP& regCtx)
 {
     auto const &elfData = regCtx->GetElfData();
-    PacketHead head { PacketType::KERNEL_BINARY };
-    std::string buffer(elfData.cbegin(), elfData.cend());
     int32_t deviceId = 0;
     aclrtGetDeviceImplOrigin(&deviceId);
-    LocalDevice::GetInstance(deviceId).Notify(Serialize(head, buffer.size()) + std::move(buffer));
+    LocalDevice::GetInstance(deviceId).NotifyKernelBinary(elfData);
 }
 
 bool HijackedFuncOfAclrtLaunchKernelWithHostArgsImpl::InitParam(

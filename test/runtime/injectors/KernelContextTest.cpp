@@ -21,6 +21,7 @@
 #undef private
 
 #include <elf.h>
+#include <algorithm>
 #include <cstring>
 #include <string>
 #include <vector>
@@ -42,9 +43,9 @@
 #include "runtime/inject_helpers/DeviceContext.h"
 #include "runtime/inject_helpers/ArgsManager.h"
 #include "core/FuncSelector.h"
+#include "stub/FakeElf.h"
 
 using namespace std;
-constexpr mode_t EXEC_AUTHORITY = 0740;
 
 namespace {
 
@@ -292,52 +293,23 @@ TEST_F(KernelContextTest, save_dump_valid_args_expect_return_and_normal_data_dum
     inst.Reset();
 }
 
-TEST_F(KernelContextTest, build_names_with_valid_kernel_binary_expect_get_kernel_name_by_tiling_key_success)
-{
-    KernelContext::Instance().Reset();
-    string mockContent = ("0000 g F .text 0000a8 Abs_d2db_high_performance_21474\n"
-        "0010 g F .text 0000f8 Abs_cc2c_high_performance_3333\n"
-        "0020 g F .text 000af8 Abs_dd3d_high_performance_4444\n");
-
-    MOCKER(&PipeCall).stubs().with(any(), outBound(mockContent)).will(returnValue(true));
-    char *ascendHomePath = "ascend_home_path";
-    MOCKER(&secure_getenv).stubs().will(returnValue(ascendHomePath));
-    string mocKObjdumpDir = JoinPath({ascendHomePath, "compiler", "ccec_compiler", "bin"});
-    MkdirRecusively(mocKObjdumpDir);
-    string mocKObjdumpPath = JoinPath({mocKObjdumpDir, "llvm-objdump"});
-    // use any() may compile error
-    /* const char *placeholder; */
-    /* unsigned long x; */
-    WriteBinary(mocKObjdumpPath, mockContent.data(), mockContent.length());
-    chmod(mocKObjdumpPath.c_str(), EXEC_AUTHORITY);
-    ASSERT_TRUE(IsPathExists(mocKObjdumpPath));
-    MOCKER(&WriteBinary).stubs().will(returnValue(1UL));
-
+// 构造包含 .text/.symtab/.strtab/.shstrtab 及若干 global FUNC 符号的最小合法 ELF，
+// 供内核符号解析（直读 .symtab）相关用例使用。
+TEST_F(KernelContextTest, build_names_with_valid_kernel_binary_expect_get_kernel_name_by_tiling_key_success) {
     auto &inst = KernelContext::Instance();
-    string tempOutput = "temp_test_dir/";
-    vector<uint8_t> hdlData(tempOutput.size());
-    void *handle = hdlData.data();
-    rtDevBinary_t bin;
-    bin.data = mockContent.data();
-    bin.length = mockContent.length();
+    std::vector<uint8_t> elf = CreateElfWithKernelSymbols(
+        {"Abs_d2db_high_performance_21474", "Abs_cc2c_high_performance_3333", "Abs_dd3d_high_performance_4444"});
+
+    vector<uint8_t> hdlData(8);
+    const KernelHandle *handle = hdlData.data();
+    rtDevBinary_t bin{};
+    bin.data = elf.data();
+    bin.length = elf.size();
     inst.AddHdlRegisterEvent(handle, &bin);
 
-    uint64_t tilignKey = 21474;
-    string expect = "Abs_d2db_high_performance_21474";
-    string got = inst.GetNameByTilingKey(handle, tilignKey);
-    ASSERT_EQ(expect, got);
-
-    tilignKey = 3333;
-    expect = "Abs_cc2c_high_performance_3333";
-    got = inst.GetNameByTilingKey(handle, tilignKey);
-    ASSERT_EQ(expect, got);
-
-    tilignKey = 4444;
-    expect = "Abs_dd3d_high_performance_4444";
-    got = inst.GetNameByTilingKey(handle, tilignKey);
-    ASSERT_EQ(expect, got);
-
-    RemoveAll(mocKObjdumpDir);
+    ASSERT_EQ("Abs_d2db_high_performance_21474", inst.GetNameByTilingKey(handle, 21474));
+    ASSERT_EQ("Abs_cc2c_high_performance_3333", inst.GetNameByTilingKey(handle, 3333));
+    ASSERT_EQ("Abs_dd3d_high_performance_4444", inst.GetNameByTilingKey(handle, 4444));
 }
 
 TEST_F(KernelContextTest, input_null_then_call_add_register_event_expect_return)
@@ -382,7 +354,7 @@ TEST_F(KernelContextTest, mock_reg_launch_event_then_save_expect_true)
     bool(KernelContext::*funcPtr)(uint64_t, const string&) = &KernelContext::DumpKernelObject;
     MOCKER(funcPtr).stubs().will(returnValue(true));
     MOCKER(&KernelContext::DeviceContext::DumpKernelArgs).stubs().will(returnValue(true));
-    MOCKER(&GetSymInfoFromBinary).stubs().will(returnValue(true));
+    MOCKER(&ScanKernelSymbols).stubs().will(returnValue(true));
     nlohmann::json jsonData;
     jsonData["bin_path"] = "abc";
     MOCKER(&KernelContext::ContextConfig::ToJson).stubs().with(outBound(jsonData)).will(returnValue(true));
@@ -462,18 +434,16 @@ TEST_F(KernelContextTest, register_binary_with_empty_kernel_names_expect_get_pcs
     MOCKER(&rtKernelGetAddrAndPrefCntOrigin).stubs().will(returnValue(RT_ERROR_NONE));
     MOCKER(&KernelContext::GetStubFuncInfo).stubs().will(returnValue(true));
     MOCKER(&KernelContext::GetRegisterEvent).stubs().will(returnValue(true));
-    MOCKER(&GetSymInfoFromBinary).stubs();
+    MOCKER(&ScanKernelSymbols).stubs();
 
     auto &context = KernelContext::Instance();
     uint64_t pcStartAddr;
     ASSERT_FALSE(context.GetPcStartAddr(KernelContext::StubFuncPtr{nullptr}, pcStartAddr));
 }
 
-bool GetValidNameFromBinary(const char *data,
-                            uint64_t length,
-                            std::vector<std::string> &kernelNames,
-                            std::vector<uint64_t> &kernelOffsets)
-{
+bool GetValidNameFromBinary(const char *data, uint64_t length, std::vector<std::string> &kernelNames,
+    std::vector<uint64_t> &kernelOffsets, bool &hasSimt) {
+    hasSimt = false;
     kernelNames.emplace_back("valid_kernel_1234_mix_aic");
     kernelOffsets.emplace_back(0);
     return true;
@@ -482,7 +452,7 @@ bool GetValidNameFromBinary(const char *data,
 TEST_F(KernelContextTest, register_binary_with_valid_kernel_names_expect_get_pcstart_by_stub_func_success)
 {
     MOCKER(&rtKernelGetAddrAndPrefCntOrigin).stubs().will(returnValue(RT_ERROR_NONE));
-    MOCKER(&GetSymInfoFromBinary).stubs().will(invoke(GetValidNameFromBinary));
+    MOCKER(&ScanKernelSymbols).stubs().will(invoke(GetValidNameFromBinary));
 
     auto &context = KernelContext::Instance();
     auto hdl = reinterpret_cast<KernelHandle const *>(0x1234);
@@ -505,7 +475,7 @@ TEST_F(KernelContextTest, hdl_to_regid_empty_expect_get_pcstart_by_hdl_fail)
 TEST_F(KernelContextTest, register_binary_with_empty_kernel_names_expect_get_pcstart_by_hdl_fail)
 {
     std::vector<std::string> kernelNames;
-    MOCKER(&GetSymInfoFromBinary).stubs().will(returnValue(true));
+    MOCKER(&ScanKernelSymbols).stubs().will(returnValue(true));
 
     auto &context = KernelContext::Instance();
     auto hdl = reinterpret_cast<KernelHandle const *>(0x1234);
@@ -515,11 +485,9 @@ TEST_F(KernelContextTest, register_binary_with_empty_kernel_names_expect_get_pcs
     ASSERT_FALSE(context.GetPcStartAddr(KernelContext::KernelHandlePtr{hdl}, pcStartAddr));
 }
 
-bool GetInvalidNameFromBinary(const char *data,
-                              uint64_t length,
-                              std::vector<std::string> &kernelNames,
-                              std::vector<uint64_t> &kernelOffsets)
-{
+bool GetInvalidNameFromBinary(const char *data, uint64_t length, std::vector<std::string> &kernelNames,
+    std::vector<uint64_t> &kernelOffsets, bool &hasSimt) {
+    hasSimt = false;
     kernelNames.emplace_back("invalidkernel_mix_aic");
     kernelOffsets.emplace_back(0);
     return true;
@@ -527,7 +495,7 @@ bool GetInvalidNameFromBinary(const char *data,
 
 TEST_F(KernelContextTest, register_binary_with_invalid_kernel_names_expect_get_pcstart_by_hdl_fail)
 {
-    MOCKER(&GetSymInfoFromBinary).stubs().will(invoke(GetInvalidNameFromBinary));
+    MOCKER(&ScanKernelSymbols).stubs().will(invoke(GetInvalidNameFromBinary));
     auto &context = KernelContext::Instance();
     auto hdl = reinterpret_cast<KernelHandle const *>(0x1234);
     rtDevBinary_t bin {};
@@ -538,7 +506,7 @@ TEST_F(KernelContextTest, register_binary_with_invalid_kernel_names_expect_get_p
 
 TEST_F(KernelContextTest, register_binary_with_valid_kernel_names_expect_get_pcstart_by_hdl_success)
 {
-    MOCKER(&GetSymInfoFromBinary).stubs().will(invoke(GetValidNameFromBinary));
+    MOCKER(&ScanKernelSymbols).stubs().will(invoke(GetValidNameFromBinary));
     MOCKER(&rtKernelGetAddrAndPrefCntOrigin).stubs().will(returnValue(RT_ERROR_NONE));
 
     auto &context = KernelContext::Instance();
@@ -551,7 +519,7 @@ TEST_F(KernelContextTest, register_binary_with_valid_kernel_names_expect_get_pcs
 
 TEST_F(KernelContextTest, runtime_get_pcstart_failed_expect_get_pcstart_by_hdl_fail)
 {
-    MOCKER(&GetSymInfoFromBinary).stubs().will(invoke(GetValidNameFromBinary));
+    MOCKER(&ScanKernelSymbols).stubs().will(invoke(GetValidNameFromBinary));
     MOCKER(&rtKernelGetAddrAndPrefCntOrigin).stubs().will(returnValue(RT_ERROR_RESERVED));
 
     auto &context = KernelContext::Instance();
@@ -861,16 +829,16 @@ static std::vector<uint8_t> CreateElfWithMetaSection(const std::string &kernelNa
     std::vector<uint8_t> elf(totalSize);
     auto *p = elf.data();
 
-    memcpy(p, &header, sizeof(header));
+    std::copy_n(reinterpret_cast<const uint8_t *>(&header), sizeof(header), p);
     p += sizeof(header);
     Elf64_Shdr nullHdr{};
-    memcpy(p, &nullHdr, sizeof(nullHdr));
+    std::copy_n(reinterpret_cast<const uint8_t *>(&nullHdr), sizeof(nullHdr), p);
     p += sizeof(nullHdr);
-    memcpy(p, &shstrtabHdr, sizeof(shstrtabHdr));
+    std::copy_n(reinterpret_cast<const uint8_t *>(&shstrtabHdr), sizeof(shstrtabHdr), p);
     p += sizeof(shstrtabHdr);
-    memcpy(p, &metaHdr, sizeof(metaHdr));
+    std::copy_n(reinterpret_cast<const uint8_t *>(&metaHdr), sizeof(metaHdr), p);
     p += sizeof(metaHdr);
-    memcpy(p, nameTable.data(), nameTable.size());
+    std::copy_n(reinterpret_cast<const uint8_t *>(nameTable.data()), nameTable.size(), p);
     // meta section data is already zeroed
 
     return elf;
@@ -924,7 +892,7 @@ TEST_F(KernelContextTest, mock_rt_report_fail_then_subscribe_expect_ok)
 
 TEST_F(KernelContextTest, mock_sym_info_then_set_dbi_binary_expect_true)
 {
-    MOCKER(&GetSymInfoFromBinary).stubs().will(returnValue(true));
+    MOCKER(&ScanKernelSymbols).stubs().will(returnValue(true));
     vector<uint8_t> handleData{1, 2, 3};
     const KernelHandle *hdl = handleData.data();
     rtDevBinary_t bin{};

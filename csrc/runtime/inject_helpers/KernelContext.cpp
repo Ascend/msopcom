@@ -902,13 +902,21 @@ void KernelContext::AddHdlRegisterEvent(const KernelHandle *hdl, const rtDevBina
         event.binData = vector<uint8_t>(binData, binData + bin->length);
         event.bin.data = event.binData.data();
     }
-    event.isKernelWithDBI = !HasStaticStub(*bin);
-    event.hasDebugLine = HasDebugLine(*bin);
-    GetSymInfoFromBinary(static_cast<const char*>(bin->data), bin->length, event.kernelNames, event.kernelOffsets);
+    // 一次节头扫描同时判定 static stub/debug_line；一次符号表扫描同时得到 kernelNames/offsets/hasSimt
+    std::map<std::string, Elf64_Shdr> sectionHeaders;
+    event.isKernelWithDBI = true;
+    event.hasDebugLine = false;
+    if (GetSectionHeaders(*bin, sectionHeaders)) {
+        event.isKernelWithDBI = sectionHeaders.find(".init_array_sanitizer_file_mapping") == sectionHeaders.cend();
+        event.hasDebugLine = sectionHeaders.find(".debug_line") != sectionHeaders.cend();
+    }
+    bool hasSimt = false;
+    ScanKernelSymbols(
+        static_cast<const char *>(bin->data), bin->length, event.kernelNames, event.kernelOffsets, hasSimt);
     if (!event.kernelNames.empty()) {
         DEBUG_LOG("Register first kernelName is %s", event.kernelNames.front().c_str());
     }
-    hasSimt_ = GetSimtSymbolFromBinary(static_cast<const char*>(bin->data), bin->length);
+    hasSimt_ = hasSimt;
     hdlToRegId_[hdl] = registerEvents_.size();
     registerEvents_.push_back(std::move(event));
 }

@@ -47,9 +47,7 @@ namespace {
 void ReportKernelBinary(RegisterContextSP regCtx)
 {
     auto const &elfData = regCtx->GetElfData();
-    PacketHead head { PacketType::KERNEL_BINARY };
-    std::string buffer(elfData.cbegin(), elfData.cend());
-    LocalDevice::Local().Notify(Serialize(head, buffer.size()) + std::move(buffer));
+    LocalDevice::Local().NotifyKernelBinary(elfData);
 }
 
 } // namespace [Dummy]
@@ -74,6 +72,7 @@ bool HijackedFuncOfAclrtLaunchKernelV2Impl::InitParam(aclrtFuncHandle funcHandle
     if (FuncManager::Instance().GetContext(funcHandle) == nullptr) {
         CreateFuncContext(funcHandle);
     }
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
     argsCtx_ = ArgsManager::Instance().CreateContext(const_cast<void *>(argsData), argsSize, true);
     launchCtx_ = LaunchManager::Local().CreateContext(funcHandle, numBlocks, stream, cfg, argsCtx_);
     if (launchCtx_ == nullptr) {

@@ -16,6 +16,7 @@
 
 
 #include <algorithm>
+#include <cstring>
 #include "utils/InjectLogger.h"
 
 #include "ElfLoader.h"
@@ -76,45 +77,83 @@ inline bool ValidateElfHeaderSafety(const Elf64_Ehdr &elfHeader, std::size_t max
 }
 
 /**
- * @brief 从 buffer 内的特定偏移处读取一个值
- * @tparam T 需要读取的类型
- * @param buffer 要解析的 buffer
- * @param offset 偏移位置
- * @param value 读取到的值
+ * @brief 从 buffer 内的特定偏移处读取一个值（vector 封装）
+ */
+template <typename T> bool ReadValueFromBuffer(const std::vector<char> &buffer, std::size_t offset, T &value) {
+    return ReadValue<T>(buffer.data(), buffer.size(), offset, value);
+}
+
+/**
+ * @brief 从 buffer 内的特定偏移处读取若干个连续的 T（vector 封装）
  */
 template <typename T>
-bool ReadValueFromBuffer(const std::vector<char> &buffer, std::size_t offset, T &value)
-{
-    static_assert(std::is_standard_layout<T>::value, "T is not standard layout.");
-    if (buffer.size() < offset + sizeof(T)) {
-        ERROR_LOG("Read out of bound, data [0, %zu), read [%zu, %zu).", buffer.size(), offset, offset + sizeof(T));
+bool ReadArrayFromBuffer(
+    const std::vector<char> &buffer, std::size_t offset, std::size_t count, std::vector<T> &values) {
+    return ReadArray<T>(buffer.data(), buffer.size(), offset, count, values);
+}
+
+/**
+ * @brief 一次性读取全部节头表项（原地解析，不拷贝整块二进制）
+ * @param data 原始 ELF 数据指针
+ * @param length 数据长度
+ * @param header 已校验的 ELF 头
+ * @param headers 输出的节头数组（下标即节序号）
+ */
+bool ReadSectionHeaders(
+    const char *data, std::size_t length, const Elf64_Ehdr &header, std::vector<Elf64_Shdr> &headers) {
+    headers.clear();
+    if (header.e_shentsize != sizeof(Elf64_Shdr) || header.e_shoff == 0 || header.e_shnum == 0) {
         return false;
     }
-    char const *base = buffer.data() + offset;
-    std::copy(base, base + sizeof(T), static_cast<char *>(static_cast<void *>(&value)));
+    headers.resize(header.e_shnum);
+    for (std::size_t i = 0; i < header.e_shnum; ++i) {
+        if (!ReadValue<Elf64_Shdr>(data, length,
+                static_cast<std::size_t>(header.e_shoff) + i * static_cast<std::size_t>(header.e_shentsize),
+                headers[i])) {
+            return false;
+        }
+    }
     return true;
 }
 
 /**
- * @brief 从 buffer 内的特定偏移处读取若干个连续的 T
- * @tparam T 需要读取的类型
- * @param buffer 要解析的 buffer
- * @param offset 偏移位置
- * @param count 需要读取的元素个数
- * @param values 读取到的值数组
+ * @brief 从已校验的 ELF 头构建「节名 -> 节头」及同名节映射，直接在 data 上原地解析、不拷贝整块二进制
+ * @param data 原始 ELF 数据指针
+ * @param length 数据长度
+ * @param header 已校验的 ELF 头
+ * @param sections 输出的节名 -> 节头映射
+ * @param allSections 可选，额外输出所有同名节（不覆盖）
  */
-template <typename T>
-bool ReadArrayFromBuffer(const std::vector<char> &buffer, std::size_t offset, std::size_t count, std::vector<T> &values)
-{
-    static_assert(std::is_standard_layout<T>::value, "T is not standard layout.");
-    if (count > SIZE_MAX / sizeof(T) || buffer.size() < offset + count * sizeof(T)) {
-        ERROR_LOG("Read out of bound or overflow, data [0, %zu), read [%zu, %zu).", buffer.size(), offset,
-            offset + count * sizeof(T));
+bool BuildSectionMap(const char *data, std::size_t length, const Elf64_Ehdr &header,
+    std::map<std::string, Elf64_Shdr> &sections, std::multimap<std::string, Elf64_Shdr> *allSections) {
+    std::vector<Elf64_Shdr> shdrs;
+    if (!ReadSectionHeaders(data, length, header, shdrs)) {
+        ERROR_LOG("read elf section headers failed when load elf from buffer");
         return false;
     }
-    values.resize(count);
-    char const *base = buffer.data() + offset;
-    std::copy(base, base + count * sizeof(T), static_cast<char *>(values.data()));
+    // 各个 section 的名字保存在一个类型 StringTable 的 section 内(一般为 .shstrtab)
+    // ELF 头部的 e_shstrndx 字段为这个 section 的序号，通过序号我们可以找到这个 section 头部
+    const Elf64_Shdr &nameSecHeader = shdrs[header.e_shstrndx];
+    std::vector<char> nameBuffer;
+    if (!ReadArray<char>(data, length, nameSecHeader.sh_offset, nameSecHeader.sh_size, nameBuffer)) {
+        ERROR_LOG("read header names failed when load elf from buffer");
+        return false;
+    }
+    if (nameBuffer.empty() || nameBuffer.back() != '\0') {
+        ERROR_LOG("section name table is not null-terminated.");
+        return false;
+    }
+    for (const Elf64_Shdr &sectionHeader : shdrs) {
+        if (sectionHeader.sh_name >= nameBuffer.size()) {
+            ERROR_LOG("section name offset %u out of bounds.", sectionHeader.sh_name);
+            return false;
+        }
+        std::string sectionName{nameBuffer.data() + sectionHeader.sh_name};
+        sections[sectionName] = sectionHeader;
+        if (allSections != nullptr) {
+            allSections->emplace(sectionName, sectionHeader);
+        }
+    }
     return true;
 }
 
@@ -159,21 +198,9 @@ std::vector<std::string> Elf::ReadStringTable(const std::string &name) const
 }
 
 std::vector<char> Elf::ReadAllRawData(const std::string &name) const {
-    auto range = allSections_.equal_range(name);
-    if (range.first == range.second) {
-        ERROR_LOG("No section %s found.", name.c_str());
-        return {};
-    }
     std::vector<char> result;
-    for (auto it = range.first; it != range.second; ++it) {
-        auto &header = it->second;
-        if (header.sh_size > buffer_.size() || header.sh_offset > buffer_.size() - header.sh_size) {
-            ERROR_LOG("Section %s has invalid data: sh_size(%zu), available buffer(%zu)", name.c_str(), header.sh_size,
-                buffer_.size() - header.sh_offset);
-            return {};
-        }
-        result.insert(
-            result.end(), buffer_.begin() + header.sh_offset, buffer_.begin() + header.sh_offset + header.sh_size);
+    if (!elf::ReadAllRawData(buffer_.data(), buffer_.size(), allSections_, name, result)) {
+        return {};
     }
     return result;
 }
@@ -202,39 +229,97 @@ bool ElfLoader::FromBuffer(const std::vector<char> &buffer)
     if (!elf::ValidateElfHeaderSafety(header_, buffer_.size())) {
         return false;
     }
-    // 各个 section 的名字保存在一个类型 StringTable 的 section 内(一般为 .shstrtab)
-    // ELF 头部的 e_shstrndx 字段为这个 section 的序号，通过序号我们可以找到这个 section 头部
-    Elf64_Shdr nameSecHeader {};
-    if (!elf::ReadValueFromBuffer<Elf64_Shdr>(buffer,
-        header_.e_shoff + static_cast<Elf64_Off>(header_.e_shstrndx) * header_.e_shentsize, nameSecHeader)) {
-        ERROR_LOG("read name section header failed when load elf from buffer");
+    return elf::BuildSectionMap(buffer_.data(), buffer_.size(), header_, sections_, &allSections_);
+}
+
+bool ElfLoader::ScanSectionHeaders(const char *data, std::size_t length, std::map<std::string, Elf64_Shdr> &sections,
+    std::multimap<std::string, Elf64_Shdr> *allSections) {
+    sections.clear();
+    if (allSections != nullptr) {
+        allSections->clear();
+    }
+    if (data == nullptr || length == 0) {
+        ERROR_LOG("empty elf data when parsing section headers");
+        return false;
+    }
+    Elf64_Ehdr header{};
+    if (!elf::ReadValue<Elf64_Ehdr>(data, length, 0, header)) {
+        ERROR_LOG("Read elf header failed when parsing section headers");
+        return false;
+    }
+    // 保留原严格校验：节头表项大小必须为 Elf64_Shdr
+    if (header.e_shentsize != sizeof(Elf64_Shdr) || header.e_shoff == 0 || header.e_shnum == 0) {
+        ERROR_LOG("Invalid ELF header when parsing section headers");
+        return false;
+    }
+    if (!elf::ValidateElfHeader(header)) {
+        ERROR_LOG("validate elf header failed when parsing section headers");
+        return false;
+    }
+    if (!elf::ValidateElfHeaderSafety(header, length)) {
+        return false;
+    }
+    return elf::BuildSectionMap(data, length, header, sections, allSections);
+}
+
+bool ElfLoader::LocateKernelSymtab(const char *data, std::size_t length, Elf64_Shdr &symtab, Elf64_Shdr &strtab,
+    std::size_t &textIndex, bool &foundText) {
+    foundText = false;
+    textIndex = 0;
+    if (data == nullptr || length == 0) {
+        return false;
+    }
+    Elf64_Ehdr ehdr{};
+    if (!elf::ReadValue<Elf64_Ehdr>(data, length, 0, ehdr)) {
+        return false;
+    }
+    if (ehdr.e_shentsize != sizeof(Elf64_Shdr) || ehdr.e_shoff == 0 || ehdr.e_shnum == 0 ||
+        ehdr.e_shstrndx >= ehdr.e_shnum) {
+        DEBUG_LOG("invalid elf header when scanning kernel symbols");
+        return false;
+    }
+    if (!elf::ValidateElfHeader(ehdr) || !elf::ValidateElfHeaderSafety(ehdr, length)) {
+        return false;
+    }
+    std::vector<Elf64_Shdr> shdrs;
+    if (!elf::ReadSectionHeaders(data, length, ehdr, shdrs)) {
         return false;
     }
 
+    // 读取段名表（.shstrtab），仅用于定位 .text 段序号
+    const Elf64_Shdr &nameSec = shdrs[ehdr.e_shstrndx];
     std::vector<char> nameBuffer;
-    if (!elf::ReadArrayFromBuffer<char>(buffer, nameSecHeader.sh_offset, nameSecHeader.sh_size, nameBuffer)) {
-        ERROR_LOG("read header names failed when load elf from buffer");
+    if (nameSec.sh_size == 0 || !elf::ReadArray<char>(data, length, nameSec.sh_offset, nameSec.sh_size, nameBuffer) ||
+        nameBuffer.empty() || nameBuffer.back() != '\0') {
         return false;
     }
-    for (unsigned long idx = 0; idx < header_.e_shnum; idx++) {
-        // 通过 elf 头部信息，读取各个 section 的头部
-        // 各个 section 头部内有一个 sh_name 字段指向其名字在 StringTable 里的起点
-        Elf64_Shdr sectionHeader {};
-        if (!elf::ReadValueFromBuffer<Elf64_Shdr>(buffer,
-            static_cast<size_t>(header_.e_shoff) + idx * static_cast<size_t>(header_.e_shentsize),
-            sectionHeader)) {
-            ERROR_LOG("read elf section header failed when load elf from buffer");
-            return false;
-        }
 
-        if (sectionHeader.sh_name >= nameBuffer.size() || nameBuffer.data()[nameBuffer.size() - 1] != '\0') {
-            ERROR_LOG(
-                "section name offset %u out of bounds or nameBuffer not null-terminated.", sectionHeader.sh_name);
-            return false;
+    std::size_t symtabIndex = 0;
+    bool foundSymtab = false;
+    for (std::size_t i = 0; i < shdrs.size(); ++i) {
+        const Elf64_Shdr &sh = shdrs[i];
+        if (sh.sh_type == SHT_SYMTAB && !foundSymtab) {
+            symtabIndex = i;
+            foundSymtab = true;
         }
-        std::string sectionName = std::string{nameBuffer.data() + sectionHeader.sh_name};
-        sections_[sectionName] = sectionHeader;
-        allSections_.emplace(sectionName, sectionHeader);
+        if (!foundText && sh.sh_name < nameBuffer.size() && std::strcmp(nameBuffer.data() + sh.sh_name, ".text") == 0) {
+            textIndex = i;
+            foundText = true;
+        }
+    }
+    if (!foundSymtab) {
+        DEBUG_LOG("no SHT_SYMTAB section found in kernel binary");
+        return false;
+    }
+
+    symtab = shdrs[symtabIndex];
+    if (symtab.sh_link >= ehdr.e_shnum) {
+        return false;
+    }
+    strtab = shdrs[symtab.sh_link];
+    if (symtab.sh_offset > length || symtab.sh_size > length - symtab.sh_offset || strtab.sh_offset > length ||
+        strtab.sh_size > length - strtab.sh_offset) {
+        return false;
     }
     return true;
 }

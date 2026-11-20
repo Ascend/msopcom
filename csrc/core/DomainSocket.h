@@ -119,6 +119,9 @@ public:
      * @param sentBytes 实际写入的字节数
      */
     bool Write(const std::string &message, size_t &sentBytes);
+
+    /** 发送数据并附带上一个 fd（SCM_RIGHTS），用于内核二进制零拷贝传输 */
+    bool WriteWithFd(const std::string &message, int fd, size_t &sentBytes);
     std::mutex mux_;
 };
 

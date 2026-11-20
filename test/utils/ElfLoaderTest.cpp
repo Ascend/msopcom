@@ -20,6 +20,10 @@
 #include "stub/FakeElf.h"
 
 #include <elf.h>
+#include <cstdint>
+#include <map>
+#include <string>
+#include <vector>
 #include <gtest/gtest.h>
 
 TEST(ElfLoader, load_from_empty_buffer_expect_return_false)
@@ -149,4 +153,58 @@ TEST(Elf, read_string_table_from_shstrtab_section_expect_return_section_names)
     ASSERT_EQ(names.size(), 2UL);
     ASSERT_EQ(names[0], ".shstrtab");
     ASSERT_EQ(names[1], ".dummy");
+}
+
+TEST(ElfLoader, locate_kernel_symtab_with_valid_elf_expect_return_true) {
+    auto elf = CreateElfWithKernelSymbols({"kernel_a_1111", "kernel_b_2222"});
+    const char *data = reinterpret_cast<const char *>(elf.data());
+    Elf64_Shdr symtab{};
+    Elf64_Shdr strtab{};
+    std::size_t textIndex = 0;
+    bool foundText = false;
+    ASSERT_TRUE(ElfLoader::LocateKernelSymtab(data, elf.size(), symtab, strtab, textIndex, foundText));
+    ASSERT_TRUE(foundText);
+    ASSERT_EQ(textIndex, 1UL);
+    ASSERT_EQ(symtab.sh_type, SHT_SYMTAB);
+    ASSERT_EQ(strtab.sh_type, SHT_STRTAB);
+    ASSERT_EQ(symtab.sh_link, 3UL);
+}
+
+TEST(ElfLoader, locate_kernel_symtab_without_symtab_section_expect_return_false) {
+    Buffer elf = CreateValidElf();
+    Elf64_Shdr symtab{};
+    Elf64_Shdr strtab{};
+    std::size_t textIndex = 0;
+    bool foundText = false;
+    ASSERT_FALSE(ElfLoader::LocateKernelSymtab(elf.data(), elf.size(), symtab, strtab, textIndex, foundText));
+}
+
+TEST(ElfLoader, scan_section_headers_with_valid_elf_expect_return_true) {
+    auto elf = CreateElfWithKernelSymbols({"kernel_a_1111"});
+    const char *data = reinterpret_cast<const char *>(elf.data());
+    std::map<std::string, Elf64_Shdr> sections;
+    ASSERT_TRUE(ElfLoader::ScanSectionHeaders(data, elf.size(), sections));
+    ASSERT_NE(sections.find(".text"), sections.end());
+    ASSERT_NE(sections.find(".symtab"), sections.end());
+    ASSERT_NE(sections.find(".strtab"), sections.end());
+    ASSERT_NE(sections.find(".shstrtab"), sections.end());
+}
+
+TEST(ElfLoader, scan_section_headers_with_truncated_buffer_expect_return_false) {
+    auto elf = CreateElfWithKernelSymbols({"kernel_a_1111"});
+    const char *data = reinterpret_cast<const char *>(elf.data());
+    std::map<std::string, Elf64_Shdr> sections;
+    ASSERT_FALSE(ElfLoader::ScanSectionHeaders(data, sizeof(Elf64_Ehdr), sections));
+}
+
+TEST(ElfLoader, read_value_with_offset_at_buffer_end_expect_return_false) {
+    const char raw[4] = {0, 0, 0, 0};
+    uint32_t value = 0;
+    ASSERT_FALSE(elf::ReadValue<uint32_t>(raw, sizeof(raw), sizeof(raw), value));
+}
+
+TEST(ElfLoader, read_array_with_overflow_count_expect_return_false) {
+    const char raw[4] = {0, 0, 0, 0};
+    std::vector<uint32_t> values;
+    ASSERT_FALSE(elf::ReadArray<uint32_t>(raw, sizeof(raw), 0, SIZE_MAX, values));
 }
