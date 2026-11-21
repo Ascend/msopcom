@@ -1,7 +1,8 @@
 # 编译各种依赖
 
 # runtime
-add_library(runtime SHARED runtime.cpp)
+# 新版 CANN 将 ACL 实现接口合入 libruntime，桩库也需提供这些接口。
+add_library(runtime SHARED runtime.cpp acl_rt_impl.cpp)
 add_library(acl_rt_impl SHARED acl_rt_impl.cpp)
 add_library(ascendcl_impl SHARED acl_rt_impl.cpp)
 add_library(ascend_hal SHARED ascend_hal.cpp)

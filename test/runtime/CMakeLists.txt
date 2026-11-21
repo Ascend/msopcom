@@ -13,6 +13,7 @@ file(GLOB SOURCE
     AicpuKernelLaunchWithArgsTest.cpp
     DevBinaryRegisterTest.cpp
     KernelLaunchWithHandleV2Test.cpp
+    FusionLaunchTest.cpp
     DevBinaryUnRegisterTest.cpp
     FunctionRegisterTest.cpp
     SetExceptionExtInfoTest.cpp

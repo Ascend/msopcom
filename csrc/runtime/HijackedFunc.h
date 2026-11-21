@@ -98,6 +98,13 @@ private:
     uint32_t argsSize_{0};
 }; // class HijackedFuncOfKernelLaunch
 
+// For the A5 CCU+AIC fusion entry.
+class HijackedFuncOfFusionLaunch : public decltype(HijackedFuncHelper(&rtFusionLaunch)) {
+public:
+    HijackedFuncOfFusionLaunch();
+    rtError_t Call(void *fusionInfo, rtStream_t stm, rtFusionArgsEx_t *argsInfo) override;
+};
+
 // For rtKernelLaunchWithHandleV2
 class HijackedFuncOfKernelLaunchWithHandleV2 : public decltype(HijackedFuncHelper(&rtKernelLaunchWithHandleV2)),
                                                protected RuntimeKernelLaunchMixin {
@@ -350,6 +357,10 @@ public:
     explicit HijackedFuncOfUnmapMem();
     ~HijackedFuncOfUnmapMem() override = default;
     void Pre(void* devPtr) override;
+    rtError_t Post(rtError_t ret) override;
+
+private:
+    void *pointer_{nullptr};
 };
 
 class HijackedFuncOfMemset : public decltype(HijackedFuncHelper(&rtMemset)) {

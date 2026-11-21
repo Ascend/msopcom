@@ -19,12 +19,10 @@
 #include "HijackedFunc.h"
 #include "RuntimeConfig.h"
 #include "core/FuncSelector.h"
-#include "utils/Protocol.h"
-#include "utils/Serialize.h"
+#include "runtime/inject_helpers/MemoryDataCollect.h"
 #include "inject_helpers/MemoryContext.h"
 #include "inject_helpers/ProfConfig.h"
 #include "inject_helpers/KernelContext.h"
-#include "runtime/inject_helpers/LocalDevice.h"
 
 HijackedFuncOfMapMem::HijackedFuncOfMapMem()
     : HijackedFuncType(RuntimeLibName(), "rtMapMem") {}
@@ -37,14 +35,8 @@ void HijackedFuncOfMapMem::Pre(void* devPtr, size_t size, size_t offset, rtDrvMe
 
 rtError_t HijackedFuncOfMapMem::Post(rtError_t ret)
 {
-    if (IsSanitizer()) {
-        PacketHead head = { PacketType::MEMORY_RECORD };
-        HostMemRecord record{};
-        record.type = MemOpType::MALLOC;
-        record.infoSrc = MemInfoSrc::RT;
-        record.dstAddr = reinterpret_cast<uint64_t>(devPtr_);
-        record.memSize = size_;
-        LocalDevice::Local().Notify(Serialize(head, record));
+    if (IsSanitizer() && ret == RT_ERROR_NONE) {
+        ReportMalloc(reinterpret_cast<uint64_t>(devPtr_), size_, MemInfoSrc::RT);
     }
     if (IsOpProf() && !ProfConfig::Instance().IsSimulator() && ret == RT_ERROR_NONE) {
         if (!ProfConfig::Instance().IsAppReplay() && !KernelContext::Instance().GetLcclFlag()) {

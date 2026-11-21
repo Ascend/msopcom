@@ -149,6 +149,8 @@ bool CreateTestElfSo(const string &soPath, const string &symbolName) {
 // SetUp/TearDown 保存并恢复 ASCEND_HOME_PATH 和 IS_SIMULATOR_ENV
 class AclRuntimeConfigTest : public testing::Test {
     void SetUp() override {
+        savedSoName_ = AclRuntimeConfig::Instance().soName_;
+        AclRuntimeConfig::Instance().soName_.clear();
         const char *home = ::getenv("ASCEND_HOME_PATH");
         if (home) {
             savedHomePath_ = home;
@@ -159,7 +161,7 @@ class AclRuntimeConfigTest : public testing::Test {
         }
     }
     void TearDown() override {
-        AclRuntimeConfig::Instance().soName_.clear();
+        AclRuntimeConfig::Instance().soName_ = savedSoName_;
         if (savedHomePath_.empty()) {
             ::unsetenv("ASCEND_HOME_PATH");
         } else {
@@ -174,6 +176,7 @@ class AclRuntimeConfigTest : public testing::Test {
     }
     string savedHomePath_;
     string savedSimulatorEnv_;
+    string savedSoName_;
 };
 
 // ---------- GetOldVersion ----------

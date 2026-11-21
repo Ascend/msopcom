@@ -89,7 +89,7 @@ DBITaskFactory &DBITaskFactory::Instance()
 DBITaskSP DBITaskFactory::GetOrCreate(uint64_t regId, const std::string &tilingKey,
                                       BIType type, const std::string &pluginPath)
 {
-    auto &task = taskPool_[regId][{type, nullptr, tilingKey, pluginPath}];
+    auto &task = taskPool_[regId][{type, nullptr, tilingKey, pluginPath, DBITaskConfig::Instance().argsSize_}];
     if (!task) {
         task = MakeShared<DBITask>(type);
     }
@@ -99,7 +99,7 @@ DBITaskSP DBITaskFactory::GetOrCreate(uint64_t regId, const std::string &tilingK
 DBITaskSP DBITaskFactory::GetOrCreate(uint64_t regId, const void *stubFunc,
                                       BIType type, const std::string &pluginPath)
 {
-    auto &task = taskPool_[regId][{type, stubFunc, "", pluginPath}];
+    auto &task = taskPool_[regId][{type, stubFunc, "", pluginPath, DBITaskConfig::Instance().argsSize_}];
     if (!task) {
         task = MakeShared<DBITask>(type);
     }

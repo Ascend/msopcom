@@ -12,6 +12,7 @@ file(GLOB COMMON_SOURCE
     DBITask.cpp
     ConfigManager.cpp
     LaunchArgs.cpp
+    FusionLaunchArgs.cpp
     InstrReport.cpp
     BBCountDumper.cpp
     InteractHelper.cpp

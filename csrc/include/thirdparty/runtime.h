@@ -177,6 +177,151 @@ typedef struct tagRtArgsEx {
     uint8_t reserved[4];
 } rtArgsEx_t;
 
+// Fusion ABI from runtime/pkg_inc/runtime/rt_external_kernel.h and rt_external_base.h.
+#define FUSION_SUB_TASK_MAX_CCU_NUM (8U)
+#define RT_CCU_SQE_ARGS_LEN (13U)
+#define FUSION_SUB_TASK_MAX_NUM (2U)
+#define FUSION_SUB_TASK_MAX_CPU_NUM (1U)
+typedef struct tagRtAicpuArgs {
+    uint16_t kfcArgsFmtOffset;     // default value is 0xffff
+    uint16_t soNameAddrOffset;     // just for CCE Kernel, default value is 0xffff for FWK kernel
+    uint16_t kernelNameAddrOffset; // just for CCE Kernel, default value is 0xffff for FWK kernel
+    uint16_t rev;
+} rtAicpuArgs_t;
+
+typedef struct tagRtFusionArgsEx {
+    void* args;                                           // args host mem addr
+    rtHostInputInfo_t* hostInputInfoPtr;                  // nullptr means no host mem input
+    uint32_t argsSize;                                    // input + output + host mem
+    uint16_t hostInputInfoNum;                            // hostInputInfo num
+    uint8_t aicpuNum;                                     // aicpu task num
+    uint8_t isNoNeedH2DCopy;                              // is no need host to device copy: 0 means need H2D copy,
+                                                          // others means doesn't need H2D copy.
+    rtAicpuArgs_t aicpuArgs[FUSION_SUB_TASK_MAX_CPU_NUM]; // aicpuArgsInfo
+} rtFusionArgsEx_t;
+
+typedef union rtLaunchAttributeValue_union {
+    uint32_t blockDim;
+    uint32_t dynamicShareMemSize; // DEPRECATED: Use dynUBufSize
+    uint32_t dynUBufSize;
+    struct {
+        uint32_t groupDim;
+        uint32_t groupBlockDim;
+    } Group;
+    uint8_t qos;
+    uint8_t partId;
+    uint8_t schemMode; // rtschemModeType_t 0:normal;1:batch;2:sync
+    uint32_t blockDimOffset;
+    uint8_t dumpflag;  // dumpflag 0:fault 2:RT_KERNEL_DUMPFLAG
+} rtLaunchAttributeValue_t;
+
+typedef enum rtLaunchAttributeId {
+    RT_LAUNCH_ATTRIBUTE_BLOCKDIM = 0,
+    RT_LAUNCH_ATTRIBUTE_DYNAMIC_SHARE_MEM_SIZE = 1,
+    RT_LAUNCH_ATTRIBUTE_DYN_UBUF_SIZE = 1,
+    RT_LAUNCH_ATTRIBUTE_GROUP = 2,
+    RT_LAUNCH_ATTRIBUTE_QOS = 3,
+    RT_LAUNCH_ATTRIBUTE_PARTID = 4,
+    RT_LAUNCH_ATTRIBUTE_SCHEMMODE = 5,
+    RT_LAUNCH_ATTRIBUTE_BLOCKDIM_OFFSET = 6,
+    RT_LAUNCH_ATTRIBUTE_DUMPFLAG = 7,
+    RT_LAUNCH_ATTRIBUTE_MAX = 8,
+} rtLaunchAttributeId_t;
+
+typedef struct rtLaunchAttribute {
+    rtLaunchAttributeId_t id;
+    rtLaunchAttributeValue_t value;
+} rtLaunchAttribute_t;
+
+typedef struct rtLaunchConfig {
+    rtLaunchAttribute_t* attrs;
+    uint32_t numAttrs;
+} rtLaunchConfig_t;
+
+typedef struct tagRtAicoreTaskInfo {
+    void* hdl;
+    uint64_t tilingKey;
+    rtLaunchConfig_t* config;
+    void* stubFunc;
+} rtAicoreFusionInfo_t;
+
+typedef struct tagRtAicpuTaskInfo {
+    uint32_t kernelType;
+    uint32_t flags;
+    uint32_t blockDim;
+} rtAicpuFusionInfo_t;
+
+#define RT_CCU_INST_CNT_INVALID (0U)
+#define RT_CCU_INST_START_MAX (32768U)
+typedef struct tagRtCcuTaskInfo {
+    uint8_t dieId;
+    uint8_t missionId;
+    uint16_t timeout;
+    uint16_t instStartId;
+    uint16_t instCnt;
+    uint32_t key;
+    uint32_t argSize; // 1 or 13. 1 means 32B ccu sqe; 13 means 128B ccu sqe
+    uint64_t args[RT_CCU_SQE_ARGS_LEN];
+} rtCcuTaskInfo_t;
+
+typedef struct tagRtCcuTaskGroup {
+    uint32_t taskNum;
+    rtCcuTaskInfo_t ccuTaskInfo[FUSION_SUB_TASK_MAX_CCU_NUM];
+} rtCcuTaskGroup_t;
+
+typedef union {
+    rtAicoreFusionInfo_t aicoreInfo;
+    rtAicpuFusionInfo_t aicpuInfo;
+    rtCcuTaskGroup_t ccuInfo;
+} rtFusionSubTask_t;
+
+typedef enum {
+    RT_FUSION_HCOM_CPU = 0,
+    RT_FUSION_AICPU = 1,
+    RT_FUSION_AICORE = 2,
+    RT_FUSION_CCU = 3,
+    RT_FUSION_END
+} rtFusionType_t;
+
+typedef struct tagRtFusionSubTaskInfo {
+    rtFusionType_t type;
+    rtFusionSubTask_t task;
+} rtFusionSubTaskInfo_t;
+
+/*
+    fusion sub tasks' arrangement should be set as:
+    1.aicpu + aic
+    2.hcom  + aic
+    3.ccu
+    4.ccu + aic
+*/
+typedef struct tagRtFunsionTaskInfo {
+    uint32_t subTaskNum;
+    rtFusionSubTaskInfo_t subTask[FUSION_SUB_TASK_MAX_NUM];
+} rtFunsionTaskInfo_t;
+
+// Mirrored from Ascend runtime aab81b733, pkg_inc/runtime/{rt_external_kernel,rt_external_base}.h.
+// These checks protect the local 64-bit ABI layout; they do not negotiate the loaded runtime version.
+static_assert(sizeof(void *) == 8, "Fusion launch requires a 64-bit runtime ABI");
+static_assert(sizeof(rtFusionArgsEx_t) == 32 && offsetof(rtFusionArgsEx_t, args) == 0 &&
+    offsetof(rtFusionArgsEx_t, hostInputInfoPtr) == 8 && offsetof(rtFusionArgsEx_t, argsSize) == 16 &&
+    offsetof(rtFusionArgsEx_t, hostInputInfoNum) == 20 && offsetof(rtFusionArgsEx_t, aicpuNum) == 22 &&
+    offsetof(rtFusionArgsEx_t, isNoNeedH2DCopy) == 23 && offsetof(rtFusionArgsEx_t, aicpuArgs) == 24,
+    "rtFusionArgsEx_t ABI changed");
+static_assert(sizeof(rtLaunchAttribute_t) == 12 && offsetof(rtLaunchAttribute_t, value) == 4 &&
+    sizeof(rtLaunchConfig_t) == 16 && offsetof(rtLaunchConfig_t, numAttrs) == 8,
+    "Fusion launch config ABI changed");
+static_assert(sizeof(rtAicoreFusionInfo_t) == 32 && offsetof(rtAicoreFusionInfo_t, tilingKey) == 8 &&
+    offsetof(rtAicoreFusionInfo_t, config) == 16 && offsetof(rtAicoreFusionInfo_t, stubFunc) == 24,
+    "rtAicoreFusionInfo_t ABI changed");
+static_assert(sizeof(rtCcuTaskInfo_t) == 120 && offsetof(rtCcuTaskInfo_t, args) == 16 &&
+    sizeof(rtCcuTaskGroup_t) == 968 && offsetof(rtCcuTaskGroup_t, ccuTaskInfo) == 8 &&
+    sizeof(rtFusionSubTaskInfo_t) == 976 && offsetof(rtFusionSubTaskInfo_t, task) == 8 &&
+    sizeof(rtFunsionTaskInfo_t) == 1960 && offsetof(rtFunsionTaskInfo_t, subTask) == 8,
+    "Fusion subtask ABI changed");
+static_assert(RT_FUSION_AICORE == 2 && RT_FUSION_CCU == 3 && RT_LAUNCH_ATTRIBUTE_BLOCKDIM == 0 &&
+    RT_LAUNCH_ATTRIBUTE_DYN_UBUF_SIZE == 1, "Fusion enum ABI changed");
+
 typedef struct tagRtTaskCfgInfo {
     uint8_t qos;
     uint8_t partId;
@@ -642,6 +787,8 @@ RTS_API rtError_t rtModelBindStream(rtModel_t mdl, rtStream_t stm, uint32_t flag
  * @return RT_ERROR_NONE for ok, errno for failed
  */
 RTS_API rtError_t rtCtxGetOverflowAddr(void **overflowAddr);
+
+RTS_API rtError_t rtFusionLaunch(void *fusionInfo, rtStream_t stm, rtFusionArgsEx_t *argsInfo);
 
 RTS_API rtError_t rtDeviceSetLimit(int32_t devId, rtLimitType_t type, uint32_t val);
 

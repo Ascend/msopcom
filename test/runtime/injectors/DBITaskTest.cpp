@@ -39,6 +39,11 @@ using namespace std;
 
 class DBITaskTest : public testing::Test {
 public:
+    void SetUp() override
+    {
+        DBITaskFactory::Instance().Reset();
+        DBITaskConfig::Instance().Reset();
+    }
     void MockFuncContext()
     {
         regCtx_ = std::make_shared<RegisterContext>();
@@ -63,6 +68,7 @@ public:
         stubFuncCtx_.reset();
         tilingFuncCtx_.reset();
         launchCtx_.reset();
+        DBITaskFactory::Instance().Reset();
         DBITaskConfig::Instance().Reset();
         GlobalMockObject::verify();
     }
@@ -594,4 +600,35 @@ TEST_F(DBITaskTest, RunDBITask_handle_static_stub_with_keep_outputs_expect_dump)
     const uint64_t tilingKey = 1;
     EXPECT_FALSE(RunDBITask(&hdl, tilingKey));
     // TearDown 中 GlobalMockObject::verify() 校验 WriteBinary 被调用一次（落盘 kernel.o）
+}
+
+TEST_F(DBITaskTest, CacheIdentityIncludesArgumentLengthForHandleAndStubEntries)
+{
+    auto &factory = DBITaskFactory::Instance();
+    auto &config = DBITaskConfig::Instance();
+    uint64_t stub = 0;
+    config.argsSize_ = 24;
+    auto handle24 = factory.GetOrCreate(286, std::string("52"), BIType::CUSTOMIZE);
+    auto stub24 = factory.GetOrCreate(286, &stub, BIType::CUSTOMIZE);
+    config.argsSize_ = 32;
+    EXPECT_NE(factory.GetOrCreate(286, std::string("52"), BIType::CUSTOMIZE), handle24);
+    EXPECT_NE(factory.GetOrCreate(286, &stub, BIType::CUSTOMIZE), stub24);
+    config.argsSize_ = 24;
+    EXPECT_EQ(factory.GetOrCreate(286, std::string("52"), BIType::CUSTOMIZE), handle24);
+    EXPECT_EQ(factory.GetOrCreate(286, &stub, BIType::CUSTOMIZE), stub24);
+}
+
+TEST_F(DBITaskTest, TaskKeyEqualityAndOrderingAgreeOnPluginAndArgumentLength)
+{
+    TaskKey first{BIType::CUSTOMIZE, nullptr, "52", "plugin-a", 24};
+    TaskKey equal{BIType::CUSTOMIZE, nullptr, "52", "plugin-a", 24};
+    TaskKey differentSize{BIType::CUSTOMIZE, nullptr, "52", "plugin-a", 32};
+    TaskKey differentPlugin{BIType::CUSTOMIZE, nullptr, "52", "plugin-b", 24};
+    EXPECT_TRUE(first == equal);
+    EXPECT_FALSE(first < equal);
+    EXPECT_FALSE(equal < first);
+    EXPECT_FALSE(first == differentSize);
+    EXPECT_TRUE(first < differentSize);
+    EXPECT_FALSE(first == differentPlugin);
+    EXPECT_TRUE(first < differentPlugin);
 }

@@ -18,10 +18,8 @@
 
 #include "HijackedFunc.h"
 #include "core/FuncSelector.h"
-#include "utils/Protocol.h"
-#include "utils/Serialize.h"
+#include "runtime/inject_helpers/MemoryDataCollect.h"
 #include "acl_rt_impl/AscendclImplOrigin.h"
-#include "runtime/inject_helpers/LocalDevice.h"
 #include "runtime/inject_helpers/MemoryContext.h"
 #include "runtime/inject_helpers/ProfConfig.h"
 #include "runtime/inject_helpers/KernelContext.h"
@@ -38,18 +36,8 @@ void HijackedFuncOfAclrtMapMemImpl::Pre(void *virPtr, size_t size, size_t offset
 
 aclError HijackedFuncOfAclrtMapMemImpl::Post(aclError ret)
 {
-    if (IsSanitizer()) {
-        // 只有实际内存分配成功内存地址才有效，才需要上报内存分配信息
-        if (ret != ACL_ERROR_NONE) {
-            return ret;
-        }
-        PacketHead head = { PacketType::MEMORY_RECORD };
-        HostMemRecord record{};
-        record.type = MemOpType::MALLOC;
-        record.infoSrc = MemInfoSrc::ACL;
-        record.dstAddr = reinterpret_cast<uint64_t>(virPtr_);
-        record.memSize = size_;
-        LocalDevice::Local().Notify(Serialize(head, record));
+    if (IsSanitizer() && ret == ACL_ERROR_NONE) {
+        ReportMalloc(reinterpret_cast<uint64_t>(virPtr_), size_, MemInfoSrc::ACL);
     }
     if (IsOpProf() && !ProfConfig::Instance().IsSimulator() && ret == ACL_ERROR_NONE) {
         if (!ProfConfig::Instance().IsAppReplay() && !KernelContext::Instance().GetLcclFlag()) {
