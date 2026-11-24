@@ -73,7 +73,7 @@ aclError HijackedFuncOfAclrtMallocCachedImpl::Post(aclError ret)
     if (IsOpProf() && !ProfConfig::Instance().IsSimulator() && ret == ACL_SUCCESS) {
         if (!ProfConfig::Instance().IsAppReplay() && !KernelContext::Instance().GetLcclFlag() &&
             policy_ != ACL_MEM_MALLOC_HUGE_FIRST_P2P && policy_ != ACL_MEM_MALLOC_HUGE_ONLY_P2P &&
-            policy_ != ACL_MEM_MALLOC_NORMAL_ONLY_P2P) {
+            policy_ != ACL_MEM_MALLOC_NORMAL_ONLY_P2P && policy_ != ACL_MEM_MALLOC_HUGE1G_ONLY_P2P) {
             MemoryContext::Instance().Append(*(this->devPtr_), this->size_);
         }
     }

@@ -217,6 +217,8 @@ aclError aclrtResetDeviceForceImpl(int32_t deviceId);
 
 aclError aclrtMallocImpl(void **devPtr, size_t size, aclrtMemMallocPolicy policy);
 
+aclError aclrtMallocAlign32Impl(void **devPtr, size_t size, aclrtMemMallocPolicy policy);
+
 aclError aclrtMallocCachedImpl(void **devPtr, size_t size, aclrtMemMallocPolicy policy);
 
 aclError aclrtFreeImpl(void *devPtr);
