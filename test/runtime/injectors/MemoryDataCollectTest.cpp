@@ -290,6 +290,35 @@ TEST(MemoryDataCollect, memcpy_hooks_report_only_device_accesses_in_row_order) {
     EXPECT_EQ(WithoutOrderIds(g_received), expected);
 }
 
+TEST(MemoryDataCollect, memcpy2d_skips_overflowing_rows_per_endpoint) {
+    MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
+    MOCKER(aclrtGetDeviceImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(&LocalProcess::Notify).stubs().will(invoke(StubNotify));
+
+    constexpr size_t dstPitch = uint64_t{1} << 63;
+    constexpr size_t srcPitch = 16;
+    constexpr uint64_t srcAddr = UINT64_MAX - 4 * srcPitch + 1;
+    g_received.clear();
+    ReportMemcpy({reinterpret_cast<void *>(ADDR0), MemSpace::DEVICE, dstPitch},
+        {reinterpret_cast<void *>(srcAddr), MemSpace::DEVICE, srcPitch}, SIZE0, MemInfoSrc::ACL, 5);
+    GlobalMockObject::verify();
+
+    PacketHead head = {PacketType::MEMORY_RECORD};
+    std::string expected;
+    auto append = [&](MemOpType type, uint64_t addr) {
+        auto record = CreateHostMemRecord(type, MemInfoSrc::ACL);
+        record.dstAddr = addr;
+        expected += Serialize(head, record);
+    };
+    append(MemOpType::STORE, ADDR0);
+    append(MemOpType::LOAD, srcAddr);
+    append(MemOpType::STORE, ADDR0 + dstPitch);
+    append(MemOpType::LOAD, srcAddr + srcPitch);
+    append(MemOpType::LOAD, srcAddr + 2 * srcPitch);
+    append(MemOpType::LOAD, srcAddr + 3 * srcPitch);
+    EXPECT_EQ(WithoutOrderIds(g_received), expected);
+}
+
 TEST(MemoryDataCollect, report_op_malloc_info_with_null_args_info_expect_do_nothing)
 {
     KernelContext::OpMemInfo opMemInfo;

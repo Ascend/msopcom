@@ -24,7 +24,9 @@
 #include "utils/Serialize.h"
 
 void ReportMemcpy(MemoryCopyEndpoint dst, MemoryCopyEndpoint src, uint64_t width, MemInfoSrc infoSrc, size_t height) {
-    if (!dst.onDevice && !src.onDevice) {
+    bool reportDst = dst.onDevice;
+    bool reportSrc = src.onDevice;
+    if (!reportDst && !reportSrc) {
         return;
     }
     PacketHead head = {PacketType::MEMORY_RECORD};
@@ -32,20 +34,22 @@ void ReportMemcpy(MemoryCopyEndpoint dst, MemoryCopyEndpoint src, uint64_t width
     record.infoSrc = infoSrc;
     record.memSize = width;
     auto reportRow = [&](const MemoryCopyEndpoint &endpoint, size_t row, MemOpType type) {
-        if (!endpoint.onDevice) {
-            return;
+        const auto base = reinterpret_cast<uint64_t>(endpoint.addr);
+        uint64_t offset;
+        uint64_t addr;
+        if (__builtin_mul_overflow(row, endpoint.pitch, &offset) || __builtin_add_overflow(base, offset, &addr)) {
+            WARN_LOG("Stop reporting memcpy %s rows at row %zu (pitch %zu): row address overflow.",
+                type == MemOpType::STORE ? "destination" : "source", row, endpoint.pitch);
+            return false;
         }
-        auto base = reinterpret_cast<uint64_t>(endpoint.addr);
-        auto offset = static_cast<uint64_t>(row * endpoint.pitch);
-        if (base <= UINT64_MAX - offset) {
-            record.type = type;
-            record.dstAddr = base + offset;
-            LocalDevice::Local().Notify(Serialize(head, record));
-        }
+        record.type = type;
+        record.dstAddr = addr;
+        LocalDevice::Local().Notify(Serialize(head, record));
+        return true;
     };
-    for (size_t row = 0; row < height; ++row) {
-        reportRow(dst, row, MemOpType::STORE);
-        reportRow(src, row, MemOpType::LOAD);
+    for (size_t row = 0; row < height && (reportDst || reportSrc); ++row) {
+        reportDst = reportDst && reportRow(dst, row, MemOpType::STORE);
+        reportSrc = reportSrc && reportRow(src, row, MemOpType::LOAD);
     }
 }
 
