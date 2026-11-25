@@ -22,6 +22,20 @@
 #undef private
 #include "mockcpp/mockcpp.hpp"
 
+namespace {
+rtError_t GetVisibleDeviceIdByLogicDeviceIdStub(int32_t logicDeviceId, int32_t *visibleDeviceId) {
+    *visibleDeviceId = logicDeviceId + 1000;
+    return RT_ERROR_NONE;
+}
+
+rtError_t GetLogicDevIdByPhyDevIdStub(int32_t phyDevId, int32_t *logicDevId) {
+    *logicDevId = phyDevId + 2000;
+    return RT_ERROR_NONE;
+}
+} // namespace
+
+// 测试场景：Runtime 原始函数加载失败，设备号转换符号缺失。
+// 测试预期：各 Origin 返回错误，两个设备号转换 Origin 返回 RT_ERROR_RESERVED。
 TEST(RuntimeOrigin, rt_function_load_failed)
 {
     MOCKER(&func_injection::register_function::FunctionRegister::Get)
@@ -58,5 +72,33 @@ TEST(RuntimeOrigin, rt_function_load_failed)
     EXPECT_NE(rtDeviceStatusQueryOrigin(0, nullptr), RT_ERROR_NONE);
     EXPECT_NE(rtGetDeviceOrigin(nullptr), RT_ERROR_NONE);
     EXPECT_NE(rtSetDeviceOrigin(0), RT_ERROR_NONE);
+    EXPECT_EQ(rtGetVisibleDeviceIdByLogicDeviceIdOrigin(3, nullptr), RT_ERROR_RESERVED);
+    EXPECT_EQ(rtsGetLogicDevIdByPhyDevIdOrigin(4, nullptr), RT_ERROR_RESERVED);
+    GlobalMockObject::verify();
+}
+
+// 测试场景：逻辑设备号转可见设备号时，Runtime 原始函数可用。
+// 测试预期：Origin 转发逻辑设备号并返回原始函数写入的可见设备号。
+TEST(RuntimeOrigin, get_visible_device_id_by_logic_device_id_forwards_call) {
+    MOCKER(&func_injection::register_function::FunctionRegister::Get)
+        .stubs()
+        .will(returnValue(reinterpret_cast<void *>(&GetVisibleDeviceIdByLogicDeviceIdStub)));
+
+    int32_t visibleDeviceId = -1;
+    EXPECT_EQ(rtGetVisibleDeviceIdByLogicDeviceIdOrigin(23, &visibleDeviceId), RT_ERROR_NONE);
+    EXPECT_EQ(visibleDeviceId, 1023);
+    GlobalMockObject::verify();
+}
+
+// 测试场景：物理设备号转逻辑设备号时，Runtime 原始函数可用。
+// 测试预期：Origin 转发物理设备号并返回原始函数写入的逻辑设备号。
+TEST(RuntimeOrigin, get_logic_device_id_by_phy_device_id_forwards_call) {
+    MOCKER(&func_injection::register_function::FunctionRegister::Get)
+        .stubs()
+        .will(returnValue(reinterpret_cast<void *>(&GetLogicDevIdByPhyDevIdStub)));
+
+    int32_t logicDeviceId = -1;
+    EXPECT_EQ(rtsGetLogicDevIdByPhyDevIdOrigin(37, &logicDeviceId), RT_ERROR_NONE);
+    EXPECT_EQ(logicDeviceId, 2037);
     GlobalMockObject::verify();
 }

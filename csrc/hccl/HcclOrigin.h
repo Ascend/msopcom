@@ -22,5 +22,10 @@
 void HcclOriginCtor();
 
 HcclResult HcclBarrierOrigin(HcclComm comm, aclrtStream stream);
+HcclResult HcclGetCommNameOrigin(HcclComm comm, char *name);
+HcclResult HcclCommDestroyOrigin(HcclComm comm);
+HcclResult HcclGetRankSizeOrigin(HcclComm comm, uint32_t *rankSize);
+// 包间可选接口：只读取已建链的完整CCL区间，缺符号时返回失败
+HcclResult CommGetRemoteCCLBufOrigin(HcclComm comm, uint32_t rank, void **addr, uint64_t *size);
 
 #endif // __HCCL_ORIGIN_H__

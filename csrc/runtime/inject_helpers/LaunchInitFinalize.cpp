@@ -28,6 +28,7 @@
 #include "utils/Ustring.h"
 #include "MemGuard.h"
 #include "LaunchInitFinalize.h"
+#include "hccl/HcclWindowCollect.h"
 
 KernelType GetCurrentKernelType() {
     uint64_t launchId = KernelContext::Instance().GetLaunchId();
@@ -281,7 +282,7 @@ bool InitSimtShadowMemoryHead(const RecordGlobalHead &recordGlobalHead, uint8_t 
     }
 
     ShadowMemoryHeapHead smHeapHead;
-    smHeapHead.startAddr = (uint64_t)shadowMemoryHeadAddr + sizeof(ShadowMemoryHeapHead);
+    smHeapHead.startAddr = reinterpret_cast<uint64_t>(shadowMemoryHeadAddr) + sizeof(ShadowMemoryHeapHead);
     smHeapHead.size =
         shadowMemorySize > sizeof(ShadowMemoryHeapHead) ? shadowMemorySize - sizeof(ShadowMemoryHeapHead) : 0U;
     // 预分配shadow memory L0级表空间，每个节点占8字节
@@ -326,6 +327,7 @@ struct SanitizerLaunchGlobalData {
 } // namespace [Dummy]
 
 void SanitizerLaunchInit::Init(uint64_t blockDim) {
+    RefreshHcclWindows(ThreadContext::Instance().GetDeviceId());
     blockDim_ = blockDim;
     hostMemoryNum_ = MemoryManage::Instance().GetMallocCount();
     peerMemories_ = PeerAccessState::Instance().Snapshot(ThreadContext::Instance().GetDeviceId());
@@ -777,7 +779,7 @@ void SanitizerLaunchFinalize::ReportBlockInfo() {
 }
 
 void SanitizerLaunchFinalize::Process() {
-    memInfoHost_ = new uint8_t[blockSize_];
+    memInfoHost_ = new uint8_t[blockSize_]; // NOLINT(cppcoreguidelines-owning-memory)
     memInfoHostBackUp_ = memInfoHost_;
     // 1. copy RecordGlobalHead to host
     if (!GlobalHeadD2H()) {

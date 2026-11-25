@@ -1,5 +1,6 @@
 file(GLOB INJECTION_SRC
     HcclOrigin.cpp
+    HcclWindowCollect.cpp
     HijackedFuncOfHcclCommInitClusterInfo.cpp
     HijackedFuncOfHcclCommInitClusterInfoConfig.cpp
     HijackedFuncOfHcclCommInitRootInfo.cpp

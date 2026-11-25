@@ -792,6 +792,10 @@ RTS_API rtError_t rtFusionLaunch(void *fusionInfo, rtStream_t stm, rtFusionArgsE
 
 RTS_API rtError_t rtDeviceSetLimit(int32_t devId, rtLimitType_t type, uint32_t val);
 
+// Runtime显式P2P接口：本端为用户设备号，peer为物理设备号。
+RTS_API rtError_t rtEnableP2P(uint32_t deviceId, uint32_t peerPhyId, uint32_t flag);
+RTS_API rtError_t rtDisableP2P(uint32_t deviceId, uint32_t peerPhyId);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

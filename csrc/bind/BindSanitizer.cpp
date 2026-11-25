@@ -23,6 +23,7 @@
 #include "acl_rt_impl/AscendclImplOrigin.h"
 #include "acl_rt_impl/HijackedFunc.h"
 #include "core/FuncSelector.h"
+#include "hccl/HcclOrigin.h"
 #include "core/HijackedLayerManager.h"
 #include "runtime.h"
 #include "runtime/HijackedFunc.h"
@@ -96,6 +97,8 @@ void __attribute__ ((constructor)) HijackedCtor()
     REGISTER_LIBRARY("runtime");
     REGISTER_LIBRARY("ascend_dump");
     REGISTER_FUNCTION("runtime", rtSetDevice);
+    REGISTER_FUNCTION("runtime", rtEnableP2P);
+    REGISTER_FUNCTION("runtime", rtDisableP2P);
     REGISTER_FUNCTION("runtime", rtMalloc);
     REGISTER_FUNCTION("runtime", rtFree);
     REGISTER_FUNCTION("runtime", rtMapMem);
@@ -122,6 +125,7 @@ void __attribute__ ((constructor)) HijackedCtor()
     REGISTER_FUNCTION("runtime", rtDeviceSetLimit);
     REGISTER_FUNCTION("ascend_dump", AdumpGetDFXInfoAddrForDynamic);
     REGISTER_FUNCTION("ascend_dump", AdumpGetDFXInfoAddrForStatic);
+    HcclOriginCtor();
     RuntimeOriginCtor();
     AscendclOriginCtor();
     AscendclImplOriginCtor();
@@ -151,6 +155,22 @@ rtError_t rtSetDevice(int32_t devId)
         return instance.OriginCall(devId);
     }
     return instance.Call(devId);
+}
+
+rtError_t rtEnableP2P(uint32_t deviceId, uint32_t peerPhyId, uint32_t flag) {
+    HijackedFuncOfEnableP2P instance;
+    if (HijackedLayerManager::Instance().ParentInCallStack(__func__)) {
+        return instance.OriginCall(deviceId, peerPhyId, flag);
+    }
+    return instance.Call(deviceId, peerPhyId, flag);
+}
+
+rtError_t rtDisableP2P(uint32_t deviceId, uint32_t peerPhyId) {
+    HijackedFuncOfDisableP2P instance;
+    if (HijackedLayerManager::Instance().ParentInCallStack(__func__)) {
+        return instance.OriginCall(deviceId, peerPhyId);
+    }
+    return instance.Call(deviceId, peerPhyId);
 }
 
 rtError_t rtMalloc(void **devPtr, uint64_t size, rtMemType_t type, const uint16_t moduleId)
