@@ -195,6 +195,10 @@ struct MemoryCopyEndpoint {
 
 void ReportMemcpy(
     MemoryCopyEndpoint dst, MemoryCopyEndpoint src, uint64_t width, MemInfoSrc infoSrc, size_t height = 1);
+void ReportAclMemcpy(void *dst, const void *src, size_t width, aclrtMemcpyKind kind, size_t dpitch = 0,
+    size_t spitch = 0, size_t height = 1);
+void ReportAutoMemcpy(void *dst, const void *src, size_t width, MemInfoSrc infoSrc, size_t dpitch = 0,
+    size_t spitch = 0, size_t height = 1);
 void RecordMemoryMapping(void *addr, uint64_t size, MemInfoSrc infoSrc);
 void RecordMemoryUnmapping(void *addr, MemInfoSrc infoSrc);
 

@@ -24,8 +24,7 @@
 HijackedFuncOfAclrtMemsetImpl::HijackedFuncOfAclrtMemsetImpl()
     : HijackedFuncType(AclRuntimeLibName(), "aclrtMemsetImpl") {}
 
-void HijackedFuncOfAclrtMemsetImpl::Pre(void *devPtr, size_t maxCount, int32_t value, size_t count)
-{
+void HijackedFuncOfAclrtMemsetImpl::Pre(void *devPtr, size_t maxCount, int32_t value, size_t count) {
     if (IsSanitizer()) {
         if (!IsMemoryOnDevice(devPtr)) {
             return;

@@ -14,7 +14,6 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
-
 #include <gtest/gtest.h>
 #define private public
 #include "runtime/HijackedFunc.h"
@@ -25,8 +24,7 @@
 #include "runtime/RuntimeOrigin.h"
 #include "runtime/inject_helpers/LocalDevice.h"
 
-TEST(rtFree, sanitizer_call_pre_function_with_free_args_expect_return)
-{
+TEST(rtFree, sanitizer_call_pre_function_with_free_args_expect_return) {
     MOCKER(IsSanitizer).stubs().will(returnValue(true));
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(rtGetDeviceOrigin).stubs().will(returnValue(RT_ERROR_NONE));

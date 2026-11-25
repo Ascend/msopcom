@@ -18,7 +18,9 @@
 #include "LocalDevice.h"
 #include "MemoryContext.h"
 #include "ProfConfig.h"
+#include "ascend_hal/AscendHalOrigin.h"
 #include "core/FuncSelector.h"
+#include "utils/InjectLogger.h"
 #include "utils/Serialize.h"
 
 void ReportMemcpy(MemoryCopyEndpoint dst, MemoryCopyEndpoint src, uint64_t width, MemInfoSrc infoSrc, size_t height) {
@@ -45,6 +47,46 @@ void ReportMemcpy(MemoryCopyEndpoint dst, MemoryCopyEndpoint src, uint64_t width
         reportRow(dst, row, MemOpType::STORE);
         reportRow(src, row, MemOpType::LOAD);
     }
+}
+
+void ReportAclMemcpy(
+    void *dst, const void *src, size_t width, aclrtMemcpyKind kind, size_t dpitch, size_t spitch, size_t height) {
+    if (kind == ACL_MEMCPY_DEFAULT) {
+        ReportAutoMemcpy(dst, src, width, MemInfoSrc::ACL, dpitch, spitch, height);
+        return;
+    }
+    // Match the underlying ACL memcpy kind checks: INNER and INTER are not accepted as D2D.
+    const bool d2d = kind == ACL_MEMCPY_DEVICE_TO_DEVICE;
+    const bool dstOnDevice = d2d || kind == ACL_MEMCPY_HOST_TO_DEVICE || kind == ACL_MEMCPY_HOST_TO_BUF_TO_DEVICE;
+    const bool srcOnDevice = d2d || kind == ACL_MEMCPY_DEVICE_TO_HOST;
+    ReportMemcpy(
+        {dst, ToMemSpace(dstOnDevice), dpitch}, {src, ToMemSpace(srcOnDevice), spitch}, width, MemInfoSrc::ACL, height);
+}
+
+void ReportAutoMemcpy(
+    void *dst, const void *src, size_t width, MemInfoSrc infoSrc, size_t dpitch, size_t spitch, size_t height) {
+    const auto querySpace = [](void *addr, const char *endpoint, MemSpace &space) {
+        DVattribute attr{};
+        const auto ret = drvMemGetAttributeOrigin(addr, &attr);
+        if (ret != DRV_ERROR_NONE) {
+            WARN_LOG("Skip DEFAULT memcpy reporting: %s memory attribute query for %p failed (ret=%d).", endpoint, addr,
+                static_cast<int>(ret));
+            return false;
+        }
+        space = ToMemSpace(attr.memType == DV_MEM_LOCK_DEV || attr.memType == DV_MEM_LOCK_DEV_DVPP);
+        return true;
+    };
+    MemSpace dstSpace{};
+    MemSpace srcSpace{};
+    if (!querySpace(dst, "destination", dstSpace)) {
+        return;
+    }
+    // The driver uses a non-const pointer for its read-only address attribute query.
+    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
+    if (!querySpace(const_cast<void *>(src), "source", srcSpace)) {
+        return;
+    }
+    ReportMemcpy({dst, dstSpace, dpitch}, {src, srcSpace, spitch}, width, infoSrc, height);
 }
 
 void RecordMemoryMapping(void *addr, uint64_t size, MemInfoSrc infoSrc) {

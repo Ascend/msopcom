@@ -26,8 +26,13 @@ HijackedFuncOfMemcpy::HijackedFuncOfMemcpy()
 void HijackedFuncOfMemcpy::Pre(void *dst, uint64_t destMax, const void *src, uint64_t cnt, rtMemcpyKind_t kind)
 {
     if (IsSanitizer()) {
-        ReportMemcpy({dst, ToMemSpace(kind == RT_MEMCPY_HOST_TO_DEVICE || kind == RT_MEMCPY_DEVICE_TO_DEVICE)},
-            {src, ToMemSpace(kind == RT_MEMCPY_DEVICE_TO_HOST || kind == RT_MEMCPY_DEVICE_TO_DEVICE)}, cnt,
-            MemInfoSrc::RT);
+        if (kind == RT_MEMCPY_DEFAULT) {
+            ReportAutoMemcpy(dst, src, cnt, MemInfoSrc::RT);
+            return;
+        }
+        const bool d2d = kind == RT_MEMCPY_DEVICE_TO_DEVICE;
+        const bool dstOnDevice = d2d || kind == RT_MEMCPY_HOST_TO_DEVICE || kind == RT_MEMCPY_HOST_TO_DEVICE_EX;
+        const bool srcOnDevice = d2d || kind == RT_MEMCPY_DEVICE_TO_HOST || kind == RT_MEMCPY_DEVICE_TO_HOST_EX;
+        ReportMemcpy({dst, ToMemSpace(dstOnDevice)}, {src, ToMemSpace(srcOnDevice)}, cnt, MemInfoSrc::RT);
     }
 }

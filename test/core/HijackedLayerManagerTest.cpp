@@ -84,3 +84,14 @@ TEST(HijackedLayerManager, layer_guard_expect_tack_effect_in_scope)
     }
     ASSERT_FALSE(manager.ParentInCallStack("rtMalloc"));
 }
+
+TEST(HijackedLayerManager, synchronous_acl_free_masks_only_nested_rt_free) {
+    HijackedLayerManager manager;
+    EXPECT_FALSE(manager.ParentInCallStack("rtFree"));
+    {
+        LayerGuard guard(manager, "aclrtFreeWithDevSyncImpl");
+        EXPECT_TRUE(manager.ParentInCallStack("rtFree"));
+        EXPECT_FALSE(manager.ParentInCallStack("rtMalloc"));
+    }
+    EXPECT_FALSE(manager.ParentInCallStack("rtFree"));
+}

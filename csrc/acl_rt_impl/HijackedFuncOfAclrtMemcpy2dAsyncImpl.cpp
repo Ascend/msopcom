@@ -33,9 +33,6 @@ void HijackedFuncOfAclrtMemcpy2dAsyncImpl::Pre(void *dst, size_t dpitch, const v
         height = MAX_MEMORY_RECORD_HEIGHT;
     }
     if (IsSanitizer()) {
-        ReportMemcpy(
-            {dst, ToMemSpace(kind == ACL_MEMCPY_HOST_TO_DEVICE || kind == ACL_MEMCPY_DEVICE_TO_DEVICE), dpitch},
-            {src, ToMemSpace(kind == ACL_MEMCPY_DEVICE_TO_HOST || kind == ACL_MEMCPY_DEVICE_TO_DEVICE), spitch}, width,
-            MemInfoSrc::ACL, height);
+        ReportAclMemcpy(dst, src, width, kind, dpitch, spitch, height);
     }
 }

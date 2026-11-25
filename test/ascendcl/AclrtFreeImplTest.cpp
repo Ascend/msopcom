@@ -14,7 +14,6 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
-
 #include <gtest/gtest.h>
 #define private public
 #include "acl_rt_impl/HijackedFunc.h"
@@ -24,8 +23,7 @@
 #include "core/LocalProcess.h"
 #include "mockcpp/mockcpp.hpp"
 
-TEST(aclrtFree, sanitizer_call_pre_function_with_free_args_expect_return)
-{
+TEST(aclrtFree, sanitizer_call_pre_function_with_free_args_expect_return) {
     MOCKER(IsSanitizer).stubs().will(returnValue(true));
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(&LocalProcess::Notify).stubs().will(returnValue(0));

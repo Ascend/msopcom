@@ -28,8 +28,7 @@
 HijackedFuncOfAclrtFreeImpl::HijackedFuncOfAclrtFreeImpl()
     : HijackedFuncType(AclRuntimeLibName(), "aclrtFreeImpl") {}
 
-void HijackedFuncOfAclrtFreeImpl::Pre(void *devPtr)
-{
+void HijackedFuncOfAclrtFreeImpl::Pre(void *devPtr) {
     this->devPtr_ = devPtr;
     if (IsSanitizer()) {
         ReportFree(reinterpret_cast<uint64_t>(devPtr), MemInfoSrc::ACL);
@@ -41,8 +40,7 @@ void HijackedFuncOfAclrtFreeImpl::Pre(void *devPtr)
     }
 }
 
-aclError HijackedFuncOfAclrtFreeImpl::Call(void *devPtr)
-{
+aclError HijackedFuncOfAclrtFreeImpl::Call(void *devPtr) {
     void *actualPtr = MemoryGuard::Instance().GetRealPtr(devPtr);
     this->actualPtr_ = actualPtr;
 

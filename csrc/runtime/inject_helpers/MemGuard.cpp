@@ -215,8 +215,7 @@ size_t MemoryGuard::GetTotalSize(size_t userSize)
     return guard_total + userSize;
 }
 
-void MemoryGuard::MallocProc(void **devPtr, size_t userSize)
-{
+void MemoryGuard::MallocProc(void **devPtr, size_t userSize) {
     if (!memGuardEnable_) return;
 
     std::lock_guard<std::mutex> lock(mutex_);

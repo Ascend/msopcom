@@ -33,8 +33,7 @@ MemoryContext::DeviceBucket &MemoryContext::GetBucket() {
     return *it->second;
 }
 
-void MemoryContext::Append(const MemAddr addr, uint64_t size)
-{
+void MemoryContext::Append(const MemAddr addr, uint64_t size) {
     auto &bucket = GetBucket();
     std::lock_guard<std::mutex> mapLock(bucket.mapMtx);
     if (addr == nullptr) {
@@ -44,8 +43,7 @@ void MemoryContext::Append(const MemAddr addr, uint64_t size)
     bucket.memSectionMap[addr] = {addr, nullptr, size, aclrtMemMallocPolicy::ACL_MEM_MALLOC_HUGE_FIRST};
 }
 
-void MemoryContext::Discard(MemAddr addr)
-{
+void MemoryContext::Discard(MemAddr addr) {
     // record memory free in aclrtFreeImpl
     auto &bucket = GetBucket();
     std::lock_guard<std::mutex> mapLock(bucket.mapMtx);

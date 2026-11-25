@@ -28,8 +28,7 @@
 HijackedFuncOfFree::HijackedFuncOfFree()
     : HijackedFuncType(RuntimeLibName(), "rtFree") {}
 
-void HijackedFuncOfFree::Pre(void *devPtr)
-{
+void HijackedFuncOfFree::Pre(void *devPtr) {
     this->devPtr_ = devPtr;
     if (IsSanitizer()) {
         ReportFree(reinterpret_cast<uint64_t>(devPtr), MemInfoSrc::RT);

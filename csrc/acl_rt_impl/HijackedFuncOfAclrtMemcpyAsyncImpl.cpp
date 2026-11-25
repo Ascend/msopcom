@@ -28,8 +28,6 @@ void HijackedFuncOfAclrtMemcpyAsyncImpl::Pre(void *dst, size_t destMax, const vo
                                              aclrtMemcpyKind kind, aclrtStream stream)
 {
     if (IsSanitizer()) {
-        ReportMemcpy({dst, ToMemSpace(kind == ACL_MEMCPY_HOST_TO_DEVICE || kind == ACL_MEMCPY_DEVICE_TO_DEVICE)},
-            {src, ToMemSpace(kind == ACL_MEMCPY_DEVICE_TO_HOST || kind == ACL_MEMCPY_DEVICE_TO_DEVICE)}, count,
-            MemInfoSrc::ACL);
+        ReportAclMemcpy(dst, src, count, kind);
     }
 }

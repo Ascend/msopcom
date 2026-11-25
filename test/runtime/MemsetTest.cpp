@@ -25,8 +25,7 @@
 #include "runtime/inject_helpers/LocalDevice.h"
 #include "mockcpp/mockcpp.hpp"
 
-TEST(rtMemset, sanitizer_call_pre_function_with_memset_args_expect_return)
-{
+TEST(rtMemset, sanitizer_call_pre_function_with_memset_args_expect_return) {
     MOCKER(IsSanitizer).stubs().will(returnValue(true));
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(rtGetDeviceOrigin).stubs().will(returnValue(RT_ERROR_NONE));

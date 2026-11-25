@@ -35,6 +35,7 @@ static LayerMap GetAclToRuntimeMap()
         {"aclrtResetDeviceImpl", {"rtDeviceReset"}},
         {"aclrtMallocImpl", {"rtMalloc"}},
         {"aclrtFreeImpl", {"rtFree"}},
+        {"aclrtFreeWithDevSyncImpl", {"rtFree"}},
         {"aclrtMemsetImpl", {"rtMemset"}},
         {"aclrtMemcpyImpl", {"rtMemcpy"}},
         {"aclrtMapMemImpl", {"rtMapMem"}},

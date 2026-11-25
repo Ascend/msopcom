@@ -24,8 +24,7 @@
 HijackedFuncOfMemset::HijackedFuncOfMemset()
     : HijackedFuncType(RuntimeLibName(), "rtMemset") {}
 
-void HijackedFuncOfMemset::Pre(void *devPtr, uint64_t destMax, uint32_t val, uint64_t cnt)
-{
+void HijackedFuncOfMemset::Pre(void *devPtr, uint64_t destMax, uint32_t val, uint64_t cnt) {
     if (IsSanitizer()) {
         if (!IsMemoryOnDevice(devPtr)) {
             return;
