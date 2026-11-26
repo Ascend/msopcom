@@ -26,6 +26,9 @@
 
 void AscendclOriginCtor();
 
+// 将物理设备号转换为当前进程使用的设备号
+aclError aclrtGetUserDevIdByPhyDevIdOrigin(int32_t phyDeviceId, int32_t *userDeviceId);
+
 aclError aclrtSetOpExecuteTimeOutOrigin(uint32_t timeout);
 
 aclError aclrtCreateEventOrigin(aclrtEvent *event);

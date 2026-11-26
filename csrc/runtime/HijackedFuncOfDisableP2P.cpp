@@ -16,7 +16,7 @@
 
 #include "HijackedFunc.h"
 #include "RuntimeConfig.h"
-#include "RuntimeOrigin.h"
+#include "ascendcl/AscendclOrigin.h"
 #include "core/FuncSelector.h"
 #include "runtime/inject_helpers/InteractHelper.h"
 #include "runtime/inject_helpers/MemoryDataCollect.h"
@@ -34,22 +34,17 @@ rtError_t HijackedFuncOfDisableP2P::Post(rtError_t ret) {
         return ret;
     }
 
-    int32_t logicDeviceId = -1;
-    int32_t visiblePeerDeviceId = -1;
-    // 转换完整成功后才撤销该访问方向的映射和授权记录。
-    if (rtsGetLogicDevIdByPhyDevIdOrigin(static_cast<int32_t>(peerPhyId_), &logicDeviceId) != RT_ERROR_NONE ||
-        logicDeviceId < 0) {
-        return ret;
-    }
-    if (rtGetVisibleDeviceIdByLogicDeviceIdOrigin(logicDeviceId, &visiblePeerDeviceId) != RT_ERROR_NONE ||
-        visiblePeerDeviceId < 0) {
+    int32_t peerUserDeviceId = -1;
+    // 撤权使用与开通和内存登记相同的进程内设备号
+    if (aclrtGetUserDevIdByPhyDevIdOrigin(static_cast<int32_t>(peerPhyId_), &peerUserDeviceId) != ACL_SUCCESS ||
+        peerUserDeviceId < 0) {
         return ret;
     }
 
     const int32_t deviceId = static_cast<int32_t>(deviceId_);
-    MemoryManage::RevokeP2PMappings(deviceId, visiblePeerDeviceId);
-    PeerAccessRecord record{deviceId, visiblePeerDeviceId, PeerAccessOp::DISABLE};
-    PeerAccessState::Instance().Apply(deviceId, visiblePeerDeviceId, PeerAccessOp::DISABLE);
+    MemoryManage::RevokeP2PMappings(deviceId, peerUserDeviceId);
+    PeerAccessRecord record{deviceId, peerUserDeviceId, PeerAccessOp::DISABLE};
+    PeerAccessState::Instance().Apply(deviceId, peerUserDeviceId, PeerAccessOp::DISABLE);
     InteractHelper::Notify(deviceId, PacketType::PEER_ACCESS_RECORD, record);
     return ret;
 }

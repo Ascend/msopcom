@@ -31,7 +31,6 @@ void RuntimeOriginCtor()
     REGISTER_FUNCTION(soName, rtMemcpy);
     REGISTER_FUNCTION(soName, rtMemcpyAsync);
     REGISTER_FUNCTION(soName, rtGetVisibleDeviceIdByLogicDeviceId);
-    REGISTER_FUNCTION(soName, rtsGetLogicDevIdByPhyDevId);
     REGISTER_FUNCTION(soName, rtRegisterAllKernel);
     REGISTER_FUNCTION(soName, rtDevBinaryRegister);
     REGISTER_FUNCTION(soName, rtDevBinaryUnRegister);
@@ -170,12 +169,6 @@ RTS_API rtError_t rtGetVisibleDeviceIdByLogicDeviceIdOrigin(const int32_t logicD
     const auto function = reinterpret_cast<decltype(&rtGetVisibleDeviceIdByLogicDeviceIdOrigin)>(
         GET_FUNCTION(RuntimeLibName(), "rtGetVisibleDeviceIdByLogicDeviceId"));
     return function == nullptr ? RT_ERROR_RESERVED : function(logicDeviceId, visibleDeviceId);
-}
-
-RTS_API rtError_t rtsGetLogicDevIdByPhyDevIdOrigin(int32_t phyDevId, int32_t *const logicDevId) {
-    const auto function = reinterpret_cast<decltype(&rtsGetLogicDevIdByPhyDevIdOrigin)>(
-        GET_FUNCTION(RuntimeLibName(), "rtsGetLogicDevIdByPhyDevId"));
-    return function == nullptr ? RT_ERROR_RESERVED : function(phyDevId, logicDevId);
 }
 
 RTS_API rtError_t rtStreamCreateOrigin(rtStream_t *stream, int32_t priority)
