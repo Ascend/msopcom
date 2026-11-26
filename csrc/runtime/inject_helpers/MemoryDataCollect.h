@@ -54,7 +54,9 @@ public:
     // 获取指定设备的内存表，不改变当前 Host 线程绑定的设备。
     static MemoryManage &Instance(int32_t deviceId);
     // 查找唯一完整覆盖的ACL/RT分配，保存映射并向显式使用设备发布事件
-    static bool ApplyP2PMapping(int32_t deviceId, uint64_t addr, uint64_t size);
+    static bool ApplyP2PMapping(int32_t deviceId, uint64_t addr, uint64_t size, uint64_t scope = 0);
+    // 通信域销毁或窗口改变时只撤销该域登记的精确区间
+    static void RevokeScopedP2PMappings(int32_t deviceId, uint64_t scope);
     // 快照仅包含精确映射区间，权限取自所有方当前分配；不授予设备级访问权
     static std::vector<PeerMemoryInfo> SnapshotP2PMappings(int32_t deviceId);
     // 成功reset撤销双向映射及本设备旧分配，防止地址复用继承旧状态

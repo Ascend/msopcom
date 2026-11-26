@@ -23,6 +23,7 @@ file(GLOB SOURCE
 
     HijackedFuncOfGetDeviceInfoTest.cpp
     HijackedFuncOfMapMemTest.cpp
+    HijackedFuncOfP2PTest.cpp
     HijackedFuncOfIpcCloseMemory.cpp
     HijackedFuncOfIpcDestroyMemoryName.cpp
     HijackedFuncOfIpcOpenMemory.cpp

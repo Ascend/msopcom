@@ -16,6 +16,7 @@
 
 
 #include "MemoryDataCollect.h"
+#include "hccl/HcclWindowCollect.h"
 #include <cinttypes>
 #include <elf.h>
 #include <map>
@@ -49,7 +50,7 @@ struct MemoryManageProcessState {
 
 MemoryManageProcessState &MemoryProcessState()
 {
-    static auto *state = new MemoryManageProcessState;
+    static auto *state = new MemoryManageProcessState; // NOLINT(cppcoreguidelines-owning-memory)
     return *state;
 }
 
@@ -302,8 +303,7 @@ MemoryManage &MemoryManage::Instance(int32_t deviceId)
     return found->second;
 }
 
-bool MemoryManage::ApplyP2PMapping(int32_t deviceId, uint64_t addr, uint64_t size)
-{
+bool MemoryManage::ApplyP2PMapping(int32_t deviceId, uint64_t addr, uint64_t size, uint64_t scope) {
     if (deviceId < 0 || addr == 0 || size == 0 || addr > UINT64_MAX - size) {
         return false;
     }
@@ -331,15 +331,15 @@ bool MemoryManage::ApplyP2PMapping(int32_t deviceId, uint64_t addr, uint64_t siz
             if (found) {
                 return false; // 同一地址存在多个候选时不猜测所有方
             }
-            record = {deviceId, entry.first, addr, size, allocation.addr}; // 构造映射记录
+            record = {deviceId, entry.first, addr, size, allocation.addr, scope}; // 构造映射记录
             found = true;
         }
     }
     if (found) {
         std::lock_guard<std::mutex> mappingLock(p2pMutex);
         auto same = [&record](const P2PMappingRecord &m) {
-            return m.deviceId == record.deviceId && m.ownerDeviceId == record.ownerDeviceId &&
-                m.addr == record.addr && m.size == record.size && m.ownerAddr == record.ownerAddr;
+            return m.deviceId == record.deviceId && m.ownerDeviceId == record.ownerDeviceId && m.addr == record.addr &&
+                m.size == record.size && m.ownerAddr == record.ownerAddr && m.scope == record.scope;
         };
         // 先去重，再push_back
         if (std::find_if(p2pMappings.begin(), p2pMappings.end(), same) == p2pMappings.end()) {
@@ -352,6 +352,24 @@ bool MemoryManage::ApplyP2PMapping(int32_t deviceId, uint64_t addr, uint64_t siz
         return true;
     }
     return false;
+}
+
+void MemoryManage::RevokeScopedP2PMappings(int32_t deviceId, uint64_t scope) {
+    if (scope == 0) {
+        return;
+    }
+    std::lock_guard<std::mutex> lock(p2pMutex);
+    p2pMappings.erase(std::remove_if(p2pMappings.begin(), p2pMappings.end(),
+                          [deviceId, scope](const P2PMappingRecord &mapping) {
+                              if (mapping.deviceId != deviceId || mapping.scope != scope) {
+                                  return false;
+                              }
+                              auto record = mapping;
+                              record.revoke = true;
+                              InteractHelper::Notify(deviceId, PacketType::P2P_MAPPING_RECORD, record);
+                              return true;
+                          }),
+        p2pMappings.end());
 }
 
 std::vector<PeerMemoryInfo> MemoryManage::SnapshotP2PMappings(int32_t deviceId)
@@ -374,7 +392,8 @@ std::vector<PeerMemoryInfo> MemoryManage::SnapshotP2PMappings(int32_t deviceId)
         std::lock_guard<std::mutex> mappingLock(p2pMutex);
         bool active = std::any_of(p2pMappings.begin(), p2pMappings.end(), [&m](const P2PMappingRecord &current) {
             return current.deviceId == m.deviceId && current.ownerDeviceId == m.ownerDeviceId &&
-                current.addr == m.addr && current.size == m.size && current.ownerAddr == m.ownerAddr;
+                current.addr == m.addr && current.size == m.size && current.ownerAddr == m.ownerAddr &&
+                current.scope == m.scope;
         });
         if (!active) {
             continue;
@@ -396,6 +415,7 @@ std::vector<PeerMemoryInfo> MemoryManage::SnapshotP2PMappings(int32_t deviceId)
 
 void MemoryManage::ResetDevice(int32_t deviceId)
 {
+    ForgetHcclDevice(deviceId);
     auto &memory = Instance(deviceId);
     std::lock_guard<std::mutex> allocationLock(memory.memoryMutex_);
     std::lock_guard<std::mutex> mappingLock(p2pMutex);

@@ -34,6 +34,29 @@ struct EmptyFuncError<rtError_t> {
     static constexpr rtError_t VALUE = RT_ERROR_RESERVED;
 };
 
+// 在 Runtime 接口成功后记录显式访问设备与转换后的 peer 用户设备号。
+class HijackedFuncOfEnableP2P : public decltype(HijackedFuncHelper(&rtEnableP2P)) {
+public:
+    HijackedFuncOfEnableP2P();
+    void Pre(uint32_t deviceId, uint32_t peerPhyId, uint32_t flag) override;
+    rtError_t Post(rtError_t ret) override;
+
+private:
+    uint32_t deviceId_{0};
+    uint32_t peerPhyId_{0};
+};
+
+class HijackedFuncOfDisableP2P : public decltype(HijackedFuncHelper(&rtDisableP2P)) {
+public:
+    HijackedFuncOfDisableP2P();
+    void Pre(uint32_t deviceId, uint32_t peerPhyId) override;
+    rtError_t Post(rtError_t ret) override;
+
+private:
+    uint32_t deviceId_{0};
+    uint32_t peerPhyId_{0};
+};
+
 // For rtDevBinaryRegister
 class HijackedFuncOfDevBinaryRegister : public decltype(HijackedFuncHelper(&rtDevBinaryRegister)) {
 public:
