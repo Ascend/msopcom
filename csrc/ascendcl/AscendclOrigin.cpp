@@ -22,12 +22,20 @@
 
 void AscendclOriginCtor() {
     REGISTER_LIBRARY("ascendcl");
+    REGISTER_FUNCTION("ascendcl", aclrtGetUserDevIdByPhyDevId);
     REGISTER_FUNCTION("ascendcl", aclrtSetOpExecuteTimeOut);
     REGISTER_FUNCTION("ascendcl", aclrtCreateEvent);
     REGISTER_FUNCTION("ascendcl", aclrtStreamWaitEvent);
     REGISTER_FUNCTION("ascendcl", aclrtRecordEvent);
     REGISTER_FUNCTION("ascendcl", aclrtResetEvent);
     REGISTER_FUNCTION("ascendcl", aclrtDestroyEvent);
+}
+
+aclError aclrtGetUserDevIdByPhyDevIdOrigin(int32_t phyDeviceId, int32_t *userDeviceId) {
+    // 由 FunctionLoader 加锁查询和缓存，支持多设备线程同时开通 P2P
+    const auto function = reinterpret_cast<decltype(&aclrtGetUserDevIdByPhyDevIdOrigin)>(
+        GET_FUNCTION("ascendcl", "aclrtGetUserDevIdByPhyDevId"));
+    return function == nullptr ? ACL_ERROR_INTERNAL_ERROR : function(phyDeviceId, userDeviceId);
 }
 
 aclError aclrtSetOpExecuteTimeOutOrigin(uint32_t timeout) {

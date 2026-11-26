@@ -25,11 +25,33 @@ TEST(AscendclOrigin, ascendcl_function_load_failed)
         .stubs()
         .will(returnValue((void*)nullptr));
     AscendclOriginCtor();
+    EXPECT_EQ(aclrtGetUserDevIdByPhyDevIdOrigin(2, nullptr), ACL_ERROR_INTERNAL_ERROR);
     EXPECT_NE(aclrtSetOpExecuteTimeOutOrigin(0), ACL_ERROR_NONE);
     EXPECT_NE(aclrtCreateEventOrigin(nullptr), ACL_ERROR_NONE);
     EXPECT_NE(aclrtStreamWaitEventOrigin(nullptr, nullptr), ACL_ERROR_NONE);
     EXPECT_NE(aclrtRecordEventOrigin(nullptr, nullptr), ACL_ERROR_NONE);
     EXPECT_NE(aclrtResetEventOrigin(nullptr, nullptr), ACL_ERROR_NONE);
     EXPECT_NE(aclrtDestroyEventOrigin(nullptr), ACL_ERROR_NONE);
+    GlobalMockObject::verify();
+}
+
+// 验证 Origin 按公开 ACL 符号查找，并将物理卡 2 转为进程内设备 1。
+TEST(AscendclOrigin, get_user_device_id_by_phy_device_id_forwards_call) {
+    using func_injection::register_function::FunctionRegister;
+    const auto load = +[](FunctionRegister *, const std::string &library, const std::string &symbol) -> void * {
+        EXPECT_EQ(library, "ascendcl");
+        EXPECT_EQ(symbol, "aclrtGetUserDevIdByPhyDevId");
+        const auto convert = +[](int32_t phyDeviceId, int32_t *userDeviceId) -> aclError {
+            EXPECT_EQ(phyDeviceId, 2);
+            *userDeviceId = 1;
+            return ACL_SUCCESS;
+        };
+        return reinterpret_cast<void *>(convert);
+    };
+    MOCKER(&FunctionRegister::Get).expects(once()).will(invoke(load));
+
+    int32_t userDeviceId = -1;
+    EXPECT_EQ(aclrtGetUserDevIdByPhyDevIdOrigin(2, &userDeviceId), ACL_SUCCESS);
+    EXPECT_EQ(userDeviceId, 1);
     GlobalMockObject::verify();
 }

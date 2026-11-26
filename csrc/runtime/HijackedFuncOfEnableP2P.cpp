@@ -16,7 +16,7 @@
 
 #include "HijackedFunc.h"
 #include "RuntimeConfig.h"
-#include "RuntimeOrigin.h"
+#include "ascendcl/AscendclOrigin.h"
 #include "core/FuncSelector.h"
 #include "runtime/inject_helpers/InteractHelper.h"
 #include "runtime/inject_helpers/MemoryDataCollect.h"
@@ -34,21 +34,16 @@ rtError_t HijackedFuncOfEnableP2P::Post(rtError_t ret) {
         return ret;
     }
 
-    int32_t logicDeviceId = -1;
-    int32_t visiblePeerDeviceId = -1;
-    // Hook 的本端设备号是用户设备号，使用显式入参，不依赖线程当前设备。
-    if (rtsGetLogicDevIdByPhyDevIdOrigin(static_cast<int32_t>(peerPhyId_), &logicDeviceId) != RT_ERROR_NONE ||
-        logicDeviceId < 0) {
-        return ret;
-    }
-    if (rtGetVisibleDeviceIdByLogicDeviceIdOrigin(logicDeviceId, &visiblePeerDeviceId) != RT_ERROR_NONE ||
-        visiblePeerDeviceId < 0) {
+    int32_t peerUserDeviceId = -1;
+    // 该接口直接返回进程内设备号，与本端入参和分配记录使用同一套编号
+    if (aclrtGetUserDevIdByPhyDevIdOrigin(static_cast<int32_t>(peerPhyId_), &peerUserDeviceId) != ACL_SUCCESS ||
+        peerUserDeviceId < 0) {
         return ret;
     }
 
     const int32_t deviceId = static_cast<int32_t>(deviceId_);
-    PeerAccessRecord record{deviceId, visiblePeerDeviceId, PeerAccessOp::ENABLE};
-    PeerAccessState::Instance().Apply(deviceId, visiblePeerDeviceId, PeerAccessOp::ENABLE);
+    PeerAccessRecord record{deviceId, peerUserDeviceId, PeerAccessOp::ENABLE};
+    PeerAccessState::Instance().Apply(deviceId, peerUserDeviceId, PeerAccessOp::ENABLE);
     InteractHelper::Notify(deviceId, PacketType::PEER_ACCESS_RECORD, record);
     return ret;
 }

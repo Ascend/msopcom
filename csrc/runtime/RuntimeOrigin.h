@@ -54,7 +54,6 @@ RTS_API rtError_t rtProfSetProSwitchOrigin(void *data, uint32_t len);
 RTS_API rtError_t rtGetSocVersionOrigin(char *ver, const uint32_t maxLen);
 RTS_API rtError_t rtGetVisibleDeviceIdByLogicDeviceIdOrigin(const int32_t logicDeviceId,
     int32_t *const visibleDeviceId);
-RTS_API rtError_t rtsGetLogicDevIdByPhyDevIdOrigin(int32_t phyDevId, int32_t *const logicDevId);
 RTS_API rtError_t rtStreamCreateOrigin(rtStream_t *stream, int32_t priority);
 RTS_API rtError_t rtStreamDestroyOrigin(rtStream_t stream);
 RTS_API rtError_t rtGetC2cCtrlAddrOrigin(uint64_t *addr, uint32_t *fftsLen);
