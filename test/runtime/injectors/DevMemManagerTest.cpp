@@ -31,19 +31,19 @@ aclError MallocOriginStub(void **devPtr, size_t size, aclrtMemMallocPolicy polic
         return ACL_ERROR_BAD_ALLOC;
     }
     *devPtr = malloc(size);
-    return ACL_ERROR_NONE;
+    return ACL_SUCCESS;
 }
 
 aclError FreeOriginStub(void *devPtr)
 {
     free(devPtr);
-    return ACL_ERROR_NONE;
+    return ACL_SUCCESS;
 }
 
 aclError GetDeviceOriginStub(int32_t *devId)
 {
     *devId = 0;
-    return ACL_ERROR_NONE;
+    return ACL_SUCCESS;
 }
 
 } // namespace [Dummy]
@@ -60,7 +60,7 @@ TEST(DevMemManager, set_memory_init_flag_expect_get_correct_init_flag)
 TEST(DevMemManager, malloc_with_nullptr_expect_return_error)
 {
     DevMemManager &devMemManager = DevMemManager::Instance();
-    ASSERT_NE(devMemManager.MallocMemory(nullptr, 0), ACL_ERROR_NONE);
+    ASSERT_NE(devMemManager.MallocMemory(nullptr, 0), ACL_SUCCESS);
 }
 
 TEST(DevMemManager, malloc_with_valid_pointer_expect_return_valid_memory)
@@ -72,7 +72,7 @@ TEST(DevMemManager, malloc_with_valid_pointer_expect_return_valid_memory)
     DevMemManager &devMemManager = DevMemManager::Instance();
 
     void *memPtr {};
-    ASSERT_EQ(devMemManager.MallocMemory(&memPtr, 100), ACL_ERROR_NONE);
+    ASSERT_EQ(devMemManager.MallocMemory(&memPtr, 100), ACL_SUCCESS);
     ASSERT_NE(memPtr, nullptr);
     devMemManager.Free();
     GlobalMockObject::verify();
@@ -81,12 +81,12 @@ TEST(DevMemManager, malloc_with_valid_pointer_expect_return_valid_memory)
 TEST(DevMemManager, malloc_with_rtMalloc_failed_expect_return_error)
 {
     MOCKER(&aclrtMallocImplOrigin).stubs().will(returnValue(ACL_ERROR_BAD_ALLOC));
-    MOCKER(&aclrtFreeImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(&aclrtFreeImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
 
     DevMemManager &devMemManager = DevMemManager::Instance();
 
     void *memPtr {};
-    ASSERT_NE(devMemManager.MallocMemory(&memPtr, 100), ACL_ERROR_NONE);
+    ASSERT_NE(devMemManager.MallocMemory(&memPtr, 100), ACL_SUCCESS);
     devMemManager.Free();
     GlobalMockObject::verify();
 }
@@ -100,10 +100,10 @@ TEST(DevMemManager, malloc_with_smaller_memory_size_expect_reuse_previous_memory
     DevMemManager &devMemManager = DevMemManager::Instance();
 
     void *memPtr1 {};
-    ASSERT_EQ(devMemManager.MallocMemory(&memPtr1, 100), ACL_ERROR_NONE);
+    ASSERT_EQ(devMemManager.MallocMemory(&memPtr1, 100), ACL_SUCCESS);
     ASSERT_NE(memPtr1, nullptr);
     void *memPtr2 {};
-    ASSERT_EQ(devMemManager.MallocMemory(&memPtr2, 100), ACL_ERROR_NONE);
+    ASSERT_EQ(devMemManager.MallocMemory(&memPtr2, 100), ACL_SUCCESS);
     ASSERT_EQ(memPtr1, memPtr2);
     devMemManager.Free();
     GlobalMockObject::verify();

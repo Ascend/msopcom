@@ -72,7 +72,7 @@ inline void ConvertToVisibleDeviceIdIfPossible(int32_t &deviceId)
     // device id captured in hijacked reSetDevice is not always correct if
     // ASCEND_RT_VISIBLE_DEVICES is set. conversion needs to be done here.
     auto ret = aclrtGetLogicDevIdByUserDevIdImplOrigin(deviceId, &convertedId);
-    if (ret != ACL_ERROR_NONE) {
+    if (ret != ACL_SUCCESS) {
         DEBUG_LOG("Get visible device id from %d fail, ret: %d.", deviceId, ret);
         return;
     }

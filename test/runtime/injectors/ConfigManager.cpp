@@ -32,7 +32,7 @@ static int g_curDevId = 10;
 aclError GetDeviceOriginStub(int32_t *devId)
 {
     *devId = g_curDevId;
-    return ACL_ERROR_NONE;
+    return ACL_SUCCESS;
 }
 void AssureEqSanConfig(const SanitizerConfig &rhs, const SanitizerConfig &lhs)
 {

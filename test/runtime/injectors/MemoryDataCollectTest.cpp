@@ -90,12 +90,12 @@ std::string WithoutOrderIds(std::string message) {
 
 aclError AclrtMallocHostStub(void **hostPtr, size_t size) {
     *hostPtr = malloc(size);
-    return ACL_ERROR_NONE;
+    return ACL_SUCCESS;
 }
 
 aclError AclrtFreeHostStub(void *hostPtr) {
     free(hostPtr);
-    return ACL_ERROR_NONE;
+    return ACL_SUCCESS;
 }
 
 rtError_t RtMemcpyStubFunc(void *dst, uint64_t destMax, const void *src, uint64_t cnt, rtMemcpyKind_t kind)
@@ -107,13 +107,13 @@ rtError_t RtMemcpyStubFunc(void *dst, uint64_t destMax, const void *src, uint64_
 aclError MemcpyStub(void *dst, size_t destMax, const void *src, size_t count, aclrtMemcpyKind kind)
 {
     std::copy_n(static_cast<const uint8_t*>(src), count, static_cast<uint8_t*>(dst));
-    return ACL_ERROR_NONE;
+    return ACL_SUCCESS;
 }
 
 aclError GetDeviceOriginStub(int32_t *devId)
 {
     *devId = g_testMc2DevId;
-    return ACL_ERROR_NONE;
+    return ACL_SUCCESS;
 }
 
 RTS_API rtError_t RtMallocHostStubFunc(void **hostPtr, uint64_t size, uint16_t moduleId)
@@ -207,7 +207,7 @@ TEST(MemoryDataCollect, report_malloc_expect_recieve_correct_message)
 {
     MOCKER(IsSanitizer).stubs().will(returnValue(true));
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
-    MOCKER(aclrtGetDeviceImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(aclrtGetDeviceImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER(&LocalProcess::Notify).stubs().will(invoke(StubNotify));
 
     g_received.clear();
@@ -223,7 +223,7 @@ TEST(MemoryDataCollect, report_free_expect_recieve_correct_message)
 {
     MOCKER(IsSanitizer).stubs().will(returnValue(true));
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
-    MOCKER(aclrtGetDeviceImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(aclrtGetDeviceImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER(&LocalProcess::Notify).stubs().will(invoke(StubNotify));
 
     g_received.clear();
@@ -241,7 +241,7 @@ TEST(MemoryDataCollect, report_memset_expect_recieve_correct_message)
 {
     MOCKER(IsSanitizer).stubs().will(returnValue(true));
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
-    MOCKER(aclrtGetDeviceImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(aclrtGetDeviceImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER(&LocalProcess::Notify).stubs().will(invoke(StubNotify));
 
     g_received.clear();
@@ -256,7 +256,7 @@ TEST(MemoryDataCollect, report_memset_expect_recieve_correct_message)
 TEST(MemoryDataCollect, memcpy_hooks_report_only_device_accesses_in_row_order) {
     MOCKER(IsSanitizer).stubs().will(returnValue(true));
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
-    MOCKER(aclrtGetDeviceImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(aclrtGetDeviceImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER(&LocalProcess::Notify).stubs().will(invoke(StubNotify));
 
     constexpr uint64_t dstPitch = 32;
@@ -292,7 +292,7 @@ TEST(MemoryDataCollect, memcpy_hooks_report_only_device_accesses_in_row_order) {
 
 TEST(MemoryDataCollect, memcpy2d_skips_overflowing_rows_per_endpoint) {
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
-    MOCKER(aclrtGetDeviceImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(aclrtGetDeviceImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER(&LocalProcess::Notify).stubs().will(invoke(StubNotify));
 
     constexpr size_t dstPitch = uint64_t{1} << 63;
@@ -533,7 +533,7 @@ TEST(MemoryDataCollect, report_op_free_info_with_expect_get_correct_mem_info)
 {
     MOCKER(IsSanitizer).stubs().will(returnValue(true));
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
-    MOCKER(aclrtGetDeviceImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(aclrtGetDeviceImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER(&LocalProcess::Notify).stubs().will(invoke(StubNotify));
 
     // create tensor memInfo with uniqueAddrInfos

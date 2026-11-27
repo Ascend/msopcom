@@ -40,7 +40,7 @@ aclError HijackedFuncOfAclrtMallocHostImpl::Post(aclError ret)
 {
     if (IsSanitizer()) {
         // 只有实际内存分配成功内存地址才有效，才需要上报内存分配信息
-        if (ret != ACL_ERROR_NONE) {
+        if (ret != ACL_SUCCESS) {
             return ret;
         }
 

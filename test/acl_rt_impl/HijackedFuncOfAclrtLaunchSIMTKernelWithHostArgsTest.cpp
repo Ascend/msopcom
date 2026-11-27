@@ -201,7 +201,7 @@ TEST_F(HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsTest, sanitizer_pre_expect
     MOCKER(&ReportKernelSummary, void(*)(LaunchContextSP)).stubs();
     MOCKER(&aclrtGetDeviceImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER(&LocalDevice::Notify).stubs().will(returnValue(0));
-    MOCKER(&aclrtMemcpyImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(&aclrtMemcpyImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER(&RunDBITask, FuncContextSP(*)(const LaunchContextSP &)).stubs().will(returnValue(FuncContextSP{}));
     MOCKER(&ReportOpMallocInfo, void(*)(const AclrtLaunchArgsInfo &, OpMemInfo &)).stubs();
     GetSectionHeadersVecFn getSectionHeadersFn = &GetSectionHeaders;

@@ -27,18 +27,18 @@ aclError DevMemManager::MallocMemory(void **memPtr, uint64_t size)
     }
 
     int32_t deviceId {};
-    if (aclrtGetDeviceImplOrigin(&deviceId) != ACL_ERROR_NONE) {
+    if (aclrtGetDeviceImplOrigin(&deviceId) != ACL_SUCCESS) {
         return ACL_ERROR_BAD_ALLOC;
     }
 
     if (deviceId == this->deviceId_ && memSize_ >= size) {
         *memPtr = memPtr_;
-        return ACL_ERROR_NONE;
+        return ACL_SUCCESS;
     }
 
     Free();
     aclError error = aclrtMallocImplOrigin(&memPtr_, size, ACL_MEM_MALLOC_HUGE_FIRST);
-    if (error != ACL_ERROR_NONE) {
+    if (error != ACL_SUCCESS) {
         return error;
     }
     *memPtr = memPtr_;
@@ -46,7 +46,7 @@ aclError DevMemManager::MallocMemory(void **memPtr, uint64_t size)
     /// 重新申请内存时，重置isMemoryInit_标志位
     isMemoryInit_ = false;
     deviceId_ = deviceId;
-    return ACL_ERROR_NONE;
+    return ACL_SUCCESS;
 }
 
 void DevMemManager::Free()

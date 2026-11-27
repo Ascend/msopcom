@@ -29,7 +29,7 @@ TEST(aclrtUnmapMemImpl, sanitizer_call_pre_function_with_unmap_mem_args_expect_r
 {
     MOCKER(IsSanitizer).stubs().will(returnValue(true));
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
-    MOCKER(aclrtGetDeviceImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(aclrtGetDeviceImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER(&LocalDevice::Notify).stubs().will(returnValue(0));
 
     int stubObj;

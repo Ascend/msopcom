@@ -29,7 +29,7 @@ bool g_kernelAbort = false;
 aclError AclrtStreamAbortStub(aclrtStream stream)
 {
     g_kernelAbort = true;
-    return ACL_ERROR_NONE;
+    return ACL_SUCCESS;
 }
 
 bool g_sigintCatch = false;

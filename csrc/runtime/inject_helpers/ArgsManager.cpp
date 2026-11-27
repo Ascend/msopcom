@@ -289,17 +289,17 @@ std::vector<AddrInfo> ArgsManager::GetMc2AddrInfosFromArgAddr(uint64_t addr) con
 
 std::vector<AddrInfo> ArgsManager::GetMc2AddrInfosFromArgAddr910B(uint64_t addr) const {
     void *hostData;
-    if (aclrtMallocHostImplOrigin(&hostData, sizeof(HcclCombinOpParam)) != ACL_ERROR_NONE) {
+    if (aclrtMallocHostImplOrigin(&hostData, sizeof(HcclCombinOpParam)) != ACL_SUCCESS) {
         return {};
     }
-    Defer defer0(nullptr, [&hostData](std::nullptr_t&) {
-        if (aclrtFreeHostImplOrigin(hostData) != ACL_ERROR_NONE) {
+    Defer defer0(nullptr, [&hostData](std::nullptr_t &) {
+        if (aclrtFreeHostImplOrigin(hostData) != ACL_SUCCESS) {
             ERROR_LOG("rtFreeHost failed");
         }
     });
     aclError error = aclrtMemcpyImplOrigin(hostData, sizeof(HcclCombinOpParam),
         reinterpret_cast<void *>(addr), sizeof(HcclCombinOpParam), ACL_MEMCPY_DEVICE_TO_HOST);
-    if (error != ACL_ERROR_NONE) {
+    if (error != ACL_SUCCESS) {
         ERROR_LOG("ParseMc2CtxAddrs rtMemcpy error: %d", error);
         return {};
     }
@@ -326,17 +326,17 @@ std::vector<AddrInfo> ArgsManager::GetMc2AddrInfosFromArgAddr910B(uint64_t addr)
 
 std::vector<AddrInfo> ArgsManager::GetMc2AddrInfosFromArgAddr910C(uint64_t addr) const {
     void *hostData;
-    if (aclrtMallocHostImplOrigin(&hostData, sizeof(HcclOpResParam)) != ACL_ERROR_NONE) {
+    if (aclrtMallocHostImplOrigin(&hostData, sizeof(HcclOpResParam)) != ACL_SUCCESS) {
         return {};
     }
     Defer defer0(nullptr, [&hostData](std::nullptr_t &) {
-        if (aclrtFreeHostImplOrigin(hostData) != ACL_ERROR_NONE) {
+        if (aclrtFreeHostImplOrigin(hostData) != ACL_SUCCESS) {
             ERROR_LOG("rtFreeHost failed");
         }
     });
     aclError error = aclrtMemcpyImplOrigin(hostData, sizeof(HcclOpResParam), reinterpret_cast<void *>(addr),
         sizeof(HcclOpResParam), ACL_MEMCPY_DEVICE_TO_HOST);
-    if (error != ACL_ERROR_NONE) {
+    if (error != ACL_SUCCESS) {
         ERROR_LOG("%s, rtMemcpy error: %d", __FUNCTION__, error);
         return {};
     }
@@ -348,12 +348,12 @@ std::vector<AddrInfo> ArgsManager::GetMc2AddrInfosFromArgAddr910C(uint64_t addr)
     DEBUG_LOG("rankSize=%u, localUsrRankId=%u, winSize=%lu", opParamPtr->rankSize, opParamPtr->localUsrRankId,
         opParamPtr->winSize);
     void *remoteResData = nullptr;
-    if (aclrtMallocHostImplOrigin(&remoteResData, sizeof(HcclRankRelationResV2)) != ACL_ERROR_NONE) {
+    if (aclrtMallocHostImplOrigin(&remoteResData, sizeof(HcclRankRelationResV2)) != ACL_SUCCESS) {
         ERROR_LOG("Parse910CMc2CtxAddrs malloc host for HcclRankRelationResV2 failed");
         return {};
     }
     Defer defer1(nullptr, [&remoteResData](std::nullptr_t &) {
-        if (aclrtFreeHostImplOrigin(remoteResData) != ACL_ERROR_NONE) {
+        if (aclrtFreeHostImplOrigin(remoteResData) != ACL_SUCCESS) {
             ERROR_LOG("rtFreeHost failed");
         }
     });
@@ -368,7 +368,7 @@ std::vector<AddrInfo> ArgsManager::GetMc2AddrInfosFromArgAddr910C(uint64_t addr)
         }
         aclError cpErr = aclrtMemcpyImplOrigin(remoteResData, sizeof(HcclRankRelationResV2),
             reinterpret_cast<void *>(nextDevicePtr), sizeof(HcclRankRelationResV2), ACL_MEMCPY_DEVICE_TO_HOST);
-        if (cpErr != ACL_ERROR_NONE) {
+        if (cpErr != ACL_SUCCESS) {
             ERROR_LOG("%s rtMemcpy remoteRes[%zu] error: %d", __FUNCTION__, i, cpErr);
             continue;
         }

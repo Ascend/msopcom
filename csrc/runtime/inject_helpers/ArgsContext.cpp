@@ -92,12 +92,12 @@ bool DumpInputData(const string &outputDir,
             return false;
         }
         void *hostData = nullptr;
-        if (aclrtMallocHostImplOrigin(&hostData, addrInfo.length) != ACL_ERROR_NONE) {
+        if (aclrtMallocHostImplOrigin(&hostData, addrInfo.length) != ACL_SUCCESS) {
             return false;
         }
         using Defer = std::shared_ptr<void>;
-        Defer defer0(nullptr, [&hostData](std::nullptr_t&) {
-            if (aclrtFreeHostImplOrigin(hostData) != ACL_ERROR_NONE) {
+        Defer defer0(nullptr, [&hostData](std::nullptr_t &) {
+            if (aclrtFreeHostImplOrigin(hostData) != ACL_SUCCESS) {
                 ERROR_LOG("rtFreeHost failed\n");
             }
         });
@@ -105,8 +105,8 @@ bool DumpInputData(const string &outputDir,
             DEBUG_LOG("Invalid args addr=0.");
             return false;
         }
-        if (aclrtMemcpyImplOrigin(hostData, addrInfo.length, reinterpret_cast<void*>(addrInfo.addr),
-            addrInfo.length, ACL_MEMCPY_DEVICE_TO_HOST) != ACL_ERROR_NONE) {
+        if (aclrtMemcpyImplOrigin(hostData, addrInfo.length, reinterpret_cast<void *>(addrInfo.addr), addrInfo.length,
+                ACL_MEMCPY_DEVICE_TO_HOST) != ACL_SUCCESS) {
             return false;
         }
 

@@ -83,9 +83,9 @@ TEST_F(HijackedFuncOfAclrtIpcMemCloseImplTest, TestPostWithSanitizerAndKeyNotFou
     IPCMemManager::IPCMemInfo ipcMemInfo{IPCMemManager::IPCMemActor::SHAREE, nullptr};
     IPCMemManager::Instance().ipcMemInfoMap.insert({keyInsert, ipcMemInfo});
     // 执行
-    aclError ret = func.Post(ACL_ERROR_NONE);
+    aclError ret = func.Post(ACL_SUCCESS);
     // 验证
-    EXPECT_EQ(ret, ACL_ERROR_NONE);
+    EXPECT_EQ(ret, ACL_SUCCESS);
     GlobalMockObject::verify();
 }
 

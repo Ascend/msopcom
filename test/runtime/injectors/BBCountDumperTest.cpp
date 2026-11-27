@@ -74,7 +74,7 @@ TEST(BBCountDumper, gen_extra_and_return_name)
     rtDevBinary_t bin;
     bin.data = reinterpret_cast<void *>(mockData.data());
     bin.length = mockData.size() * sizeof(uint8_t);
-    MOCKER(aclrtMemcpyImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(aclrtMemcpyImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
 
     MOCKER(&BBCountDumper::GetOutFileName).stubs().will(returnValue(fileName));
     MOCKER(WriteBinary).stubs().will(returnValue(1));

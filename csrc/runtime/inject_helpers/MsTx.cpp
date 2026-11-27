@@ -119,7 +119,7 @@ void MsTx::MstxRangeEnd(const MstxRangeId& rangeId)
         }
         aclmdlRI modelRI;
         auto res = aclmdlRICaptureEndImplOrigin(rangeConfig.stream, &modelRI);
-        if (res != ACL_ERROR_NONE) {
+        if (res != ACL_SUCCESS) {
             ERROR_LOG("Range replay end failed, res is %d.", res);
             ProfDataCollect::ResetRangeConfig(threadId);
             aclmdlRIDestroyImplOrigin(modelRI);
@@ -128,7 +128,7 @@ void MsTx::MstxRangeEnd(const MstxRangeId& rangeId)
         ProfDataCollect collect(nullptr, false);
         collect.RangeReplay(rangeConfig.stream, modelRI);
         res = aclmdlRIDestroyImplOrigin(modelRI);
-        if (res != ACL_ERROR_NONE) {
+        if (res != ACL_SUCCESS) {
             WARN_LOG("Destroy range replay modelRI failed, res is %d.", res);
         }
     }

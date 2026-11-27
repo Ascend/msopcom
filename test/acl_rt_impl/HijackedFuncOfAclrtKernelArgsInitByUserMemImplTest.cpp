@@ -90,10 +90,10 @@ TEST_F(HijackedFuncOfAclrtKernelArgsInitByUserMemImplTest, TestPostWithFailure)
     func.Pre(funcHandle, argsHandle, nullptr, 0);
 
     // 执行
-    aclError ret = func.Post(ACL_ERROR_NONE);
+    aclError ret = func.Post(ACL_SUCCESS);
 
     // 验证
-    EXPECT_EQ(ret, ACL_ERROR_NONE);
+    EXPECT_EQ(ret, ACL_SUCCESS);
 }
 
 TEST_F(HijackedFuncOfAclrtKernelArgsInitByUserMemImplTest, TestPostWithCreateContextFailure)

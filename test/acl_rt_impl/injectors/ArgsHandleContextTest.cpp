@@ -29,7 +29,7 @@ uint64_t g_argsHandleStorage{};
 aclError aclrtKernelArgsInitImplOriginStub(aclrtFuncHandle funcHandle, aclrtArgsHandle *argsHandle) {
     (void)funcHandle;
     *argsHandle = reinterpret_cast<aclrtArgsHandle>(&g_argsHandleStorage);
-    return ACL_ERROR_NONE;
+    return ACL_SUCCESS;
 }
 
 } // namespace [Dummy]
@@ -87,8 +87,8 @@ TEST_F(ArgsHandleContextTest, input_valid_then_cache_args_para_update_expect_siz
 TEST_F(ArgsHandleContextTest, input_valid_then_finalize_expect_success)
 {
     MOCKER(&aclrtKernelArgsInitImplOrigin).stubs().will(invoke(&aclrtKernelArgsInitImplOriginStub));
-    MOCKER(&aclrtKernelArgsFinalizeImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
-    MOCKER(&aclrtKernelArgsAppendImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(&aclrtKernelArgsFinalizeImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
+    MOCKER(&aclrtKernelArgsAppendImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
 
     uint64_t devAddr{};
     vector<uint64_t> fakeParamH(5);
@@ -149,7 +149,7 @@ TEST_F(ArgsHandleContextTest, args_append_placeholder_failed_expect_generate_arg
 TEST_F(ArgsHandleContextTest, args_get_placeholder_buffer_failed_expect_generate_args_handle_return_nullptr)
 {
     MOCKER(&aclrtKernelArgsInitImplOrigin).stubs().will(invoke(&aclrtKernelArgsInitImplOriginStub));
-    MOCKER(&aclrtKernelArgsAppendPlaceHolderImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(&aclrtKernelArgsAppendPlaceHolderImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER(&aclrtKernelArgsGetPlaceHolderBufferImplOrigin).stubs().will(returnValue(ACL_ERROR_INTERNAL_ERROR));
 
     aclrtParamHandle paramHandle = &placeholder_;
@@ -161,7 +161,7 @@ TEST_F(ArgsHandleContextTest, args_get_placeholder_buffer_failed_expect_generate
 TEST_F(ArgsHandleContextTest, args_finalize_failed_expect_generate_args_handle_return_nullptr)
 {
     MOCKER(&aclrtKernelArgsInitImplOrigin).stubs().will(invoke(&aclrtKernelArgsInitImplOriginStub));
-    MOCKER(&aclrtKernelArgsAppendImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(&aclrtKernelArgsAppendImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER(aclrtKernelArgsFinalizeImplOrigin).stubs().will(returnValue(ACL_ERROR_INTERNAL_ERROR));
 
     aclrtArgsHandle argsHandle = ctx_->GenerateArgsHandle();
@@ -171,10 +171,10 @@ TEST_F(ArgsHandleContextTest, args_finalize_failed_expect_generate_args_handle_r
 TEST_F(ArgsHandleContextTest, args_append_all_args_success_expect_generate_args_handle_return_handle)
 {
     MOCKER(&aclrtKernelArgsInitImplOrigin).stubs().will(invoke(&aclrtKernelArgsInitImplOriginStub));
-    MOCKER(&aclrtKernelArgsAppendImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
-    MOCKER(&aclrtKernelArgsAppendPlaceHolderImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
-    MOCKER(&aclrtKernelArgsGetPlaceHolderBufferImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
-    MOCKER(aclrtKernelArgsFinalizeImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(&aclrtKernelArgsAppendImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
+    MOCKER(&aclrtKernelArgsAppendPlaceHolderImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
+    MOCKER(&aclrtKernelArgsGetPlaceHolderBufferImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
+    MOCKER(aclrtKernelArgsFinalizeImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
 
     uint64_t devAddr{};
     aclrtParamHandle paramHandle = &placeholder_;

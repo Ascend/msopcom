@@ -26,12 +26,12 @@ TEST(AscendclOrigin, ascendcl_function_load_failed)
         .will(returnValue((void*)nullptr));
     AscendclOriginCtor();
     EXPECT_EQ(aclrtGetUserDevIdByPhyDevIdOrigin(2, nullptr), ACL_ERROR_INTERNAL_ERROR);
-    EXPECT_NE(aclrtSetOpExecuteTimeOutOrigin(0), ACL_ERROR_NONE);
-    EXPECT_NE(aclrtCreateEventOrigin(nullptr), ACL_ERROR_NONE);
-    EXPECT_NE(aclrtStreamWaitEventOrigin(nullptr, nullptr), ACL_ERROR_NONE);
-    EXPECT_NE(aclrtRecordEventOrigin(nullptr, nullptr), ACL_ERROR_NONE);
-    EXPECT_NE(aclrtResetEventOrigin(nullptr, nullptr), ACL_ERROR_NONE);
-    EXPECT_NE(aclrtDestroyEventOrigin(nullptr), ACL_ERROR_NONE);
+    EXPECT_NE(aclrtSetOpExecuteTimeOutOrigin(0), ACL_SUCCESS);
+    EXPECT_NE(aclrtCreateEventOrigin(nullptr), ACL_SUCCESS);
+    EXPECT_NE(aclrtStreamWaitEventOrigin(nullptr, nullptr), ACL_SUCCESS);
+    EXPECT_NE(aclrtRecordEventOrigin(nullptr, nullptr), ACL_SUCCESS);
+    EXPECT_NE(aclrtResetEventOrigin(nullptr, nullptr), ACL_SUCCESS);
+    EXPECT_NE(aclrtDestroyEventOrigin(nullptr), ACL_SUCCESS);
     GlobalMockObject::verify();
 }
 

@@ -51,7 +51,7 @@ TEST(aclrtMallocCached, sanitizer_call_post_function_with_malloc_args_expect_ret
     void *devPtr = nullptr;
     HijackedFuncOfAclrtMallocCachedImpl instance;
     instance.Pre(&devPtr, 64, ACL_MEM_MALLOC_HUGE_FIRST);
-    ASSERT_EQ(instance.Post(ACL_ERROR_NONE), ACL_ERROR_NONE);
+    ASSERT_EQ(instance.Post(ACL_SUCCESS), ACL_SUCCESS);
     GlobalMockObject::verify();
 }
 
@@ -71,7 +71,7 @@ TEST(aclrtMallocCached, TracksSuccessfulAllocationAndIgnoresFailure)
     instance.Pre(&pointer, 64, ACL_MEM_MALLOC_HUGE_FIRST);
     EXPECT_EQ(instance.Post(1), 1);
     EXPECT_EQ(memory.GetMallocCount(), count);
-    EXPECT_EQ(instance.Post(ACL_ERROR_NONE), ACL_ERROR_NONE);
+    EXPECT_EQ(instance.Post(ACL_SUCCESS), ACL_SUCCESS);
     const auto ranges = memory.SnapshotOnlineRanges();
     EXPECT_EQ(ranges.size(), 1);
     if (!ranges.empty()) {
@@ -103,7 +103,7 @@ public:
         originfunc_ = +[](void **pointer, size_t size, aclrtMemMallocPolicy) -> aclError {
             EXPECT_EQ(size, 64);
             *pointer = reinterpret_cast<void *>(0xccaf000);
-            return ACL_ERROR_NONE;
+            return ACL_SUCCESS;
         };
     }
 };
@@ -114,7 +114,7 @@ public:
     {
         originfunc_ = +[](void *pointer) -> aclError {
             EXPECT_EQ(pointer, reinterpret_cast<void *>(0xccaf000));
-            return ACL_ERROR_NONE;
+            return ACL_SUCCESS;
         };
     }
 };
@@ -160,7 +160,7 @@ TEST_P(CachedMallocLifecycle, ReportsAlignedRangeAndRealFreeHookRemovesIt)
     const auto expectedSize = std::get<2>(GetParam());
     void *pointer = nullptr;
     CachedMallocHook allocation;
-    ASSERT_EQ(allocation.Call(&pointer, 33, policy), ACL_ERROR_NONE);
+    ASSERT_EQ(allocation.Call(&pointer, 33, policy), ACL_SUCCESS);
     EXPECT_EQ(pointer, kGuardedPointer);
     EXPECT_EQ(memory.GetMallocCount(), before + 1);
     const auto ranges = memory.SnapshotOnlineRanges();
@@ -168,7 +168,7 @@ TEST_P(CachedMallocLifecycle, ReportsAlignedRangeAndRealFreeHookRemovesIt)
     EXPECT_EQ(ranges.front().addr, reinterpret_cast<uint64_t>(kGuardedPointer));
     EXPECT_EQ(ranges.front().size, expectedSize);
     CachedFreeHook release;
-    EXPECT_EQ(release.Call(pointer), ACL_ERROR_NONE);
+    EXPECT_EQ(release.Call(pointer), ACL_SUCCESS);
     EXPECT_EQ(memory.GetMallocCount(), before);
     EXPECT_TRUE(memory.SnapshotOnlineRanges().empty());
     ASSERT_EQ(cachedRecords.size(), 2);
@@ -234,7 +234,7 @@ TEST(aclrtMallocCached, NonSanitizerDoesNotCacheOrReportAllocation)
     void *pointer = reinterpret_cast<void *>(0xccaf000);
     HijackedFuncOfAclrtMallocCachedImpl allocation;
     allocation.Pre(&pointer, 33, ACL_MEM_MALLOC_HUGE_FIRST);
-    EXPECT_EQ(allocation.Post(ACL_ERROR_NONE), ACL_ERROR_NONE);
+    EXPECT_EQ(allocation.Post(ACL_SUCCESS), ACL_SUCCESS);
     EXPECT_EQ(memory.GetMallocCount(), before);
     GlobalMockObject::verify();
 }

@@ -81,10 +81,10 @@ TEST_F(HijackedFuncOfAclrtMallocWithCfgImplTest, TestPostWithSanitizerAndFailure
     MOCKER(IsSanitizer).stubs().will(returnValue(true));
 
     // 执行
-    aclError ret = func.Post(ACL_ERROR_NONE);
+    aclError ret = func.Post(ACL_SUCCESS);
 
     // 验证
-    EXPECT_EQ(ret, ACL_ERROR_NONE);
+    EXPECT_EQ(ret, ACL_SUCCESS);
 }
 
 TEST_F(HijackedFuncOfAclrtMallocWithCfgImplTest, TestPostWithOpProfAndSuccess)
@@ -125,8 +125,8 @@ TEST_F(HijackedFuncOfAclrtMallocWithCfgImplTest, TestPostWithOpProfAndFailure)
     MOCKER(&KernelContext::GetLcclFlag).stubs().will(returnValue(false));
 
     // 执行
-    aclError ret = func.Post(ACL_ERROR_NONE);
+    aclError ret = func.Post(ACL_SUCCESS);
 
     // 验证
-    EXPECT_EQ(ret, ACL_ERROR_NONE);
+    EXPECT_EQ(ret, ACL_SUCCESS);
 }

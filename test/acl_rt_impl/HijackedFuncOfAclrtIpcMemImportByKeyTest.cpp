@@ -43,7 +43,7 @@ TEST_F(HijackedFuncOfAclrtIpcMemImportByKey, post_not_sanitizer_expect_return_re
     HijackedFuncOfAclrtIpcMemImportByKeyImpl instance;
     FuncSelector::Instance().Set(ToolType::TEST);
 
-    ASSERT_EQ(instance.Post(ACL_ERROR_NONE), ACL_ERROR_NONE);
+    ASSERT_EQ(instance.Post(ACL_SUCCESS), ACL_SUCCESS);
 }
 
 TEST_F(HijackedFuncOfAclrtIpcMemImportByKey, post_key_nullptr_expect_return_ret)
@@ -53,7 +53,7 @@ TEST_F(HijackedFuncOfAclrtIpcMemImportByKey, post_key_nullptr_expect_return_ret)
     HijackedFuncOfAclrtIpcMemImportByKeyImpl instance;
     FuncSelector::Instance().Set(ToolType::SANITIZER);
 
-    ASSERT_EQ(instance.Post(ACL_ERROR_NONE), ACL_ERROR_NONE);
+    ASSERT_EQ(instance.Post(ACL_SUCCESS), ACL_SUCCESS);
 }
 
 TEST_F(HijackedFuncOfAclrtIpcMemImportByKey, post_devptr_nullptr_expect_return_ret)
@@ -63,7 +63,7 @@ TEST_F(HijackedFuncOfAclrtIpcMemImportByKey, post_devptr_nullptr_expect_return_r
     HijackedFuncOfAclrtIpcMemImportByKeyImpl instance;
     FuncSelector::Instance().Set(ToolType::SANITIZER);
     instance.key_ = "IPC_MEM_NAME_01234";
-    ASSERT_EQ(instance.Post(ACL_ERROR_NONE), ACL_ERROR_NONE);
+    ASSERT_EQ(instance.Post(ACL_SUCCESS), ACL_SUCCESS);
 }
 
 TEST_F(HijackedFuncOfAclrtIpcMemImportByKey, origin_func_call_success_expect_return_success)
@@ -78,11 +78,9 @@ TEST_F(HijackedFuncOfAclrtIpcMemImportByKey, origin_func_call_success_expect_ret
 
     ASSERT_EQ(instance.Call(&ptr, key, 0), ACL_ERROR_INTERNAL_ERROR);
 
-    auto func = [](void **devPtr, const char *key, uint64_t flag) -> aclError {
-        return ACL_ERROR_NONE;
-    };
+    auto func = [](void **devPtr, const char *key, uint64_t flag) -> aclError { return ACL_SUCCESS; };
     instance.originfunc_ = func;
-    ASSERT_EQ(instance.Call(&ptr, key, 0), ACL_ERROR_NONE);
+    ASSERT_EQ(instance.Call(&ptr, key, 0), ACL_SUCCESS);
 }
 
 TEST_F(HijackedFuncOfAclrtIpcMemImportByKey, origin_func_call_failed_expect_return_failed)

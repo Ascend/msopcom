@@ -300,10 +300,10 @@ TEST_F(ProfDataCollectTest, ProfData_success_when_mc2_operator_run_success)
     MOCKER(prof_channel_poll_origin).stubs().will(returnValue(0));
 
     KernelContext::Instance().SetHcclComm(&path);
-    MOCKER(aclrtCreateEventOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
-    MOCKER(aclrtRecordEventOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
-    MOCKER(aclrtStreamWaitEventOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
-    MOCKER(aclrtResetEventOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(aclrtCreateEventOrigin).stubs().will(returnValue(ACL_SUCCESS));
+    MOCKER(aclrtRecordEventOrigin).stubs().will(returnValue(ACL_SUCCESS));
+    MOCKER(aclrtStreamWaitEventOrigin).stubs().will(returnValue(ACL_SUCCESS));
+    MOCKER(aclrtResetEventOrigin).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER(HcclBarrierOrigin).stubs().will(returnValue(HCCL_SUCCESS));
     MOCKER(rtAicpuKernelLaunchExWithArgsOrigin).stubs().will(returnValue(RT_ERROR_NONE));
     MOCKER(aclrtSynchronizeStreamWithTimeoutImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
@@ -953,8 +953,8 @@ TEST_F(ProfDataCollectTest, RangeReplay_pmu_empty_expect_false)
     RangeReplayConfig rangeConfig = {true, 0, &tmpPath, {"add/dump"}};
     MOCKER(&ProfDataCollect::GetThreadRangeConfigMap).stubs().will(returnValue(rangeConfig));
     MOCKER(GetEnv).stubs().will(returnValue(tmpPath));
-    MOCKER(aclmdlRIExecuteAsyncImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
-    MOCKER(aclrtSynchronizeStreamWithTimeoutImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(aclmdlRIExecuteAsyncImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
+    MOCKER(aclrtSynchronizeStreamWithTimeoutImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
     MessageOfProfConfig profMessage;
     profMessage.profWarmUpTimes = 5;
     ProfConfig::Instance().Init(profMessage);
@@ -974,8 +974,8 @@ TEST_F(ProfDataCollectTest, RangeReplay_prof_success_expect_true)
     RangeReplayConfig rangeConfig = {true, 0, &tmpPath, {"add/dump"}};
     MOCKER(&ProfDataCollect::GetThreadRangeConfigMap).stubs().will(returnValue(rangeConfig));
     MOCKER(GetEnv).stubs().will(returnValue(tmpPath));
-    MOCKER(aclmdlRIExecuteAsyncImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
-    MOCKER(aclrtSynchronizeStreamWithTimeoutImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(aclmdlRIExecuteAsyncImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
+    MOCKER(aclrtSynchronizeStreamWithTimeoutImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER(&MemoryContext::Backup).stubs().will(returnValue(true));
     MOCKER(&MemoryContext::Restore).stubs().will(returnValue(true));
     MOCKER(prof_drv_start_origin).stubs().will(returnValue(0));
@@ -1019,7 +1019,7 @@ TEST_F(ProfDataCollectTest, ProfData_range_replay_save_basic_failed_expect_true)
 {
     std::string tmpPath = "./tmp";
     ProfConfig::Instance().isRangeReplay_ = true;
-    MOCKER(aclmdlRICaptureBeginImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(aclmdlRICaptureBeginImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER(&LocalProcess::Notify).stubs().will(returnValue(0));
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(&ProfConfig::GetOutputPathFromRemote).stubs().will(returnValue(tmpPath));
@@ -1040,7 +1040,7 @@ TEST_F(ProfDataCollectTest, ProfData_range_replay_success_expect_true)
     std::string tmpPath = "./tmp";
     MkdirRecusively(tmpPath);
     ProfConfig::Instance().isRangeReplay_ = true;
-    MOCKER(aclmdlRICaptureBeginImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(aclmdlRICaptureBeginImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER(&LocalProcess::Notify).stubs().will(returnValue(0));
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
     MOCKER(&ProfConfig::GetOutputPathFromRemote).stubs().will(returnValue(tmpPath));

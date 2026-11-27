@@ -443,12 +443,12 @@ uint8_t* InitMemory(uint64_t memSize)
     DEBUG_LOG("Dbi task init with memSize: %lu", memSize);
     void *memInfo;
     aclError ret = DevMemManager::Instance().MallocMemory(&memInfo, memSize);
-    if (ret != ACL_ERROR_NONE) {
+    if (ret != ACL_SUCCESS) {
         ERROR_LOG("malloc memInfo error: %d, memSize: %lu, device memory may be insufficient", ret, memSize);
         return nullptr;
     }
     aclError error = aclrtMemsetImplOrigin(memInfo, memSize, 0x00, memSize);
-    if (error != ACL_ERROR_NONE) {
+    if (error != ACL_SUCCESS) {
         ERROR_LOG("init rtMemset memInfo error: %d, memSize: %lu", error, memSize);
         return nullptr;
     }

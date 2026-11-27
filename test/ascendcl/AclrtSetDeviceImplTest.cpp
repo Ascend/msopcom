@@ -94,8 +94,7 @@ TEST(aclrtSetDeviceImpl, opprof_call_with_originfunc)
 
     HijackedFuncOfAclrtSetDeviceImpl instance;
 
-    auto func = [](int32_t) ->
-        aclError { return ACL_ERROR_NONE; };
+    auto func = [](int32_t) -> aclError { return ACL_SUCCESS; };
     instance.originfunc_ = func;
 
     instance.Pre(devId);

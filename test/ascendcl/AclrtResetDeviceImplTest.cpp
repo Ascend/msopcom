@@ -14,7 +14,6 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
- 
 #include <gtest/gtest.h>
 
 #define private public
@@ -48,8 +47,7 @@ TEST(aclrtResetDeviceImpl, IsOpProf)
     MOCKER(IsOpProf).stubs().will(returnValue(true));
     ProfConfig::Instance().profConfig_.isSimulator = true;
     HijackedFuncOfAclrtResetDeviceImpl instance;
-    auto func = [](int32_t) ->
-        aclError { return ACL_ERROR_NONE; };
+    auto func = [](int32_t) -> aclError { return ACL_SUCCESS; };
     MOCKER(rtDeviceResetForceOrigin).stubs().will(returnValue(0));
     instance.originfunc_ = func;
     instance.Pre(1);

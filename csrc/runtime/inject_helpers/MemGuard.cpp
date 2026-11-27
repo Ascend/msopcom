@@ -113,7 +113,7 @@ void MemoryGuard::FillGuard(void* start, size_t len)
 {
     if (start && len > 0) {
         aclError error = aclrtMemsetImplOrigin(start, len, static_cast<int32_t>(pattern_), len);
-        if (error != ACL_ERROR_NONE) {
+        if (error != ACL_SUCCESS) {
             ERROR_LOG("FillGuard error: %d", error);
             return;
         }
@@ -148,7 +148,7 @@ void MemoryGuard::CheckGuard(const void* start, size_t len, uint64_t &errBytesSt
 
     unsigned char buf[len];
     aclError error = aclrtMemcpyImplOrigin(static_cast<void *>(buf), len, start, len, ACL_MEMCPY_DEVICE_TO_HOST);
-    if (error != ACL_ERROR_NONE) {
+    if (error != ACL_SUCCESS) {
         ERROR_LOG("CheckGuard copy out error: %d", error);
         return;
     }

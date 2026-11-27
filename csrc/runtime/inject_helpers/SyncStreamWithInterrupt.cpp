@@ -44,7 +44,7 @@ void BindSigIntHandler(void) {
 }
 
 aclError SyncStreamWithInterrupt(aclrtStream stream) {
-    aclError ret = ACL_ERROR_NONE;
+    aclError ret = ACL_SUCCESS;
     // 流同步每次等待 1s，最大等待次数只需比硬件超时时间长即可，硬件超时时算子会强制退出
     constexpr size_t syncStreamMaxRetry = 2400;
     constexpr int32_t syncStreamTimeout = 1000;

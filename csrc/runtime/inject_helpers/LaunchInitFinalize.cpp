@@ -214,7 +214,7 @@ void DumpMemoryInfo(uint8_t *memInfoHost, const uint8_t *memInfo, uint64_t block
     aclError error = aclrtMemcpyImplOrigin(
         memInfoHost, blockRemainSize, memInfo, sizeof(RecordBlockHead), ACL_MEMCPY_DEVICE_TO_HOST);
     auto *blockHead = reinterpret_cast<RecordBlockHead *>(memInfoHost);
-    if (error != ACL_ERROR_NONE) {
+    if (error != ACL_SUCCESS) {
         ERROR_LOG("finalize memcpy hostMemInfo error: %d", error);
         return;
     }
@@ -229,7 +229,7 @@ void DumpMemoryInfo(uint8_t *memInfoHost, const uint8_t *memInfo, uint64_t block
     blockHead->hostMemoryInfoPtr = reinterpret_cast<HostMemoryInfo *>(blockHead + 1);
     error = aclrtMemcpyImplOrigin(memInfoHost + sizeof(RecordBlockHead), blockRemainSize - sizeof(RecordBlockHead),
         memInfo + sizeof(RecordBlockHead), recordHeadSize - sizeof(RecordBlockHead), ACL_MEMCPY_DEVICE_TO_HOST);
-    if (error != ACL_ERROR_NONE) {
+    if (error != ACL_SUCCESS) {
         ERROR_LOG("finalize memcpy hostMemInfo error: %d", error);
         return;
     }
@@ -276,7 +276,7 @@ bool InitSimtShadowMemoryHead(const RecordGlobalHead &recordGlobalHead, uint8_t 
     uint8_t *shadowMemoryHeadAddr = memInfo + recordGlobalHead.offsetInfo.shadowMemoryInfo.offset;
 
     aclError error = aclrtMemsetImplOrigin(shadowMemoryHeadAddr, shadowMemorySize, 0x00, shadowMemorySize);
-    if (error != ACL_ERROR_NONE) {
+    if (error != ACL_SUCCESS) {
         ERROR_LOG("init memset 0 to shadow memory heap error: %d", error);
         return false;
     }
@@ -296,7 +296,7 @@ bool InitSimtShadowMemoryHead(const RecordGlobalHead &recordGlobalHead, uint8_t 
 
     error = aclrtMemcpyImplOrigin(shadowMemoryHeadAddr, sizeof(ShadowMemoryHeapHead),
         static_cast<const void *>(&smHeapHead), sizeof(ShadowMemoryHeapHead), ACL_MEMCPY_HOST_TO_DEVICE);
-    if (error != ACL_ERROR_NONE) {
+    if (error != ACL_SUCCESS) {
         ERROR_LOG("init shadow memory heap head error: %d", error);
         return false;
     }
@@ -354,7 +354,7 @@ bool SanitizerLaunchInit::AssignGlobalHead() {
     aclError error = aclrtMemcpyImplOrigin(globalHead_.registers, sizeof(Register) * MAX_AICORE_NUM,
         SanitizerLaunchGlobalData::GetInstance().registers, sizeof(Register) * MAX_AICORE_NUM,
         ACL_MEMCPY_HOST_TO_HOST);
-    if (error != ACL_ERROR_NONE) {
+    if (error != ACL_SUCCESS) {
         ERROR_LOG("init memcpy registers error: %d", error);
         return false;
     }
@@ -470,7 +470,7 @@ bool SanitizerLaunchInit::BlockHeadsH2D(uint8_t *memInfo) const {
     // 1. 初始化 RecordGlobalHead
     error = aclrtMemcpyImplOrigin(memInfo, sizeof(globalHead_), static_cast<const void *>(&globalHead_),
         sizeof(globalHead_), ACL_MEMCPY_HOST_TO_DEVICE);
-    if (error != ACL_ERROR_NONE) {
+    if (error != ACL_SUCCESS) {
         ERROR_LOG("init memcpy record global head error: %d", error);
         return false;
     }
@@ -495,7 +495,7 @@ bool SanitizerLaunchInit::BlockHeadsH2D(uint8_t *memInfo) const {
             : nullptr;
         error = aclrtMemcpyImplOrigin(memInfo, sizeof(RecordBlockHead), static_cast<const void *>(&recordBlockHead),
             sizeof(RecordBlockHead), ACL_MEMCPY_HOST_TO_DEVICE);
-        if (error != ACL_ERROR_NONE) {
+        if (error != ACL_SUCCESS) {
             ERROR_LOG("init memcpy simd record block head error: %d", error);
             return false;
         }
@@ -526,7 +526,7 @@ bool SanitizerLaunchInit::HostMallocH2D(uint8_t *memInfo, size_t blockIdx) const
     if (hostMems.size() != 0U) {
         aclError error = aclrtMemcpyImplOrigin(memInfo + sizeof(RecordBlockHead), memsSize,
             static_cast<const void *>(hostMems.data()), memsSize, ACL_MEMCPY_HOST_TO_DEVICE);
-        if (error != ACL_ERROR_NONE) {
+        if (error != ACL_SUCCESS) {
             ERROR_LOG("init block: %ld host malloc mem to record block head error: %d", blockIdx, error);
             return false;
         }
@@ -536,7 +536,7 @@ bool SanitizerLaunchInit::HostMallocH2D(uint8_t *memInfo, size_t blockIdx) const
         aclError error =
             aclrtMemcpyImplOrigin(memInfo + sizeof(RecordBlockHead) + hostMemoryNum_ * sizeof(HostMemoryInfo),
                 peerBytes, peerMemories_.data(), peerBytes, ACL_MEMCPY_HOST_TO_DEVICE);
-        if (error != ACL_ERROR_NONE) {
+        if (error != ACL_SUCCESS) {
             ERROR_LOG("init block: %ld peer malloc mem copy error: %d", blockIdx, error);
             return false;
         }
@@ -554,7 +554,7 @@ bool SanitizerLaunchInit::SimtBlockHeadsH2D(uint8_t *memInfo, size_t blockIdx) c
         uint64_t allThreadSize = GetAllThreadSize(globalHead_);
         aclError error = aclrtMemsetImplOrigin(
             memInfo + globalHead_.offsetInfo.simtErrorInfo.offset, allThreadSize, 0x00, allThreadSize);
-        if (error != ACL_ERROR_NONE) {
+        if (error != ACL_SUCCESS) {
             ERROR_LOG("init memset simt record block head error: %d", error);
             return false;
         }
@@ -578,7 +578,7 @@ uint8_t *SanitizerLaunchInit::SkipKernelProcess() const {
     // 对于不需要检测的kernel，申请1M即可，优化整体检测耗时
     uint64_t memSize = MB_TO_BYTES;
     aclError error = devMemManager.MallocMemory(&memPtr, memSize);
-    if (error != ACL_ERROR_NONE) {
+    if (error != ACL_SUCCESS) {
         ERROR_LOG("init malloc memInfo error: %d size:%lu", error, memSize);
         return nullptr;
     }
@@ -600,7 +600,7 @@ uint8_t *SanitizerLaunchInit::Process() {
         globalHead_.kernelInfo.totalBlockDim * globalHead_.offsetInfo.blockHeadSize;
     void *memPtr = nullptr;
     aclError error = devMemManager.MallocMemory(&memPtr, memSize);
-    if (error != ACL_ERROR_NONE) {
+    if (error != ACL_SUCCESS) {
         ERROR_LOG("init malloc memInfo error: %d size:%lu", error, memSize);
         return nullptr;
     }
@@ -648,7 +648,7 @@ void SanitizerLaunchFinalize::ResetOffsetStatus(size_t blockIdx) {
 bool SanitizerLaunchFinalize::GlobalHeadD2H() {
     aclError error = aclrtMemcpyImplOrigin(
         memInfoHost_, blockRemainSize_, memInfo_, sizeof(RecordGlobalHead), ACL_MEMCPY_DEVICE_TO_HOST);
-    if (error != ACL_ERROR_NONE) {
+    if (error != ACL_SUCCESS) {
         ERROR_LOG("finalize memcpy RecordGlobalHead error: %d", error);
         return false;
     }
@@ -662,7 +662,7 @@ bool SanitizerLaunchFinalize::RegistersD2H() const {
     aclError error = aclrtMemcpyImplOrigin(SanitizerLaunchGlobalData::GetInstance().registers,
         sizeof(Register) * MAX_AICORE_NUM, globalHead_->registers, sizeof(Register) * MAX_AICORE_NUM,
         ACL_MEMCPY_HOST_TO_HOST);
-    if (error != ACL_ERROR_NONE) {
+    if (error != ACL_SUCCESS) {
         ERROR_LOG("finalize memcpy registers error: %d", error);
         return false;
     }
@@ -672,7 +672,7 @@ bool SanitizerLaunchFinalize::RegistersD2H() const {
 bool SanitizerLaunchFinalize::BlockHeadD2H(size_t blockIdx) {
     aclError error = aclrtMemcpyImplOrigin(
         memInfoHost_, blockRemainSize_, memInfo_, sizeof(RecordBlockHead), ACL_MEMCPY_DEVICE_TO_HOST);
-    if (error != ACL_ERROR_NONE) {
+    if (error != ACL_SUCCESS) {
         ERROR_LOG("finalize memcpy RecordBlockHead error: %d", error);
         return false;
     }
@@ -686,7 +686,7 @@ bool SanitizerLaunchFinalize::BlockHeadD2H(size_t blockIdx) {
 bool SanitizerLaunchFinalize::SimdRecordD2H() {
     aclError error = aclrtMemcpyImplOrigin(
         memInfoHost_, blockRemainSize_, memInfo_, blockHead_->writeOffset, ACL_MEMCPY_DEVICE_TO_HOST);
-    if (error != ACL_ERROR_NONE) {
+    if (error != ACL_SUCCESS) {
         ERROR_LOG("finalize memcpy record error: %d", error);
         return false;
     }
@@ -698,7 +698,7 @@ bool SanitizerLaunchFinalize::SimtErrorD2H() {
     uint64_t allThreadSize = GetAllThreadSize(*globalHead_);
     aclError error = aclrtMemcpyImplOrigin(memInfoHost_, blockRemainSize_,
         memInfoBackUp_ + globalHead_->offsetInfo.simtErrorInfo.offset, allThreadSize, ACL_MEMCPY_DEVICE_TO_HOST);
-    if (error != ACL_ERROR_NONE) {
+    if (error != ACL_SUCCESS) {
         ERROR_LOG("finalize memcpy thread error:%d all thread size:%lu", error, allThreadSize);
         return false;
     }
@@ -717,7 +717,7 @@ bool SanitizerLaunchFinalize::SimtEntryD2H() {
     aclError error = aclrtMemcpyImplOrigin(memInfoHost_, blockRemainSize_,
         memInfoBackUp_ + globalHead_->offsetInfo.simtEntryInfo.offset, blockHead_->blockInfo.simtEntryUseSize,
         ACL_MEMCPY_DEVICE_TO_HOST);
-    if (error != ACL_ERROR_NONE) {
+    if (error != ACL_SUCCESS) {
         ERROR_LOG("finalize memcpy simt entry error:%d size:%lu", error, blockHead_->blockInfo.simtEntryUseSize);
         return false;
     }

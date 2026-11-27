@@ -32,7 +32,7 @@ void HijackedFuncOfAclrtMapMemImpl::Pre(void *virPtr, size_t size, size_t offset
 
 aclError HijackedFuncOfAclrtMapMemImpl::Post(aclError ret)
 {
-    if (ret == ACL_ERROR_NONE) {
+    if (ret == ACL_SUCCESS) {
         RecordMemoryMapping(virPtr_, size_, MemInfoSrc::ACL);
     }
     return ret;

@@ -69,12 +69,12 @@ public:
 
 aclError AclrtMallocHostStub(void **hostPtr, size_t size) {
     *hostPtr = malloc(size);
-    return ACL_ERROR_NONE;
+    return ACL_SUCCESS;
 }
 
 aclError AclrtFreeHostStub(void *hostPtr) {
     free(hostPtr);
-    return ACL_ERROR_NONE;
+    return ACL_SUCCESS;
 }
 
 rtError_t RtMemcpyStub(void *dst, uint64_t destMax, const void *src, uint64_t cnt, rtMemcpyKind_t kind)
@@ -870,8 +870,8 @@ TEST_F(KernelContextTest, mock_ffts_size_info_then_set_args_size_expect_success)
 TEST_F(KernelContextTest, mock_rt_report_then_repeat_subscribe_expect_ok)
 {
     MOCKER(&rtSetDeviceOrigin).stubs().will(returnValue(RT_ERROR_NONE));
-    MOCKER(&aclrtProcessReportImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
-    MOCKER(&aclrtSubscribeReportImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(&aclrtProcessReportImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
+    MOCKER(&aclrtSubscribeReportImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
     uint64_t stm{};
     auto &inst = KernelContext::Instance();
     ASSERT_TRUE(inst.GetDeviceContext().SubscribeReport(&stm));
@@ -884,7 +884,7 @@ TEST_F(KernelContextTest, mock_rt_report_fail_then_subscribe_expect_ok)
 {
     MOCKER(&rtSetDeviceOrigin).stubs().will(returnValue(RT_ERROR_NONE));
     MOCKER(&aclrtProcessReportImplOrigin).stubs().will(returnValue(ACL_ERROR_INTERNAL_ERROR));
-    MOCKER(&aclrtSubscribeReportImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(&aclrtSubscribeReportImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
     uint64_t stm{};
     auto &inst = KernelContext::Instance();
     ASSERT_TRUE(inst.GetDeviceContext().SubscribeReport(&stm));

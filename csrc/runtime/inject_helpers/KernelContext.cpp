@@ -299,14 +299,14 @@ bool KernelContext::DumpKernelObject(uint64_t regId, const string &outputPath)
 
 static bool UpdateSinkTaskArgsAddr(const uint64_t *args, OpMemInfo &memInfo)
 {
-    aclError ret = ACL_ERROR_NONE;
+    aclError ret = ACL_SUCCESS;
     for (size_t i = 0; i < memInfo.inputParamsAddrInfos.size(); i++) {
         auto devAddr = args + memInfo.skipNum + i;
         uint64_t argAddr;
         ret = aclrtMemcpyImplOrigin(static_cast<void *>(&argAddr), sizeof(uint64_t),
                                     static_cast<const void *>(devAddr), sizeof(uint64_t),
                                     ACL_MEMCPY_DEVICE_TO_HOST);
-        if (ret != ACL_ERROR_NONE) {
+        if (ret != ACL_SUCCESS) {
             DEBUG_LOG("copy arg from device addr failed, ret=%u", ret);
             return false;
         }
@@ -1031,7 +1031,7 @@ void KernelContext::ArchiveMemInfo()
 void KernelContext::DeviceContext::ListenCallbackTask(int32_t devId)
 {
     auto ret = aclrtSetDeviceImplOrigin(devId);
-    if (ret != ACL_ERROR_NONE) {
+    if (ret != ACL_SUCCESS) {
         ERROR_LOG("Set device to %d failed, ret=%u, stop listening",
             devId, ret);
         return;
@@ -1039,8 +1039,7 @@ void KernelContext::DeviceContext::ListenCallbackTask(int32_t devId)
     DEBUG_LOG("set device id to %d for listen callback", devId);
     constexpr int32_t timeout = 1000; // ms
     while (!stopListen_) {
-        if (aclrtProcessReportImplOrigin(timeout) != ACL_ERROR_NONE &&
-            rtProcessReportOrigin(timeout) != RT_ERROR_NONE) {
+        if (aclrtProcessReportImplOrigin(timeout) != ACL_SUCCESS && rtProcessReportOrigin(timeout) != RT_ERROR_NONE) {
             continue;
         }
         DEBUG_LOG("Finish one callback function");
@@ -1064,8 +1063,7 @@ bool KernelContext::DeviceContext::SubscribeReport(rtStream_t stm)
         ERROR_LOG("get thread id number failed: %s", oss.str().c_str());
         return false;
     }
-    if (aclrtSubscribeReportImplOrigin(tid, stm) != ACL_ERROR_NONE &&
-        rtSubscribeReportOrigin(tid, stm) != RT_ERROR_NONE) {
+    if (aclrtSubscribeReportImplOrigin(tid, stm) != ACL_SUCCESS && rtSubscribeReportOrigin(tid, stm) != RT_ERROR_NONE) {
         DEBUG_LOG("subscribe report for stream failed");
         return false;
     }

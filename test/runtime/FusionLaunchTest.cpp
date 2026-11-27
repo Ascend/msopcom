@@ -194,7 +194,7 @@ uint8_t *Init(uint64_t blockDim)
 aclError Device(int32_t *device)
 {
     *device = 755;
-    return ACL_ERROR_NONE;
+    return ACL_SUCCESS;
 }
 } // namespace
 
@@ -506,7 +506,7 @@ protected:
 
 TEST_F(FusionLaunch, SubmitsOneCompleteFusionAndUsesRuntimeRefilledTiling)
 {
-    MOCKER(SyncStreamWithInterrupt).expects(once()).will(returnValue(ACL_ERROR_NONE));
+    MOCKER(SyncStreamWithInterrupt).expects(once()).will(returnValue(ACL_SUCCESS));
     MOCKER(__sanitizer_finalize).expects(once());
     MOCKER(&DevMemManager::Free).expects(once());
     EXPECT_EQ(Run(), RT_ERROR_NONE);
@@ -521,7 +521,7 @@ TEST_F(FusionLaunch, SubmitsOneCompleteFusionAndUsesRuntimeRefilledTiling)
 
 TEST_F(FusionLaunch, InitializesRecordWithCurrentDynamicUbInsteadOfPreviousContext)
 {
-    MOCKER(SyncStreamWithInterrupt).expects(exactly(3)).will(returnValue(ACL_ERROR_NONE));
+    MOCKER(SyncStreamWithInterrupt).expects(exactly(3)).will(returnValue(ACL_SUCCESS));
     MOCKER(__sanitizer_finalize).expects(exactly(3));
     MOCKER(&DevMemManager::Free).expects(exactly(3));
     rtLaunchAttribute_t attrs[3]{input.attrs[0], input.attrs[1], {}};
@@ -545,7 +545,7 @@ TEST_F(FusionLaunch, InitializesRecordWithCurrentDynamicUbInsteadOfPreviousConte
 TEST_F(FusionLaunch, PreservesLaunchMetadataWhenSharedContextIsClearedDuringDbi)
 {
     clearMetadataDuringDbi = true;
-    MOCKER(SyncStreamWithInterrupt).expects(once()).will(returnValue(ACL_ERROR_NONE));
+    MOCKER(SyncStreamWithInterrupt).expects(once()).will(returnValue(ACL_SUCCESS));
     MOCKER(__sanitizer_finalize).expects(once());
     MOCKER(&DevMemManager::Free).expects(once());
     EXPECT_EQ(Run(), RT_ERROR_NONE);
@@ -566,7 +566,7 @@ TEST_F(FusionLaunch, FailedInstrumentationForwardsOriginalEvenIfDbiChangedHandle
 TEST_F(FusionLaunch, LaunchErrorStillProcessesRecordsAndPreservesLaunchResult)
 {
     launchResult = RT_ERROR_INVALID_VALUE;
-    MOCKER(SyncStreamWithInterrupt).expects(once()).will(returnValue(ACL_ERROR_NONE));
+    MOCKER(SyncStreamWithInterrupt).expects(once()).will(returnValue(ACL_SUCCESS));
     MOCKER(__sanitizer_finalize).expects(once());
     MOCKER(&DevMemManager::Free).expects(once());
     MOCKER(ExitAfterProcess).expects(once());
@@ -659,18 +659,18 @@ TEST(FusionBuffer, FreedBufferIsReleasedAndNextLaunchAllocatesAgain)
         .expects(exactly(2))
         .will(invoke(+[](void **ptr, size_t size, aclrtMemMallocPolicy) -> aclError {
             *ptr = std::malloc(size);
-            return *ptr ? ACL_ERROR_NONE : ACL_ERROR_BAD_ALLOC;
+            return *ptr ? ACL_SUCCESS : ACL_ERROR_BAD_ALLOC;
         }));
     MOCKER(aclrtFreeImplOrigin).expects(exactly(2)).will(invoke(+[](void *ptr) -> aclError {
         std::free(ptr);
-        return ACL_ERROR_NONE;
+        return ACL_SUCCESS;
     }));
     void *first = nullptr;
-    ASSERT_EQ(memory.MallocMemory(&first, 64), ACL_ERROR_NONE);
+    ASSERT_EQ(memory.MallocMemory(&first, 64), ACL_SUCCESS);
     memory.SetMemoryInitFlag(true);
     memory.Free();
     void *next = nullptr;
-    ASSERT_EQ(memory.MallocMemory(&next, 64), ACL_ERROR_NONE);
+    ASSERT_EQ(memory.MallocMemory(&next, 64), ACL_SUCCESS);
     EXPECT_NE(next, nullptr);
     memory.Free();
     GlobalMockObject::verify();
@@ -752,7 +752,7 @@ TEST_F(FusionLaunch, CleansRecordsAndContextBeforeExitProcessing)
     context.SetArgsSize(88);
     context.SetKernelParamNum(11);
     context.SetSimtUbDynamicSize(123);
-    MOCKER(SyncStreamWithInterrupt).expects(once()).will(returnValue(ACL_ERROR_NONE));
+    MOCKER(SyncStreamWithInterrupt).expects(once()).will(returnValue(ACL_SUCCESS));
     MOCKER(__sanitizer_finalize).expects(once());
     MOCKER(&DevMemManager::Free).expects(once());
     cleanupParts = 0;
@@ -795,7 +795,7 @@ TEST_F(FusionLaunch, ProcessesRecordsInOrderForSuccessAndFailure)
     MOCKER(SyncStreamWithInterrupt).expects(exactly(4)).will(invoke(+[](rtStream_t stream) -> aclError {
         EXPECT_EQ(stream, reinterpret_cast<void *>(0xcc002));
         processingStages.push_back("sync");
-        return calls % 2 == 0 ? ACL_ERROR_INTERNAL_ERROR : ACL_ERROR_NONE;
+        return calls % 2 == 0 ? ACL_ERROR_INTERNAL_ERROR : ACL_SUCCESS;
     }));
     MOCKER(__sanitizer_finalize).expects(exactly(4)).will(invoke(+[](uint8_t *ptr, uint64_t blockDim) {
         EXPECT_EQ(ptr, record);
@@ -821,7 +821,7 @@ TEST_F(FusionLaunch, RestoresTemporaryDbiConfigAfterSuccessfulInstrumentation)
     auto &dbi = DBITaskConfig::Instance();
     const auto saved = dbi.argsSize_;
     dbi.argsSize_ = 712;
-    MOCKER(SyncStreamWithInterrupt).expects(once()).will(returnValue(ACL_ERROR_NONE));
+    MOCKER(SyncStreamWithInterrupt).expects(once()).will(returnValue(ACL_SUCCESS));
     MOCKER(__sanitizer_finalize).expects(once());
     MOCKER(&DevMemManager::Free).expects(once());
     EXPECT_EQ(Run(), RT_ERROR_NONE);

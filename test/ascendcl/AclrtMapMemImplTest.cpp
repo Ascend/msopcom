@@ -41,13 +41,13 @@ TEST(aclrtMapMemImpl, sanitizer_call_pre_function_with_map_mem_args_expect_save_
 TEST(aclrtMapMemImpl, sanitizer_call_post_function_with_map_mem_args_expect_return)
 {
     MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
-    MOCKER(aclrtGetDeviceImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(aclrtGetDeviceImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER(&LocalDevice::Notify).stubs().will(returnValue(0));
 
     int stubObj;
     void *devPtr = &stubObj;
     HijackedFuncOfAclrtMapMemImpl instance;
     instance.Pre(devPtr, 64, 0, nullptr, 0);
-    ASSERT_EQ(instance.Post(ACL_ERROR_NONE), ACL_ERROR_NONE);
+    ASSERT_EQ(instance.Post(ACL_SUCCESS), ACL_SUCCESS);
     GlobalMockObject::verify();
 }

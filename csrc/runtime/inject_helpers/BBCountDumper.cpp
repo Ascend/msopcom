@@ -105,7 +105,7 @@ std::string BBCountDumper::GenExtraAndReturnName(const std::string &path, uint64
     }
     auto *memInfoHost = new uint8_t[memSize]; // NOLINT(cppcoreguidelines-owning-memory)
     aclError error = aclrtMemcpyImplOrigin(memInfoHost, memSize, memInfo, memSize, ACL_MEMCPY_DEVICE_TO_HOST);
-    if (error != ACL_ERROR_NONE) {
+    if (error != ACL_SUCCESS) {
         ERROR_LOG("dump basic block data rtMemcpy memInfo error: %d", error);
         delete[] memInfoHost; // NOLINT(cppcoreguidelines-owning-memory)
         memInfoHost = nullptr;
@@ -131,7 +131,7 @@ bool BBCountDumper::DumpBBData(uint64_t regId, uint64_t memSize, uint8_t *memInf
     DEBUG_LOG("start to dump BBData for regId=%lu memSize=%lu", regId, memSize);
     auto *memInfoHost = new uint8_t[memSize]; // NOLINT(cppcoreguidelines-owning-memory)
     aclError error = aclrtMemcpyImplOrigin(memInfoHost, memSize, memInfo, memSize, ACL_MEMCPY_DEVICE_TO_HOST);
-    if (error != ACL_ERROR_NONE) {
+    if (error != ACL_SUCCESS) {
         ERROR_LOG("dump basic block data rtMemcpy memInfo error: %d", error);
         delete[] memInfoHost; // NOLINT(cppcoreguidelines-owning-memory)
         memInfoHost = nullptr;

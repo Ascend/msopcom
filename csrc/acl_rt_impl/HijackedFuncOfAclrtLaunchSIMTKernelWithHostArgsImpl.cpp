@@ -319,7 +319,7 @@ aclError HijackedFuncOfAclrtLaunchSIMTKernelWithHostArgsImpl::Call(void *func, d
         return EmptyFunc();
     }
     if (IsOpProf() && profObj_ && !profObj_->IsNeedRunOriginLaunch()) {
-        return Post(ACL_ERROR_NONE);
+        return Post(ACL_SUCCESS);
     }
     DEBUG_LOG("SIMT-HostArgs Call: launch funcHandle=%p, funcCtx kernelName=%s", static_cast<void *>(funcHandle_),
         funcCtx_ ? funcCtx_->GetKernelName().c_str() : "null");

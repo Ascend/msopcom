@@ -219,7 +219,7 @@ aclError HijackedFuncOfAclrtLaunchKernelWithConfigImpl::Call(
         return EmptyFunc();
     }
     if (IsOpProf() && profObj_ && !profObj_->IsNeedRunOriginLaunch()) {
-        return Post(ACL_ERROR_NONE);
+        return Post(ACL_SUCCESS);
     }
     return Post(originfunc_(funcHandle_, blockDim, stream, cfg, argsHandle_, reserve));
 }

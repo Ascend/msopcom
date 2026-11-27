@@ -58,7 +58,7 @@ aclError HijackedFuncOfAclrtResetDeviceImpl::Call(int32_t devId)
 aclError HijackedFuncOfAclrtResetDeviceImpl::Post(aclError ret)
 {
     if (IsSanitizer()) {
-        if (ret != ACL_ERROR_NONE) {
+        if (ret != ACL_SUCCESS) {
             return ret;
         }
 

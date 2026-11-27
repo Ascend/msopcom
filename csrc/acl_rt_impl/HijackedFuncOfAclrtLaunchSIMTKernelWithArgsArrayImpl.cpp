@@ -320,7 +320,7 @@ aclError HijackedFuncOfAclrtLaunchSIMTKernelWithArgsArrayImpl::Call(void *func, 
         return EmptyFunc();
     }
     if (IsOpProf() && profObj_ && !profObj_->IsNeedRunOriginLaunch()) {
-        return Post(ACL_ERROR_NONE);
+        return Post(ACL_SUCCESS);
     }
     // InitParam 失败时无可用参数数组，回退使用原始参数数组
     auto argsArrayCtx = std::static_pointer_cast<ArgsArrayContext>(

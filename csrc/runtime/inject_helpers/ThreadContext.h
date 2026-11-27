@@ -30,7 +30,7 @@ public:
     void SetDeviceId(int32_t deviceId) { deviceId_ = deviceId; }
     int32_t GetDeviceId() {
         auto ret = aclrtGetDeviceImplOrigin(&deviceId_);
-        if (ret != ACL_ERROR_NONE) {
+        if (ret != ACL_SUCCESS) {
             DEBUG_LOG("Get device id failed. error code: %d", ret);
         }
         return deviceId_;

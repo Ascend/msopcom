@@ -39,13 +39,13 @@ constexpr uint64_t MAX_MEM_SIZE = 10ULL * 1024 * 1024 * 1024;
 aclError ArgsCtxMallocHostStub(void **hostPtr, size_t size)
 {
     *hostPtr = malloc(size);
-    return ACL_ERROR_NONE;
+    return ACL_SUCCESS;
 }
 
 aclError ArgsCtxFreeHostStub(void *hostPtr)
 {
     free(hostPtr);
-    return ACL_ERROR_NONE;
+    return ACL_SUCCESS;
 }
 
 aclError ArgsCtxMemcpyStub(void *dst, size_t destMax, const void *src, size_t count, aclrtMemcpyKind kind)
@@ -55,7 +55,7 @@ aclError ArgsCtxMemcpyStub(void *dst, size_t destMax, const void *src, size_t co
     (void)src;
     (void)kind;
     memset(dst, 0, count);
-    return ACL_ERROR_NONE;
+    return ACL_SUCCESS;
 }
 
 } // namespace [Dummy]

@@ -251,7 +251,7 @@ aclError HijackedFuncOfAclrtLaunchKernelV2Impl::Call(aclrtFuncHandle funcHandle,
         return EmptyFunc();
     }
     if (IsOpProf() && profObj_ && !profObj_->IsNeedRunOriginLaunch()) {
-        return Post(ACL_ERROR_NONE);
+        return Post(ACL_SUCCESS);
     }
     if (argsData_ != nullptr) {
         return Post(originfunc_(funcHandle_, numBlocks_, argsData_, argsSize_, cfg_, stream_));

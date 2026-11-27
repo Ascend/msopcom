@@ -30,11 +30,11 @@ protected:
     FuncContextSP CreateFuncContext(aclrtFuncHandle funcHandle) {
         std::vector<char> name(PATH_MAX, '\0');
         std::string funcName = "";
-        if (aclrtGetFunctionNameImplOrigin(funcHandle, PATH_MAX, name.data()) == ACL_ERROR_NONE) {
+        if (aclrtGetFunctionNameImplOrigin(funcHandle, PATH_MAX, name.data()) == ACL_SUCCESS) {
             funcName = std::string(name.begin(), name.end());
         }
         aclrtBinHandle binHandle = nullptr;
-        if (aclrtFunctionGetBinaryImplOrigin(funcHandle, &binHandle) != ACL_ERROR_NONE) {
+        if (aclrtFunctionGetBinaryImplOrigin(funcHandle, &binHandle) != ACL_SUCCESS) {
             binHandle = nullptr;
         }
         if (funcName.empty() || binHandle == nullptr) {

@@ -40,8 +40,7 @@ aclError HijackedFuncOfAclrtIpcMemImportByKeyImpl::Call(void **devPtr, const cha
     Pre(devPtr, key, flag);
     if (originfunc_) {
         aclError ret = originfunc_(devPtr, key, flag);
-        if (ret == ACL_ERROR_NONE && devPtr != nullptr && *devPtr != nullptr &&
-            MemoryGuard::Instance().memGuardEnable_) {
+        if (ret == ACL_SUCCESS && devPtr != nullptr && *devPtr != nullptr && MemoryGuard::Instance().memGuardEnable_) {
             size_t frontSize = 0;
             size_t backSize = 0;
             MemoryGuard::Instance().GetGuardSizes(frontSize, backSize);
@@ -58,7 +57,7 @@ aclError HijackedFuncOfAclrtIpcMemImportByKeyImpl::Call(void **devPtr, const cha
 aclError HijackedFuncOfAclrtIpcMemImportByKeyImpl::Post(aclError ret)
 {
     // 导入失败时输出地址无效，不记录映射或解引用输出参数
-    if (ret != ACL_ERROR_NONE) {
+    if (ret != ACL_SUCCESS) {
         return ret;
     }
     if (IsSanitizer()) {

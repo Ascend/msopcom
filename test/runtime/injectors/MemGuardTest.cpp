@@ -32,13 +32,13 @@
 aclError MemcpyStub(void *dst, size_t destMax, const void *src, size_t count, aclrtMemcpyKind kind)
 {
     std::copy_n(static_cast<const uint8_t*>(src), count, static_cast<uint8_t*>(dst));
-    return ACL_ERROR_NONE;
+    return ACL_SUCCESS;
 }
 
 aclError MemsetStub(void *devPtr, size_t maxCount, int32_t value, size_t count)
 {
     std::fill_n(static_cast<char *>(devPtr), count, static_cast<unsigned char>(value));
-    return ACL_ERROR_NONE;
+    return ACL_SUCCESS;
 }
 
 void MemGuardTest_MallocRecordAfterCheck(void *actualAddr, void *useraddr, size_t userSize)

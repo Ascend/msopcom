@@ -119,7 +119,7 @@ protected:
         MOCKER(&ReportKernelSummary, void(*)(LaunchContextSP)).stubs();
         MOCKER(&aclrtGetDeviceImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
         MOCKER(&LocalDevice::Notify).stubs().will(returnValue(0));
-        MOCKER(&aclrtMemcpyImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+        MOCKER(&aclrtMemcpyImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
         MOCKER(&RunDBITask, FuncContextSP(*)(const LaunchContextSP &)).stubs().will(invoke(RunDBITaskSpyStub));
         MOCKER(&ReportOpMallocInfo, void(*)(const AclrtLaunchArgsInfo &, OpMemInfo &)).stubs();
         MOCKER(&ReportSectionsMalloc).stubs();

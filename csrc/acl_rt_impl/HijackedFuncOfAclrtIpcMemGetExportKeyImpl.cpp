@@ -67,7 +67,7 @@ aclError HijackedFuncOfAclrtIpcMemGetExportKeyImpl::Call(void *devPtr, size_t si
 
 aclError HijackedFuncOfAclrtIpcMemGetExportKeyImpl::Post(aclError ret)
 {
-    if (ret != ACL_ERROR_NONE) {
+    if (ret != ACL_SUCCESS) {
         return ret;
     }
 

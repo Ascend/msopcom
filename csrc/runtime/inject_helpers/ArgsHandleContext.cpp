@@ -133,7 +133,7 @@ aclrtArgsHandle ArgsHandleContext::GenerateArgsHandle()
     // 亦能正常追加参数。
     aclrtArgsHandle argsHandle = nullptr;
     aclError ret = aclrtKernelArgsInitImplOrigin(funcHandle_, &argsHandle);
-    if (ret != ACL_ERROR_NONE) {
+    if (ret != ACL_SUCCESS) {
         WARN_LOG("Init expanded args handle failed.");
         return nullptr;
     }
@@ -146,7 +146,7 @@ aclrtArgsHandle ArgsHandleContext::GenerateArgsHandle()
 
     // finalize args handle
     ret = aclrtKernelArgsFinalizeImplOrigin(argsHandle);
-    if (ret != ACL_ERROR_NONE) {
+    if (ret != ACL_SUCCESS) {
         WARN_LOG("Finalize kernel args failed.");
         return nullptr;
     }
@@ -195,14 +195,14 @@ bool ArgsHandleContext::ReplayArgs(aclrtArgsHandle argsHandle) {
         if (params_[idx].type == ParamType::NORMAL) {
             // Append normal args directly
             ret = aclrtKernelArgsAppendImplOrigin(argsHandle, param.data(), param.size(), &paramHandles[idx]);
-            if (ret != ACL_ERROR_NONE) {
+            if (ret != ACL_SUCCESS) {
                 WARN_LOG("Append normal kernel args failed.");
                 return false;
             }
         } else {
             // Append placeholder
             ret = aclrtKernelArgsAppendPlaceHolderImplOrigin(argsHandle, &paramHandles[idx]);
-            if (ret != ACL_ERROR_NONE) {
+            if (ret != ACL_SUCCESS) {
                 WARN_LOG("Append kernel args placeholder failed.");
                 return false;
             }
@@ -217,7 +217,7 @@ bool ArgsHandleContext::ReplayArgs(aclrtArgsHandle argsHandle) {
         }
         auto &param = params_[idx].param;
         ret = aclrtKernelArgsGetPlaceHolderBufferImplOrigin(argsHandle, paramHandles[idx], param.size(), &buffer);
-        if (ret != ACL_ERROR_NONE) {
+        if (ret != ACL_SUCCESS) {
             WARN_LOG("Get placeholder buffer failed.");
             return false;
         }

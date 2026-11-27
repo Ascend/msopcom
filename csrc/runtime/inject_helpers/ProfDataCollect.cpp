@@ -1028,9 +1028,9 @@ void DataCollectInDevice::MC2KernelLaunch(
     }
     // use event to make aicpu stream wait aicore stream
     aclrtEvent event = nullptr;
-    int aclrtRes = ACL_ERROR_NONE;
+    int aclrtRes = ACL_SUCCESS;
     aclrtRes = aclrtCreateEventOrigin(&event);
-    if (aclrtRes != ACL_ERROR_NONE) {
+    if (aclrtRes != ACL_SUCCESS) {
         WARN_LOG("MC2 event create failed, device: %d, res: %d", deviceId_, aclrtRes);
         return;
     }
@@ -1043,13 +1043,13 @@ void DataCollectInDevice::MC2KernelLaunch(
         return;
     }
     aclrtRes = aclrtRecordEventOrigin(event, stream);
-    if (aclrtRes != ACL_ERROR_NONE) {
+    if (aclrtRes != ACL_SUCCESS) {
         WARN_LOG("MC2 event record failed, device: %d, res: %d", deviceId_, aclrtRes);
         return;
     }
     AicpuLaunchArgs &aicpuLaunchArgs = KernelContext::GetAicpuLaunchArgs();
     aclrtRes = aclrtStreamWaitEventOrigin(aicpuLaunchArgs.stm, event);
-    if (aclrtRes != ACL_ERROR_NONE) {
+    if (aclrtRes != ACL_SUCCESS) {
         WARN_LOG("MC2 event wait failed, device: %d, res: %d", deviceId_, aclrtRes);
         return;
     }
@@ -1073,7 +1073,7 @@ void DataCollectInDevice::MC2KernelLaunch(
         WARN_LOG("AICPU execute failed, device: %d, res: %d", deviceId_, aicpuRet);
     }
     aclrtRes = aclrtResetEventOrigin(event, aicpuLaunchArgs.stm);
-    if (aclrtRes != ACL_ERROR_NONE) {
+    if (aclrtRes != ACL_SUCCESS) {
         WARN_LOG("MC2 event reset failed, device: %d, res: %d", deviceId_, aclrtRes);
     }
 }
@@ -1316,7 +1316,7 @@ bool DataCollectInDevice::RangeReplayOnce(L2cacheParam &param, const aclmdlRI &m
         LoadFrequency();
         SaveFrequency(ProfDataCollect::GetAicoreOutputPath(deviceId_));
     }
-    if (ret == ACL_ERROR_NONE) {
+    if (ret == ACL_SUCCESS) {
         ret = aclrtSynchronizeStreamWithTimeoutImplOrigin(param.stream, SYNCHRONIZE_TIME_OUT);
     }
     usleep(WAIT_DATA_READ_TIME); // 延时100us，防止duration数据读取不全
@@ -1324,7 +1324,7 @@ bool DataCollectInDevice::RangeReplayOnce(L2cacheParam &param, const aclmdlRI &m
     if (readThread_.joinable()) {
         readThread_.join();
     }
-    if (ret == ACL_ERROR_NONE) {
+    if (ret == ACL_SUCCESS) {
         return true;
     } else {
         WARN_LOG("Kernel run on device %d No. %d time failed, res is %d.", deviceId_, replayCount_ + 1, ret);
@@ -1369,7 +1369,7 @@ bool DataCollectInDevice::RangeReplayProfData(const rtStream_t &stream) {
     if (!rangeConfig.flag) {
         // for first operator in every mstx range, call aclmdlRICaptureBeginImpl
         auto res = aclmdlRICaptureBeginImplOrigin(stream, ACL_MODEL_RI_CAPTURE_MODE_GLOBAL);
-        if (res != ACL_ERROR_NONE) {
+        if (res != ACL_SUCCESS) {
             ERROR_LOG("Range replay begin failed, res is %d", res);
             return false;
         }
@@ -1498,7 +1498,7 @@ void DataCollectInDevice::WarmUp(const rtStream_t &stream, const aclmdlRI &model
     for (uint16_t i = 0; i < warmUpTimes; ++i) {
         aclmdlRIExecuteAsyncImplOrigin(modelRI, stream);
     }
-    if (aclrtSynchronizeStreamWithTimeoutImplOrigin(stream, SYNCHRONIZE_TIME_OUT) == ACL_ERROR_NONE) {
+    if (aclrtSynchronizeStreamWithTimeoutImplOrigin(stream, SYNCHRONIZE_TIME_OUT) == ACL_SUCCESS) {
         DEBUG_LOG("Warm Up success in range replay mode.");
     }
 }

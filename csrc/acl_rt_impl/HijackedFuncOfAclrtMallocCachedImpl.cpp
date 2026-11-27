@@ -54,7 +54,7 @@ aclError HijackedFuncOfAclrtMallocCachedImpl::Post(aclError ret)
 {
     if (IsSanitizer()) {
         // 仅在分配成功时登记本次新分配；失败时不读取输出地址。
-        if (ret != ACL_ERROR_NONE) {
+        if (ret != ACL_SUCCESS) {
             return ret;
         }
 

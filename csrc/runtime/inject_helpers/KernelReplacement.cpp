@@ -163,7 +163,7 @@ bool KernelDumper::LaunchDumpTask(rtStream_t stm, bool aclNew)
     if (aclNew) {
         auto ret = aclrtLaunchCallbackImplOrigin(
             &KernelDumper::DumpDataCallback, static_cast<void *>(args.get()), ACL_CALLBACK_BLOCK, stm);
-        if (ret != ACL_ERROR_NONE) {
+        if (ret != ACL_SUCCESS) {
             ERROR_LOG("launch callback dump task failed, ret=%u", ret);
             return false;
         }

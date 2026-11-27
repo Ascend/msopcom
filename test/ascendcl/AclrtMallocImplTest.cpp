@@ -45,6 +45,6 @@ TEST(aclrtMalloc, sanitizer_call_post_function_with_malloc_args_expect_return)
     void *devPtr = nullptr;
     HijackedFuncOfAclrtMallocImpl instance;
     instance.Pre(&devPtr, 64, ACL_MEM_MALLOC_HUGE_FIRST);
-    ASSERT_EQ(instance.Post(ACL_ERROR_NONE), ACL_ERROR_NONE);
+    ASSERT_EQ(instance.Post(ACL_SUCCESS), ACL_SUCCESS);
     GlobalMockObject::verify();
 }

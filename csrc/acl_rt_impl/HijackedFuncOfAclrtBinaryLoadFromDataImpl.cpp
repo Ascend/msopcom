@@ -43,8 +43,7 @@ aclError HijackedFuncOfAclrtBinaryLoadFromDataImpl::Post(aclError ret)
     if (options_) {
         for (size_t i = 0; i < options_->numOpt; i++) {
             // AclrtBinaryLoadFromData 接口的 magic 应该从 options 中解析
-            if (options_->options[i].type == ACL_RT_BINARY_LOAD_OPT_MAGIC ||
-                options_->options[i].type == ACL_RT_BINARY_LOAD_OPT_LAZY_MAGIC) {
+            if (options_->options[i].type == ACL_RT_BINARY_LOAD_OPT_MAGIC) {
                 magic = options_->options[i].value.magic;
             }
             if ((options_->options + i)->type == ACL_RT_BINARY_LOAD_OPT_CPU_KERNEL_MODE) {

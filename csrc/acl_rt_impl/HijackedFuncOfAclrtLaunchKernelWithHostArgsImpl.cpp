@@ -444,7 +444,7 @@ aclError HijackedFuncOfAclrtLaunchKernelWithHostArgsImpl::Call(aclrtFuncHandle f
         return ACL_ERROR_INTERNAL_ERROR;
     }
     if (IsOpProf() && profObj_ && !profObj_->IsNeedRunOriginLaunch()) {
-        return Post(ACL_ERROR_NONE);
+        return Post(ACL_SUCCESS);
     }
     return Post(originfunc_(funcHandle_, blockDim, stream, cfg,
                             hostArgs_, argsSize_, placeHolderArray_.data(), placeHolderNum));

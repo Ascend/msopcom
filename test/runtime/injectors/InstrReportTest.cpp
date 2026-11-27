@@ -71,7 +71,7 @@ aclError MemoryMallocStub(DevMemManager *, void **memPtr, uint64_t memSize)
 {
     static int stubObject;
     *memPtr = &stubObject;
-    return ACL_ERROR_NONE;
+    return ACL_SUCCESS;
 }
 
 static KernelContext::RegisterEvent g_registerEvent;
@@ -86,7 +86,7 @@ aclError MemcpyNoRecordStub(void *dst, size_t destMax, const void *src, size_t c
 {
     RecordBlockHead recordBlockHead {};
     *static_cast<RecordBlockHead*>(dst) = recordBlockHead;
-    return ACL_ERROR_NONE;
+    return ACL_SUCCESS;
 }
 
 aclError MemcpyStub(void *dst, size_t destMax, const void *src, size_t count, aclrtMemcpyKind kind)
@@ -101,13 +101,13 @@ aclError MallocOriginStub(void **devPtr, size_t size, aclrtMemMallocPolicy polic
         return ACL_ERROR_BAD_ALLOC;
     }
     *devPtr = malloc(size);
-    return ACL_ERROR_NONE;
+    return ACL_SUCCESS;
 }
 
 aclError MallocMemoryStub(DevMemManager *, void **memPtr, uint64_t size)
 {
     *memPtr = malloc(size);
-    return ACL_ERROR_NONE;
+    return ACL_SUCCESS;
 }
 aclError MemcpySomeRecordStub(void *dst, size_t destMax, const void *src, size_t count, aclrtMemcpyKind kind)
 {
@@ -122,14 +122,14 @@ aclError MemcpySomeRecordStub(void *dst, size_t destMax, const void *src, size_t
     recordBlockHead.recordCount = blockHeadRecordCount;
     recordBlockHead.recordWriteCount = blockHeadRecordWriteCount;
     *static_cast<RecordBlockHead*>(dst) = recordBlockHead;
-    return ACL_ERROR_NONE;
+    return ACL_SUCCESS;
 }
 
 aclError GetDeviceOriginStub(int32_t *devId)
 {
     static int curDevId = 0;
     *devId = ++curDevId;
-    return ACL_ERROR_NONE;
+    return ACL_SUCCESS;
 }
 
 std::string g_finalizedPacket;
@@ -206,7 +206,7 @@ TEST_F(InstrReportTest, init_with_rtMalloc_failed_expect_return_nullptr)
 
 TEST_F(InstrReportTest, init_with_rtMemcpy_failed_expect_return_nullptr)
 {
-    MOCKER(&DevMemManager::MallocMemory).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(&DevMemManager::MallocMemory).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER(&aclrtMemcpyImplOrigin).stubs().will(returnValue(ACL_ERROR_BAD_ALLOC));
     MOCKER(&SanitizerConfigManager::GetConfig).stubs().will(returnValue(SanitizerConfig ()));
 
@@ -217,8 +217,8 @@ TEST_F(InstrReportTest, init_with_rtMemcpy_failed_expect_return_nullptr)
 TEST_F(InstrReportTest, init_with_initialized_memory_expect_return_resued_memory)
 {
     MOCKER(&DevMemManager::MallocMemory).stubs().will(invoke(&MemoryMallocStub));
-    MOCKER(&aclrtMemcpyImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
-    MOCKER(&rtGetL2CacheOffsetOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(&aclrtMemcpyImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
+    MOCKER(&rtGetL2CacheOffsetOrigin).stubs().will(returnValue(ACL_SUCCESS));
     DevMemManager::Instance().SetMemoryInitFlag(true);
     MOCKER(&SanitizerConfigManager::GetConfig).stubs().will(returnValue(SanitizerConfig ()));
 
@@ -229,9 +229,9 @@ TEST_F(InstrReportTest, init_with_initialized_memory_expect_return_resued_memory
 TEST_F(InstrReportTest, init_with_rtMemset_success_expect_return_valid_memory)
 {
     MOCKER(&DevMemManager::MallocMemory).stubs().will(invoke(&MemoryMallocStub));
-    MOCKER(&aclrtMemcpyImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
-    MOCKER(&aclrtMemsetImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
-    MOCKER(&rtGetL2CacheOffsetOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(&aclrtMemcpyImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
+    MOCKER(&aclrtMemsetImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
+    MOCKER(&rtGetL2CacheOffsetOrigin).stubs().will(returnValue(ACL_SUCCESS));
     DevMemManager::Instance().SetMemoryInitFlag(false);
     MOCKER(&SanitizerConfigManager::GetConfig).stubs().will(returnValue(SanitizerConfig ()));
 
@@ -244,9 +244,9 @@ TEST_F(InstrReportTest, init_with_different_kernel_type_expect_return_correct_me
 {
     MOCKER(&KernelContext::GetRegisterEvent).stubs().will(invoke(&GetRegisterEventStub));
     MOCKER(&DevMemManager::MallocMemory).stubs().will(invoke(&MemoryMallocStub));
-    MOCKER(&aclrtMemcpyImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
-    MOCKER(&aclrtMemsetImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
-    MOCKER(&rtGetL2CacheOffsetOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(&aclrtMemcpyImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
+    MOCKER(&aclrtMemsetImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
+    MOCKER(&rtGetL2CacheOffsetOrigin).stubs().will(returnValue(ACL_SUCCESS));
     DevMemManager::Instance().SetMemoryInitFlag(false);
     MOCKER(&SanitizerConfigManager::GetConfig).stubs().will(returnValue(SanitizerConfig ()));
 
@@ -407,8 +407,8 @@ TEST_F(InstrReportTest, init_with_invalid_zero_cache_size_expect_return_nullptr)
     MOCKER(&KernelContext::GetRegisterEvent).stubs().will(invoke(&GetRegisterEventStub));
     MOCKER(&DevMemManager::MallocMemory).stubs().will(invoke(&MemoryMallocStub));
     MOCKER(&aclrtGetDeviceImplOrigin).stubs().will(invoke(&GetDeviceOriginStub));
-    MOCKER(&aclrtMemcpyImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
-    MOCKER(&aclrtMemsetImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(&aclrtMemcpyImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
+    MOCKER(&aclrtMemsetImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
     DevMemManager::Instance().SetMemoryInitFlag(false);
     SanitizerConfig config{};
     config.cacheSize = 0;
@@ -424,8 +424,8 @@ TEST_F(InstrReportTest, init_with_ascend310p_single_check_and_invalid_max_cache_
     MOCKER(&KernelContext::GetRegisterEvent).stubs().will(invoke(&GetRegisterEventStub));
     MOCKER(&DevMemManager::MallocMemory).stubs().will(invoke(&MemoryMallocStub));
     MOCKER(&aclrtGetDeviceImplOrigin).stubs().will(invoke(&GetDeviceOriginStub));
-    MOCKER(&aclrtMemcpyImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
-    MOCKER(&aclrtMemsetImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(&aclrtMemcpyImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
+    MOCKER(&aclrtMemsetImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER(&DeviceContext::GetSocVersion).stubs().will(returnValue(string("Ascend310P3")));
     DevMemManager::Instance().SetMemoryInitFlag(false);
     SanitizerConfig config{};
@@ -443,8 +443,8 @@ TEST_F(InstrReportTest, init_with_ascend910b_single_check_and_invalid_max_cache_
     MOCKER(&KernelContext::GetRegisterEvent).stubs().will(invoke(&GetRegisterEventStub));
     MOCKER(&DevMemManager::MallocMemory).stubs().will(invoke(&MemoryMallocStub));
     MOCKER(&aclrtGetDeviceImplOrigin).stubs().will(invoke(&GetDeviceOriginStub));
-    MOCKER(&aclrtMemcpyImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
-    MOCKER(&aclrtMemsetImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(&aclrtMemcpyImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
+    MOCKER(&aclrtMemsetImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER(&DeviceContext::GetSocVersion).stubs().will(returnValue(string("Ascend910B1")));
     DevMemManager::Instance().SetMemoryInitFlag(false);
     constexpr int16_t chkBlkIdx = 5;
@@ -463,9 +463,9 @@ TEST_F(InstrReportTest, init_with_valid_cache_size_expect_return_success)
     MOCKER(&KernelContext::GetRegisterEvent).stubs().will(invoke(&GetRegisterEventStub));
     MOCKER(&DevMemManager::MallocMemory).stubs().will(invoke(&MemoryMallocStub));
     MOCKER(&aclrtGetDeviceImplOrigin).stubs().will(invoke(&GetDeviceOriginStub));
-    MOCKER(&aclrtMemcpyImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
-    MOCKER(&aclrtMemsetImplOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
-    MOCKER(&rtGetL2CacheOffsetOrigin).stubs().will(returnValue(ACL_ERROR_NONE));
+    MOCKER(&aclrtMemcpyImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
+    MOCKER(&aclrtMemsetImplOrigin).stubs().will(returnValue(ACL_SUCCESS));
+    MOCKER(&rtGetL2CacheOffsetOrigin).stubs().will(returnValue(ACL_SUCCESS));
     MOCKER(&DeviceContext::GetSocVersion).stubs().will(returnValue(string("Ascend310P3")));
     DevMemManager::Instance().SetMemoryInitFlag(false);
 

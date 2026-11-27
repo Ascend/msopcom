@@ -73,7 +73,7 @@ struct AclMapping {
     using Map = HijackedFuncOfAclrtMapMemImpl;
     using Unmap = HijackedFuncOfAclrtUnmapMemImpl;
     static MemInfoSrc Source() { return MemInfoSrc::ACL; }
-    static aclError Success() { return ACL_ERROR_NONE; }
+    static aclError Success() { return ACL_SUCCESS; }
     static aclError Failure() { return 1; }
 };
 

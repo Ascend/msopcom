@@ -106,13 +106,13 @@ bool ArgsRawContext::InsertParam(void *param, size_t paramSize, bool hasFixedOff
     FreeArgs();
     // 如果原始是device侧指针，需要将此处的host指针移动到device侧
     aclError ret = aclrtMallocImplOrigin(&args_, argsSize_, aclrtMemMallocPolicy::ACL_MEM_MALLOC_HUGE_FIRST);
-    if (ret != ACL_ERROR_NONE) {
+    if (ret != ACL_SUCCESS) {
         return false;
     }
     needFree_ = true;
     ret = aclrtMemcpyImplOrigin(args_, argsSize_, argsWithMemInfo_.data(), argsSize_,
                                 aclrtMemcpyKind::ACL_MEMCPY_HOST_TO_DEVICE);
-    if (ret != ACL_ERROR_NONE) {
+    if (ret != ACL_SUCCESS) {
         return false;
     }
     return true;
@@ -145,11 +145,11 @@ bool ArgsRawContext::Save(const std::string &outputPath, DumperContext &config, 
         // 如果原始是device侧指针，需要将此处的host指针移动到device侧
         void *hostArgs_;
         aclError ret = aclrtMallocHostImplOrigin(&hostArgs_, argsSize_);
-        if (ret != ACL_ERROR_NONE) {
+        if (ret != ACL_SUCCESS) {
             return false;
         }
         ret = aclrtMemcpyImplOrigin(hostArgs_, argsSize_, args_, argsSize_, aclrtMemcpyKind::ACL_MEMCPY_DEVICE_TO_HOST);
-        if (ret != ACL_ERROR_NONE) {
+        if (ret != ACL_SUCCESS) {
             aclrtFreeHostImplOrigin(hostArgs_);
             return false;
         }

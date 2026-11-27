@@ -31,7 +31,7 @@ void HijackedFuncOfAclrtUnmapMemImpl::Pre(void* virPtr)
 aclError HijackedFuncOfAclrtUnmapMemImpl::Post(aclError ret)
 {
     // 仅在解除映射成功后更新 sanitizer/profiler 记录；失败时保留原有记录。
-    if (ret == ACL_ERROR_NONE) {
+    if (ret == ACL_SUCCESS) {
         RecordMemoryUnmapping(pointer_, MemInfoSrc::ACL);
     }
     return ret;
