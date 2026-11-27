@@ -16,11 +16,14 @@
 
 #include <gtest/gtest.h>
 #include <cstdlib>
+#include <cstring>
+#include <numeric>
 #include <vector>
 
 #include "mockcpp/mockcpp.hpp"
 #include "runtime/inject_helpers/ArgsRawContext.h"
 #include "runtime/inject_helpers/ArgsManager.h"
+#include "acl_rt_impl/AscendclImplOrigin.h"
 
 using namespace std;
 
@@ -129,4 +132,44 @@ TEST_F(ArgsRawContextTest, clone_keeps_snapshot_after_buffer_reused) {
     for (size_t i = 0; i < ARGS_SIZE; ++i) {
         ASSERT_EQ(snapshot[i], static_cast<uint8_t>(i));
     }
+}
+
+namespace {
+aclError CopyHostArgs(void *dst, size_t destMax, const void *src, size_t count, aclrtMemcpyKind kind) {
+    if ((kind != ACL_MEMCPY_HOST_TO_HOST && kind != ACL_MEMCPY_DEVICE_TO_HOST && kind != ACL_MEMCPY_HOST_TO_DEVICE) ||
+        destMax < count) {
+        return ACL_ERROR_INTERNAL_ERROR;
+    }
+    std::memcpy(dst, src, count);
+    return ACL_SUCCESS;
+}
+}
+
+TEST_F(ArgsRawContextTest, expanding_at_declared_slot_only_shifts_data_after_insert_offset) {
+    // 声明参数区 72 字节被内嵌数据挤占：数据从 64 开始，末尾槽位并未真正预留
+    std::vector<uint8_t> hostArgs(80);
+    std::iota(hostArgs.begin(), hostArgs.end(), uint8_t{0});
+    ArgsRawContext ctx(hostArgs.data(), hostArgs.size(), {{0, 64}});
+    MOCKER(aclrtMemcpyImplOrigin).stubs().will(invoke(CopyHostArgs));
+    uint64_t memInfo = 0xAABBCCDDEEFF0011ULL;
+    uint32_t offset = 0;
+    ASSERT_TRUE(ctx.ExpandArgsAt(&memInfo, sizeof(memInfo), 64, offset));
+    EXPECT_EQ(offset, 64U);
+    EXPECT_EQ(ctx.GetArgsSize(), hostArgs.size() + sizeof(memInfo));
+    EXPECT_EQ(ctx.GetPlaceholderInfo().at(0).dataOffset, 72U);
+    const auto *expanded = static_cast<const uint8_t *>(ctx.GetArgs());
+    ASSERT_NE(expanded, nullptr);
+    EXPECT_EQ(std::memcmp(expanded, hostArgs.data(), 64), 0);
+    EXPECT_EQ(std::memcmp(expanded + offset, &memInfo, sizeof(memInfo)), 0);
+    EXPECT_EQ(std::memcmp(expanded + 72, hostArgs.data() + 64, 16), 0);
+}
+
+TEST_F(ArgsRawContextTest, expanding_at_offset_out_of_args_size_expect_failure) {
+    std::vector<uint8_t> hostArgs(64, 0);
+    ArgsRawContext ctx(hostArgs.data(), hostArgs.size());
+    MOCKER(aclrtMemcpyImplOrigin).stubs().will(invoke(CopyHostArgs));
+    uint64_t memInfo = 0x1234;
+    uint32_t offset = 0;
+    EXPECT_FALSE(ctx.ExpandArgsAt(&memInfo, sizeof(memInfo), 72, offset));
+    EXPECT_EQ(ctx.GetArgsSize(), hostArgs.size());
 }

@@ -43,6 +43,17 @@ bool ArgsRawContext::GetTilingData(std::vector<uint8_t> &data) const
 
 bool ArgsRawContext::ExpandArgs(void *param, size_t paramSize, uint32_t &paramOffset)
 {
+    return InsertParam(param, paramSize, false, 0, paramOffset);
+}
+
+bool ArgsRawContext::ExpandArgsAt(void *param, size_t paramSize, uint32_t insertOffset, uint32_t &paramOffset)
+{
+    return InsertParam(param, paramSize, true, insertOffset, paramOffset);
+}
+
+bool ArgsRawContext::InsertParam(void *param, size_t paramSize, bool hasFixedOffset, uint32_t insertOffset,
+    uint32_t &paramOffset)
+{
     argsWithMemInfo_.clear();
     constexpr uint32_t ALIGN_SIZE = 8;
     if (argsSize_ > MAX_ALL_PARAM_SIZE) {
@@ -58,7 +69,20 @@ bool ArgsRawContext::ExpandArgs(void *param, size_t paramSize, uint32_t &paramOf
     }
     aclrtMemcpyImplOrigin(argsWithMemInfo_.data(), argsSize_, args_, argsSize_, copyMode);
     uint8_t *paramPtr = reinterpret_cast<uint8_t*>(param);
-    if (placeHolderArray_.empty()) {
+    if (hasFixedOffset) {
+        // 固定插入点必须落在已有参数区（含对齐补零）内，否则无法保证插入后参数布局正确
+        if (insertOffset > argsWithMemInfo_.size()) {
+            ERROR_LOG("insert offset %u is out of args size %zu", insertOffset, argsWithMemInfo_.size());
+            return false;
+        }
+        paramOffset = insertOffset;
+        // 只有位于插入点之后的 placeholder 数据会被这次插入顶开
+        for (size_t i = 0; i < placeHolderArray_.size(); i++) {
+            if (placeHolderArray_[i].dataOffset >= insertOffset) {
+                placeHolderArray_[i].dataOffset += paramSize;
+            }
+        }
+    } else if (placeHolderArray_.empty()) {
         paramOffset = argsWithMemInfo_.size();
     } else {
         // insert param after last placeholder addr ptr

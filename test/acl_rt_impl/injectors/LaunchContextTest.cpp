@@ -14,7 +14,8 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
- 
+#include "acl_rt_impl/HijackedFunc.h"
+#include "runtime/inject_helpers/FuncManager.h"
 #include <gtest/gtest.h>
 #include <cstdlib>
 #include <vector>
@@ -38,4 +39,17 @@ TEST_F(LaunchContextTest, mock_valid_input_then_test_get_context_method_expect_s
     ASSERT_EQ(launchCtx->GetArgsContext(), argsBinCtx_);
     ASSERT_EQ(launchCtx->GetLaunchId(), param.launchId);
     ASSERT_EQ(launchCtx->IsSink(), param.isSink);
+}
+
+class CpuFunctionRegistrationTest : public ContextMockHelper {};
+
+TEST_F(CpuFunctionRegistrationTest, failed_context_creation_keeps_original_result_without_null_deref) {
+    MOCKER_CPP(&FuncManager::CreateContext, FuncContextSP(FuncManager::*)(void *, const char *, void *))
+        .stubs()
+        .will(returnValue(FuncContextSP()));
+    aclrtFuncHandle result = funcHandle_;
+    HijackedFuncOfAclrtRegisterCpuFuncImpl hook;
+    hook.Pre(binHandle_, "cpu_entry", "cpu_kernel", &result);
+    EXPECT_EQ(hook.Post(ACL_SUCCESS), ACL_SUCCESS);
+    EXPECT_FALSE(tilingFuncCtx_->isAiCpu);
 }

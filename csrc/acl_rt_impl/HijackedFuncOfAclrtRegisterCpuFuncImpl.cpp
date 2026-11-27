@@ -45,6 +45,7 @@ aclError HijackedFuncOfAclrtRegisterCpuFuncImpl::Post(aclError ret)
     auto ctx = FuncManager::Instance().CreateContext(binHandle_, subName.c_str(), *funcHandle_);
     if (!ctx) {
         DEBUG_LOG("Create func context failed for kernelName=%s", subName.c_str());
+        return ret;
     }
     ctx->isAiCpu = true;
     return ret;

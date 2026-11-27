@@ -31,6 +31,7 @@ file(GLOB SOURCE
     HijackedFuncOfAclrtKernelArgsInitByUserMemImplTest.cpp
     HijackedFuncOfAclrtMapMemImplTest.cpp
     injectors/ArgsManagerTest.cpp
+    injectors/ArgsRawContextTest.cpp
     injectors/ArgsHandleContextTest.cpp
     injectors/LaunchManagerTest.cpp
     injectors/LaunchContextTest.cpp
