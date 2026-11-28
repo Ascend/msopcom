@@ -15,6 +15,8 @@
  * ------------------------------------------------------------------------- */
 
 #include "acl_rt_impl/HijackedFunc.h"
+#include "core/FuncSelector.h"
+#include "runtime/inject_helpers/MemoryDataCollect.h"
 #include "utils/InjectLogger.h"
 
 HijackedFuncOfAclrtMemP2PMapImpl::HijackedFuncOfAclrtMemP2PMapImpl()
@@ -30,6 +32,12 @@ void HijackedFuncOfAclrtMemP2PMapImpl::Pre(void *devPtr, size_t size, int32_t ds
 aclError HijackedFuncOfAclrtMemP2PMapImpl::Post(aclError ret)
 {
     DEBUG_LOG("P2PMap: ret=%d accessDevice=%d addr=0x%lx size=%lu", ret, deviceId_, addr_, size_);
-    // 预映射只提前建立页表，不改变对端设备的访问权限。
+    // 同进程跨卡共享可只建立页表映射；检测模型只登记成功映射的区间，不建立设备级关系。
+    if (ret == ACL_SUCCESS && IsSanitizer()) {
+        if (!MemoryManage::ApplyP2PMapping(deviceId_, addr_, size_)) {
+            ERROR_LOG("Cannot associate successful P2PMap with one tracked allocation: device=%d addr=0x%lx size=%lu",
+                deviceId_, addr_, size_);
+        }
+    }
     return ret;
 }

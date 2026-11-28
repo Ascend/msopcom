@@ -76,9 +76,9 @@ protected:
     }
 };
 
-// 测试场景：未启用PeerAccess，预映射显式指定另一设备
-// 测试预期：透传全部参数和返回值，无授权事件、无授权范围且不切换当前设备
-TEST_F(P2PMapping, PrefetchOnlyForwardsExplicitDestinationAndRange) {
+// 测试场景：未启用PeerAccess，P2PMap成功且显式指定另一设备
+// 测试预期：只在指定设备登记精确映射，不改变设备级权限或当前设备
+TEST_F(P2PMapping, SuccessfulMapSharesExactRangeWithoutPeerAccess) {
     HijackedFuncOfAclrtMemP2PMapImpl hook;
     hook.originfunc_ = [](void *ptr, size_t size, int32_t device, uint64_t flags) {
         EXPECT_EQ(ptr, reinterpret_cast<void *>(BASE + 32));
@@ -88,15 +88,23 @@ TEST_F(P2PMapping, PrefetchOnlyForwardsExplicitDestinationAndRange) {
         return ACL_SUCCESS;
     };
     ASSERT_EQ(hook.Call(reinterpret_cast<void *>(BASE + 32), 64, ACCESS, 0), ACL_SUCCESS);
-    EXPECT_TRUE(packets.empty());
-    EXPECT_TRUE(MemoryManage::SnapshotP2PMappings(ACCESS).empty());
+    auto ranges = MemoryManage::SnapshotP2PMappings(ACCESS);
+    ASSERT_EQ(ranges.size(), 1);
+    EXPECT_EQ(ranges[0].addr, BASE + 32);
+    EXPECT_EQ(ranges[0].size, 64);
+    EXPECT_EQ(ranges[0].deviceId, OWNER);
+    ASSERT_EQ(packets.size(), 1);
+    PacketHead head{};
+    std::memcpy(&head, packets[0].data(), sizeof(head));
+    EXPECT_EQ(head.type, PacketType::P2P_MAPPING_RECORD);
+    EXPECT_TRUE(MemoryManage::SnapshotP2PMappings(OWNER).empty());
     EXPECT_TRUE(PeerAccessState::Instance().Snapshot(ACCESS).empty());
     EXPECT_EQ(ThreadContext::Instance().GetDeviceId(), OWNER);
 }
 
 // 测试场景：预映射前已有设备级授权和HCCL通信域窗口
-// 测试预期：不发送新事件，原分配范围与HCCL窗口分别保留，反向仍未授权
-TEST_F(P2PMapping, PrefetchPreservesDeviceAccessAndScopedWindow) {
+// 测试预期：新映射与原分配范围、HCCL窗口各自保留，反向仍未授权
+TEST_F(P2PMapping, MapPreservesDeviceAccessAndScopedWindow) {
     constexpr uint64_t scope = 101;
     PeerAccessState::Instance().Apply(ACCESS, OWNER, PeerAccessOp::ENABLE);
     ASSERT_TRUE(MemoryManage::ApplyP2PMapping(ACCESS, BASE + 32, 64, scope));
@@ -110,11 +118,14 @@ TEST_F(P2PMapping, PrefetchPreservesDeviceAccessAndScopedWindow) {
     EXPECT_EQ(peer[0].deviceId, OWNER);
     EXPECT_TRUE(PeerAccessState::Instance().Snapshot(OWNER).empty());
     auto ranges = MemoryManage::SnapshotP2PMappings(ACCESS);
-    ASSERT_EQ(ranges.size(), 1);
+    ASSERT_EQ(ranges.size(), 2);
     EXPECT_EQ(ranges[0].addr, BASE + 32);
     EXPECT_EQ(ranges[0].size, 64);
     EXPECT_EQ(ranges[0].deviceId, OWNER);
-    ASSERT_EQ(packets.size(), 1);
+    EXPECT_EQ(ranges[1].addr, BASE);
+    EXPECT_EQ(ranges[1].size, 16);
+    EXPECT_EQ(ranges[1].deviceId, OWNER);
+    ASSERT_EQ(packets.size(), 2);
     ASSERT_EQ(packets[0].size(), sizeof(PacketHead) + sizeof(P2PMappingRecord));
     PacketHead head{};
     P2PMappingRecord event{};
@@ -128,6 +139,11 @@ TEST_F(P2PMapping, PrefetchPreservesDeviceAccessAndScopedWindow) {
     EXPECT_EQ(event.size, ranges[0].size);
     EXPECT_EQ(event.scope, scope);
     EXPECT_FALSE(event.revoke);
+    MemoryManage::RevokeScopedP2PMappings(ACCESS, scope);
+    ranges = MemoryManage::SnapshotP2PMappings(ACCESS);
+    ASSERT_EQ(ranges.size(), 1);
+    EXPECT_EQ(ranges[0].addr, BASE);
+    EXPECT_EQ(ranges[0].size, 16);
     EXPECT_TRUE(MemoryManage::SnapshotP2PMappings(OWNER).empty());
     EXPECT_EQ(ThreadContext::Instance().GetDeviceId(), OWNER);
 }
