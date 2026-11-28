@@ -19,6 +19,7 @@
 
 #include <elf.h>
 #include <map>
+#include <set>
 #include <mutex>
 #include <string>
 #include <unordered_map>
@@ -50,6 +51,18 @@ public:
     using AddrsSet = std::set<HostMemoryInfo>;
 
     static MemoryManage &Instance();
+    // 获取指定设备的内存表，不改变当前 Host 线程绑定的设备。
+    static MemoryManage &Instance(int32_t deviceId);
+    // 查找唯一完整覆盖的ACL/RT分配，保存映射并向显式使用设备发布事件
+    static bool ApplyP2PMapping(int32_t deviceId, uint64_t addr, uint64_t size, uint64_t scope = 0);
+    // 通信域销毁或窗口改变时只撤销该域登记的精确区间
+    static void RevokeScopedP2PMappings(int32_t deviceId, uint64_t scope);
+    // 快照仅包含精确映射区间，权限取自所有方当前分配；不授予设备级访问权
+    static std::vector<PeerMemoryInfo> SnapshotP2PMappings(int32_t deviceId);
+    // 成功reset撤销双向映射及本设备旧分配，防止地址复用继承旧状态
+    static void ResetDevice(int32_t deviceId);
+    // 已知撤权仅使该方向的映射失效，不建立另一套设备授权表
+    static void RevokeP2PMappings(int32_t deviceId, int32_t ownerDeviceId);
     /**
     * @brief 缓存memoryOp信息，包含malloc和free
     * @param opType 内存分配的类型
@@ -74,6 +87,8 @@ public:
 
     // 合并所有的host侧memory信息，合并成不连续升序的形式；
     AddrsVec MergeHostMems();
+    // 复用在线检测的来源筛选规则，保留各段的原始权限供远端检查。
+    AddrsVec SnapshotOnlineRanges();
 
     // 获取malloc内存数量，用于填充sanitizer_init开头
     uint32_t GetMallocCount() const { return mallocCount_; }
@@ -85,16 +100,35 @@ private:
     void ProcessMstxHeapMem(AddrsSet &cacheRtAclMem, const KernelContext::AddrInfo &addrInfo) const;
     AddrsVec ExtractValidMems(std::set<KernelContext::AddrInfo> &addrInfos) const;
 
+    // 仅供类内部和 UT 清理缓存，不接入设备重置回调
     void Reset()
     {
         memoryOpAddrInfos_.clear();
         mallocCount_ = 0;
     }
 
+    // 实例登记锁只保护查找/创建；其后统一按分配表锁、映射锁的顺序加锁
+    static std::unordered_map<int32_t, MemoryManage> &Instances();
+    static std::mutex &InstanceMutex();
+    int32_t deviceId_{-1}; // 本表所属用户设备号
+
+    // 每设备一把锁，保护内存表读取与修改，避免远端快照读取时被其他 Host 线程修改
     std::mutex memoryMutex_;
     // 算子运行时获取到的malloc信息，用于限定kernel侧检测时的gm合理范围
     std::set<KernelContext::AddrInfo> memoryOpAddrInfos_;
     std::atomic<uint32_t> mallocCount_{}; // 缓存的内存记录数量
+};
+
+// Host 进程内的 peeraccess 授权表。在线检测 kernel launch 时据此收集目标设备的分配快照
+class PeerAccessState {
+public:
+    static PeerAccessState &Instance();
+    void Apply(int32_t deviceId, int32_t peerDeviceId, PeerAccessOp operation);
+    std::vector<PeerMemoryInfo> Snapshot(int32_t deviceId);
+
+private:
+    std::mutex mutex_; // 进程内共享，防止并发修改 relations_
+    std::map<int32_t, std::set<int32_t>> relations_; // key 为访问方设备，value 为允许其访问的目标设备集合
 };
 
 /**
@@ -184,3 +218,7 @@ void ReportOverflowFree(KernelContext::OpMemInfo &opMemInfo);
  * @brief 通过驱动接口判断内存是否在 device 上
  */
 bool IsMemoryOnDevice(void *ptr);
+
+// 映射及解除映射成功后统一更新 sanitizer/profiler 的内存记录。
+void RecordMemoryMapping(void *addr, uint64_t size, MemInfoSrc infoSrc);
+void RecordMemoryUnmapping(void *addr, MemInfoSrc infoSrc);

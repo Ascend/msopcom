@@ -29,3 +29,17 @@ TEST(HcclOrigin, hccl_function_load_failed)
     EXPECT_NE(HcclBarrierOrigin(nullptr, nullptr), HCCL_SUCCESS);
     GlobalMockObject::verify();
 }
+
+// 测试场景：CANN版本未提供通信域或包间窗口查询符号
+// 测试预期：原接口加载失败返回错误，不把未知窗口视为成功
+TEST(HcclOrigin, optional_window_symbols_missing) {
+    MOCKER(&func_injection::register_function::FunctionRegister::Get).stubs().will(returnValue((void *)nullptr));
+    uint32_t rankSize = 0;
+    uint64_t size = 0;
+    void *addr = nullptr;
+    EXPECT_NE(HcclGetCommNameOrigin(nullptr, nullptr), HCCL_SUCCESS);
+    EXPECT_NE(HcclGetRankSizeOrigin(nullptr, &rankSize), HCCL_SUCCESS);
+    EXPECT_NE(CommGetRemoteCCLBufOrigin(nullptr, 0, &addr, &size), HCCL_SUCCESS);
+    EXPECT_NE(HcclCommDestroyOrigin(nullptr), HCCL_SUCCESS);
+    GlobalMockObject::verify();
+}

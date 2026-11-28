@@ -63,6 +63,34 @@ private:
     int32_t devId_{0};
 };
 
+class HijackedFuncOfAclrtDeviceEnablePeerAccessImpl
+    : public decltype(AscendclImpHijackedType(&aclrtDeviceEnablePeerAccessImpl)) {
+public:
+    HijackedFuncOfAclrtDeviceEnablePeerAccessImpl();
+    // 调用原接口，缺失符号时输出与其它 ACL 劫持入口一致的错误
+    aclError Call(int32_t peerDeviceId, uint32_t flags) override;
+    void Pre(int32_t peerDeviceId, uint32_t flags) override;
+    aclError Post(aclError ret) override;
+
+private:
+    int32_t deviceId_{-1}; // 访问方设备号
+    int32_t peerDeviceId_{-1}; // 被访问方设备号
+};
+
+class HijackedFuncOfAclrtDeviceDisablePeerAccessImpl
+    : public decltype(AscendclImpHijackedType(&aclrtDeviceDisablePeerAccessImpl)) {
+public:
+    HijackedFuncOfAclrtDeviceDisablePeerAccessImpl();
+    // 调用原接口，缺失符号时输出与其它 ACL 劫持入口一致的错误
+    aclError Call(int32_t peerDeviceId) override;
+    void Pre(int32_t peerDeviceId) override;
+    aclError Post(aclError ret) override;
+
+private:
+    int32_t deviceId_{-1}; // 访问方设备号
+    int32_t peerDeviceId_{-1}; // 被访问方设备号
+};
+
 class HijackedFuncOfAclrtMallocImpl : public decltype(AscendclImpHijackedType(&aclrtMallocImpl)) {
 public:
     explicit HijackedFuncOfAclrtMallocImpl();
@@ -237,6 +265,19 @@ public:
     ~HijackedFuncOfAclrtMemcpy2dAsyncImpl() override = default;
     void Pre(void *dst, size_t dpitch, const void *src, size_t spitch, size_t width, size_t height,
         aclrtMemcpyKind kind, aclrtStream stream) override;
+};
+
+// 成功后采集显式使用设备的精确映射，不修改线程当前设备
+class HijackedFuncOfAclrtMemP2PMapImpl : public decltype(AscendclImpHijackedType(&aclrtMemP2PMapImpl)) {
+public:
+    HijackedFuncOfAclrtMemP2PMapImpl();
+    void Pre(void *devPtr, size_t size, int32_t dstDevId, uint64_t flags) override;
+    aclError Post(aclError ret) override;
+
+private:
+    uint64_t addr_{0}; // 原业务地址
+    uint64_t size_{0}; // 映射长度
+    int32_t deviceId_{-1}; // 用户设备号，与SetDevice及checker一致
 };
 
 class HijackedFuncOfAclrtMapMemImpl : public decltype(AscendclImpHijackedType(&aclrtMapMemImpl)) {

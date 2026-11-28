@@ -1,5 +1,6 @@
 file(GLOB SOURCE
     HcclOriginTest.cpp
+    HcclWindowCollectTest.cpp
     HcclCommInitClusterInfoTest.cpp
     HcclCommInitClusterInfoConfigTest.cpp
     HcclCommInitRootInfoConfigTest.cpp

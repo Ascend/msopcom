@@ -14,30 +14,26 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
- 
 #include "LocalDevice.h"
- 
-#include <map>
-#include <thread>
+
 #include <mutex>
-#include <chrono>
-#include "utils/Future.h"
-#include "utils/InjectLogger.h"
+#include <memory>
 #include "runtime/inject_helpers/ThreadContext.h"
 
 LocalDevice &LocalDevice::Local(CommType type)
 {
     return GetInstance(ThreadContext::Instance().GetDeviceId(), type);
 }
- 
+
+// 按设备号查进程连接表，首次出现时创建连接
 LocalDevice &LocalDevice::GetInstance(int32_t deviceId, CommType type)
 {
-    static std::unordered_map<int32_t, LocalDevice> devices;
-    static std::mutex mutex{};
-    std::lock_guard<std::mutex> guard(mutex);
-    auto it = devices.find(deviceId);
-    if (it == devices.end()) {
-        it = devices.emplace(deviceId, type).first;
+    auto &state = State(); // 首次访问时创建进程共享状态
+    CheckProcessOwner(); // 子进程不能沿用父进程的 fd 和锁
+    std::lock_guard<std::mutex> guard(state.devicesMutex);
+    auto it = state.devices.find(deviceId);
+    if (it == state.devices.end()) {
+        it = state.devices.emplace(deviceId, std::unique_ptr<LocalDevice>(new LocalDevice(type))).first;
     }
-    return it->second;
+    return *it->second;
 }

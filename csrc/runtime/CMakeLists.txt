@@ -34,6 +34,8 @@ file(GLOB INJECTION_SRC
     HijackedFuncOfAiCpuKernelLaunchExWithArgs.cpp
     HijackedFuncOfStreamSynchronizeWithTimeout.cpp
     HijackedFuncOfGetDeviceInfo.cpp
+    HijackedFuncOfEnableP2P.cpp
+    HijackedFuncOfDisableP2P.cpp
     HijackedFuncOfIpcSetMemoryName.cpp
     HijackedFuncOfIpcDestroyMemoryName.cpp
     HijackedFuncOfIpcOpenMemory.cpp

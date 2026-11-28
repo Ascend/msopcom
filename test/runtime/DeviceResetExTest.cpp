@@ -14,7 +14,6 @@
  * See the Mulan PSL v2 for more details.
  * ------------------------------------------------------------------------- */
 
- 
 #include <gtest/gtest.h>
 #define private public
 #define protected public
@@ -24,29 +23,86 @@
 #undef protected
 #include "runtime/inject_helpers/KernelContext.h"
 #include "runtime/inject_helpers/DeviceContext.h"
+#include "runtime/inject_helpers/DevMemManager.h"
+#include "runtime/inject_helpers/LocalDevice.h"
+#include "core/DomainSocket.h"
 #include "core/FuncSelector.h"
+#include "utils/Serialize.h"
+#include "runtime/inject_helpers/MemoryDataCollect.h"
 #include "mockcpp/mockcpp.hpp"
 
-TEST(rtDeviceReset, call_pre_function_with_valid_device_id_expect_return)
+namespace {
+int32_t resetDevice = -1;
+std::vector<std::string> resetPackets;
+rtError_t RecordDeviceReset(int32_t device) {
+    resetDevice = device;
+    return RT_ERROR_NONE;
+}
+int CaptureDeviceSummary(LocalProcess *, std::string message) {
+    resetPackets.push_back(message);
+    return message.size();
+}
+}
+
+TEST(rtDeviceResetEx, sanitizer_reports_the_reset_device_after_success) {
+    MOCKER(IsSanitizer).stubs().will(returnValue(true));
+    MOCKER(&DevMemManager::Free).stubs();
+    MOCKER(&DomainSocketClient::Connect).stubs().will(returnValue(true));
+    MOCKER(&LocalDevice::Notify).stubs().will(invoke(CaptureDeviceSummary));
+    DeviceContext::Instance(3).SetSocVersion("Ascend910B");
+    resetPackets.clear();
+    PeerAccessState::Instance().Apply(2, 3, PeerAccessOp::ENABLE);
+    HijackedFuncOfDeviceResetEx instance;
+    instance.originfunc_ = RecordDeviceReset;
+    EXPECT_EQ(instance.Call(3), RT_ERROR_NONE);
+    EXPECT_TRUE(PeerAccessState::Instance().Snapshot(2).empty());
+    PacketHead head{PacketType::DEVICE_SUMMARY};
+    DeviceSummary summary{};
+    summary.deviceId = 3;
+    summary.device = static_cast<uint32_t>(GetDeviceTypeBySocVersion("Ascend910B"));
+    ASSERT_EQ(resetPackets.size(), 2);
+    EXPECT_EQ(resetPackets[0], Serialize(head, summary));
+    EXPECT_EQ(resetPackets[1],
+        Serialize(PacketHead{PacketType::PEER_ACCESS_RECORD}, PeerAccessRecord{3, -1, PeerAccessOp::RESET}));
+    resetPackets.clear();
+    HijackedFuncOfDeviceReset reset;
+    reset.originfunc_ = RecordDeviceReset;
+    EXPECT_EQ(reset.Call(3), RT_ERROR_NONE);
+    ASSERT_EQ(resetPackets.size(), 2);
+    EXPECT_EQ(resetPackets[1],
+        Serialize(PacketHead{PacketType::PEER_ACCESS_RECORD}, PeerAccessRecord{3, -1, PeerAccessOp::RESET}));
+    resetPackets.clear();
+    EXPECT_EQ(reset.Post(RT_ERROR_RESERVED), RT_ERROR_RESERVED);
+    EXPECT_EQ(instance.Post(RT_ERROR_RESERVED), RT_ERROR_RESERVED);
+    EXPECT_TRUE(resetPackets.empty());
+    GlobalMockObject::verify();
+}
+
+// 保留字节分支已有的参数与模式覆盖。
+TEST(rtDeviceResetEx, call_pre_function_with_valid_device_id_expect_return)
 {
     HijackedFuncOfDeviceResetEx instance;
     instance.Pre(1);
     instance.Call(1);
-    EXPECT_EQ(DeviceContext::Local().GetDeviceId(), 1);
+    EXPECT_EQ(instance.devId_, 1);
+    GlobalMockObject::verify();
 }
 
 TEST(rtDeviceResetEx, IsSanitizer)
 {
     MOCKER(IsSanitizer).stubs().will(returnValue(true));
+    MOCKER(&DevMemManager::Free).stubs();
     HijackedFuncOfDeviceResetEx instance;
     instance.Pre(1);
     instance.Call(1);
-    EXPECT_EQ(DeviceContext::Local().GetDeviceId(), 1);
+    EXPECT_EQ(instance.devId_, 1);
+    GlobalMockObject::verify();
 }
 
 TEST(rtDeviceResetEx, IsOpProf)
 {
     MOCKER(IsOpProf).stubs().will(returnValue(true));
+    const bool previousSimulator = ProfConfig::Instance().profConfig_.isSimulator;
     ProfConfig::Instance().profConfig_.isSimulator = true;
     HijackedFuncOfDeviceResetEx instance;
     auto func = [](int32_t) ->
@@ -55,5 +111,7 @@ TEST(rtDeviceResetEx, IsOpProf)
     instance.originfunc_ = func;
     instance.Pre(1);
     instance.Call(1);
-    EXPECT_EQ(DeviceContext::Local().GetDeviceId(), 1);
+    EXPECT_EQ(instance.devId_, 1);
+    ProfConfig::Instance().profConfig_.isSimulator = previousSimulator;
+    GlobalMockObject::verify();
 }

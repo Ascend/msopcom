@@ -40,7 +40,8 @@ aclError HijackedFuncOfAclrtIpcMemImportByKeyImpl::Call(void **devPtr, const cha
     Pre(devPtr, key, flag);
     if (originfunc_) {
         aclError ret = originfunc_(devPtr, key, flag);
-        if (MemoryGuard::Instance().memGuardEnable_) {
+        if (ret == ACL_ERROR_NONE && devPtr != nullptr && *devPtr != nullptr &&
+            MemoryGuard::Instance().memGuardEnable_) {
             size_t frontSize = 0;
             size_t backSize = 0;
             MemoryGuard::Instance().GetGuardSizes(frontSize, backSize);
@@ -56,6 +57,10 @@ aclError HijackedFuncOfAclrtIpcMemImportByKeyImpl::Call(void **devPtr, const cha
 
 aclError HijackedFuncOfAclrtIpcMemImportByKeyImpl::Post(aclError ret)
 {
+    // 导入失败时输出地址无效，不记录映射或解引用输出参数
+    if (ret != ACL_ERROR_NONE) {
+        return ret;
+    }
     if (IsSanitizer()) {
         if (key_ == nullptr) {
             ERROR_LOG("aclrtIpcMemImportByKeyImpl key is nullptr");
@@ -65,7 +70,7 @@ aclError HijackedFuncOfAclrtIpcMemImportByKeyImpl::Post(aclError ret)
         uint64_t length = GetValidLength(key_, sizeof(IPCMemoryMapInfo::name));
         std::string key(key_, length);
 
-        if (devPtr_ == nullptr) {
+        if (devPtr_ == nullptr || *devPtr_ == nullptr) {
             std::string keyLog = FormatNameForLog(key);
             ERROR_LOG("aclrtIpcMemImportByKeyImpl return nullptr key:%.2048s.", keyLog.c_str());
             return ret;

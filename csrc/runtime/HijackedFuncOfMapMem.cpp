@@ -18,11 +18,7 @@
 
 #include "HijackedFunc.h"
 #include "RuntimeConfig.h"
-#include "core/FuncSelector.h"
 #include "runtime/inject_helpers/MemoryDataCollect.h"
-#include "inject_helpers/MemoryContext.h"
-#include "inject_helpers/ProfConfig.h"
-#include "inject_helpers/KernelContext.h"
 
 HijackedFuncOfMapMem::HijackedFuncOfMapMem()
     : HijackedFuncType(RuntimeLibName(), "rtMapMem") {}
@@ -35,13 +31,8 @@ void HijackedFuncOfMapMem::Pre(void* devPtr, size_t size, size_t offset, rtDrvMe
 
 rtError_t HijackedFuncOfMapMem::Post(rtError_t ret)
 {
-    if (IsSanitizer() && ret == RT_ERROR_NONE) {
-        ReportMalloc(reinterpret_cast<uint64_t>(devPtr_), size_, MemInfoSrc::RT);
-    }
-    if (IsOpProf() && !ProfConfig::Instance().IsSimulator() && ret == RT_ERROR_NONE) {
-        if (!ProfConfig::Instance().IsAppReplay() && !KernelContext::Instance().GetLcclFlag()) {
-            MemoryContext::Instance().Append(this->devPtr_, this->size_);
-        }
+    if (ret == RT_ERROR_NONE) {
+        RecordMemoryMapping(devPtr_, size_, MemInfoSrc::RT);
     }
     return ret;
 }

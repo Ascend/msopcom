@@ -78,7 +78,7 @@ inline void InteractHelper::Notify(int32_t deviceId, PacketType type, const std:
         std::string msg = Serialize(head);
         msg.reserve(msg.size() + record.size());
         msg.append(record);
-        LocalDevice::GetInstance(deviceId).Notify(msg);
+        LocalDevice::GetInstance(deviceId).Notify(std::move(msg));
 }
 
 // 用于几个IPC接口的参数和响应发送

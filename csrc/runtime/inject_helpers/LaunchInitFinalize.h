@@ -21,6 +21,7 @@
 #include "KernelContext.h"
 #include "RegisterContext.h"
 #include "LaunchContext.h"
+#include <vector>
 
 KernelType GetCurrentKernelType(void);
 KernelType GetKernelType(KernelContext::RegisterEvent const &registerEvent,
@@ -49,6 +50,7 @@ private:
 
     uint64_t blockDim_{};
     uint32_t hostMemoryNum_{};
+    std::vector<PeerMemoryInfo> peerMemories_; // launch时收集的已授权远端内存快照，复制到设备侧供在线检查使用
     RecordGlobalHead globalHead_{};
     KernelType kernelType_{KernelType::INVALID};
 };

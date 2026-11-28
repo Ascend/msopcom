@@ -57,6 +57,12 @@ private:
     uint64_t stubFunc_ {0};
     bool registered_{false};
     FuncContextSP funcCtx_{nullptr};
+    // 保留源函数对象，避免Context重建后复用旧设备函数句柄或同址对象
+    FuncContextSP sourceFuncCtx_{nullptr};
+    // Context指针区分同卡多上下文，设备与代际处理跨卡及reset后的指针重用
+    aclrtContext context_{nullptr};
+    int32_t deviceId_{-1};
+    uint64_t contextGeneration_{0};
 };
 
 using DBITaskSP = std::shared_ptr<DBITask>;

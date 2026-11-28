@@ -17,12 +17,8 @@
 // 该文件主要实现注入函数的功能，其配合被劫持函数的别名，实现新的劫持函数功能
 
 #include "HijackedFunc.h"
-#include "core/FuncSelector.h"
 #include "runtime/inject_helpers/MemoryDataCollect.h"
 #include "acl_rt_impl/AscendclImplOrigin.h"
-#include "runtime/inject_helpers/MemoryContext.h"
-#include "runtime/inject_helpers/ProfConfig.h"
-#include "runtime/inject_helpers/KernelContext.h"
 
 HijackedFuncOfAclrtMapMemImpl::HijackedFuncOfAclrtMapMemImpl()
     : HijackedFuncType(AclRuntimeLibName(), "aclrtMapMemImpl") {}
@@ -36,13 +32,8 @@ void HijackedFuncOfAclrtMapMemImpl::Pre(void *virPtr, size_t size, size_t offset
 
 aclError HijackedFuncOfAclrtMapMemImpl::Post(aclError ret)
 {
-    if (IsSanitizer() && ret == ACL_ERROR_NONE) {
-        ReportMalloc(reinterpret_cast<uint64_t>(virPtr_), size_, MemInfoSrc::ACL);
-    }
-    if (IsOpProf() && !ProfConfig::Instance().IsSimulator() && ret == ACL_ERROR_NONE) {
-        if (!ProfConfig::Instance().IsAppReplay() && !KernelContext::Instance().GetLcclFlag()) {
-            MemoryContext::Instance().Append(this->virPtr_, this->size_);
-        }
+    if (ret == ACL_ERROR_NONE) {
+        RecordMemoryMapping(virPtr_, size_, MemInfoSrc::ACL);
     }
     return ret;
 }

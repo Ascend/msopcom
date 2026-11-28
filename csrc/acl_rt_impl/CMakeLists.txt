@@ -3,6 +3,8 @@ file(GLOB INJECTION_SRC
     AscendclImplOrigin.cpp
     HijackedFuncOfAclrtSetDeviceImpl.cpp
     HijackedFuncOfAclrtResetDeviceImpl.cpp
+    HijackedFuncOfAclrtDeviceEnablePeerAccessImpl.cpp
+    HijackedFuncOfAclrtDeviceDisablePeerAccessImpl.cpp
     HijackedFuncOfAclrtMallocImpl.cpp
     HijackedFuncOfAclrtMallocAlign32Impl.cpp
     HijackedFuncOfAclrtMallocCachedImpl.cpp
@@ -17,6 +19,7 @@ file(GLOB INJECTION_SRC
     HijackedFuncOfAclrtMemcpyAsyncImpl.cpp
     HijackedFuncOfAclrtMemcpy2dImpl.cpp
     HijackedFuncOfAclrtMemcpy2dAsyncImpl.cpp
+    HijackedFuncOfAclrtMemP2PMapImpl.cpp
     HijackedFuncOfAclrtMapMemImpl.cpp
     HijackedFuncOfAclrtUnmapMemImpl.cpp
     HijackedFuncOfAclrtIpcMemGetExportKeyImpl.cpp

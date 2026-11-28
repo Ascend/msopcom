@@ -20,6 +20,7 @@
 #pragma once
 
 #include <string>
+#include <atomic>
 #include "acl.h"
 
 /*
@@ -44,6 +45,13 @@ public:
 
     static int32_t GetRunningDeviceId();
 
+    // 普通reset成功可能仅减少引用，默认Context仍活跃时不能撤销设备内存记录
+    static bool IsPrimaryContextReleased(int32_t deviceId);
+
+    // 默认Context最终释放后推进代际，避免新Context重用相同指针命中旧设备函数
+    void AdvanceContextGeneration() { contextGeneration_.fetch_add(1, std::memory_order_relaxed); }
+    uint64_t GetContextGeneration() const { return contextGeneration_.load(std::memory_order_relaxed); }
+
     bool NeedOverflowStatus() const;
 
     bool IsAscend950();
@@ -57,6 +65,7 @@ public:
     }
 #endif
 private:
+    std::atomic<uint64_t> contextGeneration_{0};
     std::string socVersion_;
     int32_t visibleDevId_{0};
     int32_t devId_{0};

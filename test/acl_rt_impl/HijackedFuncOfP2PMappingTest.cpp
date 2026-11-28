@@ -65,6 +65,7 @@ protected:
         MemoryManage::Instance(OWNER).CacheMemory<MemoryOpType::MALLOC>(BASE, MemInfoSrc::ACL, LENGTH);
     }
     void TearDown() override {
+        PeerAccessState::Instance().Apply(ACCESS, -1, PeerAccessOp::RESET);
         MemoryManage::ResetDevice(OWNER);
         MemoryManage::ResetDevice(ACCESS);
         MemoryManage::ResetDevice(ACCESS + 1);
@@ -75,12 +76,15 @@ protected:
     }
 };
 
-// 测试场景：当前线程属于所有方，API显式指定另一使用设备
-// 测试预期：仅目标设备快照获得精确窗口，线程当前设备保持不变
-TEST_F(P2PMapping, ExplicitDestinationAndExactRange) {
+// 测试场景：未启用PeerAccess，P2PMap成功且显式指定另一设备
+// 测试预期：只在指定设备登记精确映射，不改变设备级权限或当前设备
+TEST_F(P2PMapping, SuccessfulMapSharesExactRangeWithoutPeerAccess) {
     HijackedFuncOfAclrtMemP2PMapImpl hook;
-    hook.originfunc_ = [](void *, size_t, int32_t device, uint64_t) {
+    hook.originfunc_ = [](void *ptr, size_t size, int32_t device, uint64_t flags) {
+        EXPECT_EQ(ptr, reinterpret_cast<void *>(BASE + 32));
+        EXPECT_EQ(size, 64);
         EXPECT_EQ(device, ACCESS);
+        EXPECT_EQ(flags, 0);
         return ACL_SUCCESS;
     };
     ASSERT_EQ(hook.Call(reinterpret_cast<void *>(BASE + 32), 64, ACCESS, 0), ACL_SUCCESS);
@@ -90,6 +94,38 @@ TEST_F(P2PMapping, ExplicitDestinationAndExactRange) {
     EXPECT_EQ(ranges[0].size, 64);
     EXPECT_EQ(ranges[0].deviceId, OWNER);
     ASSERT_EQ(packets.size(), 1);
+    PacketHead head{};
+    std::memcpy(&head, packets[0].data(), sizeof(head));
+    EXPECT_EQ(head.type, PacketType::P2P_MAPPING_RECORD);
+    EXPECT_TRUE(MemoryManage::SnapshotP2PMappings(OWNER).empty());
+    EXPECT_TRUE(PeerAccessState::Instance().Snapshot(ACCESS).empty());
+    EXPECT_EQ(ThreadContext::Instance().GetDeviceId(), OWNER);
+}
+
+// 测试场景：预映射前已有设备级授权和HCCL通信域窗口
+// 测试预期：新映射与原分配范围、HCCL窗口各自保留，反向仍未授权
+TEST_F(P2PMapping, MapPreservesDeviceAccessAndScopedWindow) {
+    constexpr uint64_t scope = 101;
+    PeerAccessState::Instance().Apply(ACCESS, OWNER, PeerAccessOp::ENABLE);
+    ASSERT_TRUE(MemoryManage::ApplyP2PMapping(ACCESS, BASE + 32, 64, scope));
+    HijackedFuncOfAclrtMemP2PMapImpl hook;
+    hook.originfunc_ = [](void *, size_t, int32_t, uint64_t) { return ACL_SUCCESS; };
+    ASSERT_EQ(hook.Call(reinterpret_cast<void *>(BASE), 16, ACCESS, 0), ACL_SUCCESS);
+    auto peer = PeerAccessState::Instance().Snapshot(ACCESS);
+    ASSERT_EQ(peer.size(), 1);
+    EXPECT_EQ(peer[0].addr, BASE);
+    EXPECT_EQ(peer[0].size, LENGTH);
+    EXPECT_EQ(peer[0].deviceId, OWNER);
+    EXPECT_TRUE(PeerAccessState::Instance().Snapshot(OWNER).empty());
+    auto ranges = MemoryManage::SnapshotP2PMappings(ACCESS);
+    ASSERT_EQ(ranges.size(), 2);
+    EXPECT_EQ(ranges[0].addr, BASE + 32);
+    EXPECT_EQ(ranges[0].size, 64);
+    EXPECT_EQ(ranges[0].deviceId, OWNER);
+    EXPECT_EQ(ranges[1].addr, BASE);
+    EXPECT_EQ(ranges[1].size, 16);
+    EXPECT_EQ(ranges[1].deviceId, OWNER);
+    ASSERT_EQ(packets.size(), 2);
     ASSERT_EQ(packets[0].size(), sizeof(PacketHead) + sizeof(P2PMappingRecord));
     PacketHead head{};
     P2PMappingRecord event{};
@@ -101,6 +137,13 @@ TEST_F(P2PMapping, ExplicitDestinationAndExactRange) {
     EXPECT_EQ(event.ownerAddr, BASE);
     EXPECT_EQ(event.addr, ranges[0].addr);
     EXPECT_EQ(event.size, ranges[0].size);
+    EXPECT_EQ(event.scope, scope);
+    EXPECT_FALSE(event.revoke);
+    MemoryManage::RevokeScopedP2PMappings(ACCESS, scope);
+    ranges = MemoryManage::SnapshotP2PMappings(ACCESS);
+    ASSERT_EQ(ranges.size(), 1);
+    EXPECT_EQ(ranges[0].addr, BASE);
+    EXPECT_EQ(ranges[0].size, 16);
     EXPECT_TRUE(MemoryManage::SnapshotP2PMappings(OWNER).empty());
     EXPECT_EQ(ThreadContext::Instance().GetDeviceId(), OWNER);
 }
@@ -112,6 +155,8 @@ TEST_F(P2PMapping, FailedApiDoesNotMap) {
     hook.originfunc_ = [](void *, size_t, int32_t, uint64_t) { return ACL_ERROR_INTERNAL_ERROR; };
     EXPECT_EQ(hook.Call(reinterpret_cast<void *>(BASE), LENGTH, ACCESS, 0), ACL_ERROR_INTERNAL_ERROR);
     EXPECT_TRUE(MemoryManage::SnapshotP2PMappings(ACCESS).empty());
+    EXPECT_TRUE(packets.empty());
+    EXPECT_TRUE(PeerAccessState::Instance().Snapshot(ACCESS).empty());
 }
 
 // 测试场景：无所有方、越过原分配、长度溢出或错误设备

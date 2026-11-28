@@ -23,6 +23,7 @@ file(GLOB SOURCE
 
     HijackedFuncOfGetDeviceInfoTest.cpp
     HijackedFuncOfMapMemTest.cpp
+    HijackedFuncOfP2PTest.cpp
     HijackedFuncOfIpcCloseMemory.cpp
     HijackedFuncOfIpcDestroyMemoryName.cpp
     HijackedFuncOfIpcOpenMemory.cpp
@@ -38,6 +39,7 @@ file(GLOB SOURCE
     CtxCreateV2Test.cpp
     CtxCreateExTest.cpp
     DeviceResetTest.cpp
+    DeviceResetExTest.cpp
     DeviceStatusQueryTest.cpp
 
     injectors/KernelContextTest.cpp
@@ -48,6 +50,7 @@ file(GLOB SOURCE
     injectors/MsTxTest.cpp
     injectors/ProfConfigTest.cpp
     injectors/MemoryDataCollectTest.cpp
+    injectors/PeerOnlineLaunchTest.cpp
     injectors/DevMemManagerTest.cpp
     injectors/InstrReportTest.cpp
     injectors/BBCountDumperTest.cpp

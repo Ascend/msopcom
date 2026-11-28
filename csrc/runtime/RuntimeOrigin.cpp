@@ -165,8 +165,10 @@ RTS_API rtError_t rtGetSocVersionOrigin(char *ver, const uint32_t maxLen)
 RTS_API rtError_t rtGetVisibleDeviceIdByLogicDeviceIdOrigin(const int32_t logicDeviceId,
     int32_t *const visibleDeviceId)
 {
-    LOAD_FUNCTION_BODY(RuntimeLibName(), rtGetVisibleDeviceIdByLogicDeviceId, logicDeviceId,
-        visibleDeviceId);
+    // P2P可能由多设备线程同时首次调用，函数缓存由FunctionLoader加锁维护。
+    const auto function = reinterpret_cast<decltype(&rtGetVisibleDeviceIdByLogicDeviceIdOrigin)>(
+        GET_FUNCTION(RuntimeLibName(), "rtGetVisibleDeviceIdByLogicDeviceId"));
+    return function == nullptr ? RT_ERROR_RESERVED : function(logicDeviceId, visibleDeviceId);
 }
 
 RTS_API rtError_t rtStreamCreateOrigin(rtStream_t *stream, int32_t priority)

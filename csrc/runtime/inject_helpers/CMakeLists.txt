@@ -8,6 +8,7 @@ file(GLOB COMMON_SOURCE
     MsTx.cpp
     ProfConfig.cpp
     MemoryDataCollect.cpp
+    MemoryEventReport.cpp
     DevMemManager.cpp
     DBITask.cpp
     ConfigManager.cpp

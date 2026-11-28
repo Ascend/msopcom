@@ -23,6 +23,7 @@
 #include "acl_rt_impl/AscendclImplOrigin.h"
 #include "acl_rt_impl/HijackedFunc.h"
 #include "core/FuncSelector.h"
+#include "hccl/HcclOrigin.h"
 #include "core/HijackedLayerManager.h"
 #include "runtime.h"
 #include "runtime/HijackedFunc.h"
@@ -43,6 +44,8 @@ void HijackedAscendclImplCtor()
     REGISTER_LIBRARY(AclRuntimeLibName());
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtSetDeviceImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtResetDeviceImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtDeviceEnablePeerAccessImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtDeviceDisablePeerAccessImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMallocImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMallocAlign32Impl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMallocCachedImpl);
@@ -53,6 +56,7 @@ void HijackedAscendclImplCtor()
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtFreeHostImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMemsetImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMemcpyImpl);
+    REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMemP2PMapImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtMapMemImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtUnmapMemImpl);
     REGISTER_FUNCTION(AclRuntimeLibName(), aclrtIpcMemGetExportKeyImpl);
@@ -93,6 +97,8 @@ void __attribute__ ((constructor)) HijackedCtor()
     REGISTER_LIBRARY("runtime");
     REGISTER_LIBRARY("ascend_dump");
     REGISTER_FUNCTION("runtime", rtSetDevice);
+    REGISTER_FUNCTION("runtime", rtEnableP2P);
+    REGISTER_FUNCTION("runtime", rtDisableP2P);
     REGISTER_FUNCTION("runtime", rtMalloc);
     REGISTER_FUNCTION("runtime", rtFree);
     REGISTER_FUNCTION("runtime", rtMapMem);
@@ -118,6 +124,7 @@ void __attribute__ ((constructor)) HijackedCtor()
     REGISTER_FUNCTION("runtime", rtCtxGetOverflowAddr);
     REGISTER_FUNCTION("runtime", rtDeviceSetLimit);
     REGISTER_FUNCTION("ascend_dump", AdumpGetDFXInfoAddrForDynamic);
+    HcclOriginCtor();
     RuntimeOriginCtor();
     AscendclOriginCtor();
     AscendclImplOriginCtor();
@@ -147,6 +154,22 @@ rtError_t rtSetDevice(int32_t devId)
         return instance.OriginCall(devId);
     }
     return instance.Call(devId);
+}
+
+rtError_t rtEnableP2P(uint32_t deviceId, uint32_t peerPhyId, uint32_t flag) {
+    HijackedFuncOfEnableP2P instance;
+    if (HijackedLayerManager::Instance().ParentInCallStack(__func__)) {
+        return instance.OriginCall(deviceId, peerPhyId, flag);
+    }
+    return instance.Call(deviceId, peerPhyId, flag);
+}
+
+rtError_t rtDisableP2P(uint32_t deviceId, uint32_t peerPhyId) {
+    HijackedFuncOfDisableP2P instance;
+    if (HijackedLayerManager::Instance().ParentInCallStack(__func__)) {
+        return instance.OriginCall(deviceId, peerPhyId);
+    }
+    return instance.Call(deviceId, peerPhyId);
 }
 
 rtError_t rtMalloc(void **devPtr, uint64_t size, rtMemType_t type, const uint16_t moduleId)
@@ -632,6 +655,18 @@ aclError aclrtResetDeviceImpl(int32_t deviceId)
     return instance.Call(deviceId);
 }
 
+aclError aclrtDeviceEnablePeerAccessImpl(int32_t peerDeviceId, uint32_t flags) {
+    LayerGuard guard(HijackedLayerManager::Instance(), __func__);
+    HijackedFuncOfAclrtDeviceEnablePeerAccessImpl instance;
+    return instance.Call(peerDeviceId, flags);
+}
+
+aclError aclrtDeviceDisablePeerAccessImpl(int32_t peerDeviceId) {
+    LayerGuard guard(HijackedLayerManager::Instance(), __func__);
+    HijackedFuncOfAclrtDeviceDisablePeerAccessImpl instance;
+    return instance.Call(peerDeviceId);
+}
+
 aclError aclrtMallocImpl(void **devPtr, size_t size, aclrtMemMallocPolicy policy)
 {
     LayerGuard guard(HijackedLayerManager::Instance(), __func__);
@@ -678,6 +713,12 @@ aclError aclrtMemcpyImpl(void *dst, size_t destMax, const void *src,
     LayerGuard guard(HijackedLayerManager::Instance(), __func__);
     HijackedFuncOfAclrtMemcpyImpl instance;
     return instance.Call(dst, destMax, src, count, kind);
+}
+
+aclError aclrtMemP2PMapImpl(void *devPtr, size_t size, int32_t dstDevId, uint64_t flags) {
+    LayerGuard guard(HijackedLayerManager::Instance(), __func__);
+    HijackedFuncOfAclrtMemP2PMapImpl instance;
+    return instance.Call(devPtr, size, dstDevId, flags);
 }
 
 aclError aclrtMapMemImpl(void *virPtr, size_t size, size_t offset,

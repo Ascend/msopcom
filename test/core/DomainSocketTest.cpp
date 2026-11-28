@@ -22,6 +22,9 @@
 #undef private
 
 #include <chrono>
+#include <cstdio>
+#include <cstring>
+#include <fcntl.h>
 #include <gtest/gtest.h>
 #include <string>
 #include <sys/socket.h>
@@ -361,4 +364,91 @@ TEST(DomainSocket, multiple_clients_connect_to_server_and_send_messages_expect_s
         AssertReadMessage(socket, 2, messages[2]);
         AssertWriteMessage(socket, 3, messages[3]);
     }
+}
+
+namespace {
+// write替身只保存实际成功写出的前缀，可在包头或载荷内确定性打断发送。
+std::string capturedWrite;
+size_t writeLimit = 0;
+int writeFailure = 0;
+ssize_t CaptureShortWrite(int, const void *buffer, size_t size) {
+    if (writeFailure != 0 && capturedWrite.size() >= writeLimit) {
+        errno = writeFailure;
+        return -1;
+    }
+    size_t count = std::min(size, size_t{3});
+    if (writeFailure != 0) {
+        count = std::min(count, writeLimit - capturedWrite.size());
+    }
+    capturedWrite.append(static_cast<const char *>(buffer), count);
+    return static_cast<ssize_t>(count);
+}
+}
+
+TEST(DomainSocket, short_write_and_interruption_preserve_exact_sent_prefix) {
+    const std::string message(80, 'x');
+    // socketpair提供有效fd，不依赖监听线程和重试时序。
+    for (int failure : {0, EINTR, EPIPE}) {
+        for (size_t boundary : {size_t{7}, size_t{35}}) {
+            SCOPED_TRACE(failure);
+            SCOPED_TRACE(boundary);
+            int pair[2];
+            ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, pair), 0);
+            DomainSocketClient client("unused");
+            client.sfd_ = pair[0];
+            capturedWrite.clear();
+            writeLimit = boundary;
+            writeFailure = failure;
+            MOCKER(&write).stubs().will(invoke(CaptureShortWrite));
+            size_t sent = 0;
+            const bool success = client.Write(message, sent);
+            GlobalMockObject::verify();
+            EXPECT_EQ(success, failure == 0);
+            EXPECT_EQ(sent, failure == 0 ? message.size() : boundary);
+            EXPECT_EQ(capturedWrite, message.substr(0, sent));
+            close(pair[1]);
+        }
+    }
+}
+
+// 经真实SCM_RIGHTS传递fd，先只读一个字节，再补齐包头，核对fd内容及所有权。
+TEST(DomainSocket, binary_fd_survives_fragmented_receive) {
+    int pair[2];
+    ASSERT_EQ(socketpair(AF_UNIX, SOCK_STREAM, 0, pair), 0);
+    DomainSocketClient client("unused");
+    client.sfd_ = pair[0];
+    FILE *file = std::tmpfile();
+    ASSERT_NE(file, nullptr);
+    const std::string binary = "peer-fd-content";
+    ASSERT_EQ(fwrite(binary.data(), 1, binary.size(), file), binary.size());
+    ASSERT_EQ(fflush(file), 0);
+    const std::string message = "ordered-binary-header";
+    size_t sent = 0;
+    ASSERT_TRUE(client.WriteWithFd(message, fileno(file), sent));
+    ASSERT_EQ(sent, message.size());
+    char first = 0;
+    iovec io{&first, 1};
+    alignas(cmsghdr) char control[CMSG_SPACE(sizeof(int))]{};
+    msghdr msg{};
+    msg.msg_iov = &io;
+    msg.msg_iovlen = 1;
+    msg.msg_control = control;
+    msg.msg_controllen = sizeof(control);
+    ASSERT_EQ(recvmsg(pair[1], &msg, MSG_CMSG_CLOEXEC), 1);
+    auto *cmsg = CMSG_FIRSTHDR(&msg);
+    ASSERT_NE(cmsg, nullptr);
+    ASSERT_EQ(cmsg->cmsg_type, SCM_RIGHTS);
+    int receivedFd = -1;
+    std::memcpy(&receivedFd, CMSG_DATA(cmsg), sizeof(receivedFd));
+    ASSERT_GE(receivedFd, 0);
+    fclose(file);
+    std::string contents(binary.size(), '\0');
+    EXPECT_EQ(pread(receivedFd, &contents[0], contents.size(), 0), contents.size());
+    EXPECT_EQ(contents, binary);
+    std::string rest(message.size() - 1, '\0');
+    ASSERT_EQ(recv(pair[1], &rest[0], rest.size(), MSG_WAITALL), rest.size());
+    EXPECT_EQ(std::string(1, first) + rest, message);
+    EXPECT_NE(fcntl(receivedFd, F_GETFD) & FD_CLOEXEC, 0);
+    close(receivedFd);
+    close(pair[1]);
 }

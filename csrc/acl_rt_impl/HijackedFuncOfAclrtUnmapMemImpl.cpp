@@ -17,10 +17,7 @@
 // 该文件主要实现注入函数的功能，其配合被劫持函数的别名，实现新的劫持函数功能
 
 #include "HijackedFunc.h"
-#include "core/FuncSelector.h"
 #include "acl_rt_impl/AscendclImplOrigin.h"
-#include "runtime/inject_helpers/MemoryContext.h"
-#include "runtime/inject_helpers/ProfConfig.h"
 #include "runtime/inject_helpers/MemoryDataCollect.h"
 
 HijackedFuncOfAclrtUnmapMemImpl::HijackedFuncOfAclrtUnmapMemImpl()
@@ -34,11 +31,8 @@ void HijackedFuncOfAclrtUnmapMemImpl::Pre(void* virPtr)
 aclError HijackedFuncOfAclrtUnmapMemImpl::Post(aclError ret)
 {
     // 仅在解除映射成功后更新 sanitizer/profiler 记录；失败时保留原有记录。
-    if (IsSanitizer() && ret == ACL_ERROR_NONE) {
-        ReportFree(reinterpret_cast<uint64_t>(pointer_), MemInfoSrc::ACL);
-    }
-    if (IsOpProf() && !ProfConfig::Instance().IsSimulator() && ret == ACL_ERROR_NONE) {
-        MemoryContext::Instance().Discard(pointer_);
+    if (ret == ACL_ERROR_NONE) {
+        RecordMemoryUnmapping(pointer_, MemInfoSrc::ACL);
     }
     return ret;
 }

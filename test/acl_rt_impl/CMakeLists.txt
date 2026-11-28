@@ -1,4 +1,5 @@
 file(GLOB SOURCE
+    HijackedFuncOfP2PMappingTest.cpp
     AclRuntimeConfigTest.cpp
     AscendclImplOriginTest.cpp
     HijackedFuncOfKernelArgsInitTest.cpp
@@ -16,6 +17,7 @@ file(GLOB SOURCE
     HijackedFuncOfAclrtLaunchKernelWithArgsArrayImplTest.cpp
     HijackedFuncOfAclrtCreateContextImplTest.cpp
     HijackedFuncOfAclrtGetDeviceImplTest.cpp
+    HijackedFuncOfAclrtDevicePeerAccessImplTest.cpp
     HijackedFuncOfAclrtGetDeviceCountImplTest.cpp
     HijackedFuncOfAclrtGetDeviceInfoImplTest.cpp
     HijackedFuncOfAclrtGetSocNameImplTest.cpp

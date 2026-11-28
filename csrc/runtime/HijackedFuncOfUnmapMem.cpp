@@ -18,10 +18,7 @@
 
 #include "HijackedFunc.h"
 #include "RuntimeConfig.h"
-#include "core/FuncSelector.h"
 #include "runtime/inject_helpers/MemoryDataCollect.h"
-#include "inject_helpers/MemoryContext.h"
-#include "inject_helpers/ProfConfig.h"
 
 HijackedFuncOfUnmapMem::HijackedFuncOfUnmapMem()
     : HijackedFuncType(RuntimeLibName(), "rtUnmapMem") {}
@@ -34,11 +31,8 @@ void HijackedFuncOfUnmapMem::Pre(void* devPtr)
 rtError_t HijackedFuncOfUnmapMem::Post(rtError_t ret)
 {
     // 仅在解除映射成功后更新 sanitizer/profiler 记录；失败时保留原有记录。
-    if (IsSanitizer() && ret == RT_ERROR_NONE) {
-        ReportFree(reinterpret_cast<uint64_t>(pointer_), MemInfoSrc::RT);
-    }
-    if (IsOpProf() && !ProfConfig::Instance().IsSimulator() && ret == RT_ERROR_NONE) {
-        MemoryContext::Instance().Discard(pointer_);
+    if (ret == RT_ERROR_NONE) {
+        RecordMemoryUnmapping(pointer_, MemInfoSrc::RT);
     }
     return ret;
 }

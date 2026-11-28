@@ -19,14 +19,12 @@
 #define __CORE_LOCAL_DEVICE_H__
 
 #include <string>
-#include <mutex>
-#include <unordered_map>
 #include "core/Communication.h"
 #include "core/LocalProcess.h"
 
 class LocalDevice : public LocalProcess {
 public:
-    explicit LocalDevice(CommType type) : LocalProcess(type) {}
+    explicit LocalDevice(CommType type) : LocalProcess(type, true) {}
     static LocalDevice &Local(CommType type = CommType::SOCKET);
     static LocalDevice &GetInstance(std::int32_t deviceId, CommType type = CommType::SOCKET);
 };
