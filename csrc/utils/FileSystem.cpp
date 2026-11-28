@@ -216,9 +216,8 @@ size_t GetFileSize(const std::string &filePath)
     return filesize;
 }
 
-bool ReadFile(const std::string &filePath, uint8_t *buffer, size_t bufferSize, bool checkSize)
-{
-    if (!CheckInputFileValid(filePath, "bin")) {
+bool ReadFile(const std::string &filePath, uint8_t *buffer, size_t bufferSize, bool checkSize, size_t threshold) {
+    if (!CheckInputFileValid(filePath, "bin", threshold)) {
         ERROR_LOG("Check file: %s failed", filePath.c_str());
         return false;
     }

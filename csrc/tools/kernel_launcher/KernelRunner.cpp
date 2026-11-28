@@ -138,7 +138,7 @@ bool KernelRunner::InitInput(const Param &in)
     CHECK_RT_RESULT(rtAPI_.CheckRtResult(rtAPI_.RtMallocHost(&hostInputPtr, dataSize),
                                          "rtMallocHost"))
     hostInputPtrs_.emplace_back(hostInputPtr);
-    if (!ReadFile(in.dataPath, (uint8_t *) hostInputPtr, dataSize, true)) {
+    if (!ReadFile(in.dataPath, static_cast<uint8_t *>(hostInputPtr), dataSize, true, MAX_KERNEL_INPUT_FILE_SIZE)) {
         return false;
     }
     void *deviceInputPtr;
@@ -203,7 +203,7 @@ bool KernelRunner::InitFftsAddr(const Param &fftsAddr)
     void *fftsDevice;
     CHECK_RT_RESULT(rtAPI_.CheckRtResult(
         rtAPI_.RtMalloc(&fftsDevice, dataSize, rtMemType_t::RT_MEMORY_DDR_NC), "rtMalloc"))
-    *((uint64_t *)fftsHost) = addr;
+    *static_cast<uint64_t *>(fftsHost) = addr;
     CHECK_RT_RESULT(rtAPI_.CheckRtResult(
         rtAPI_.RtMemcpy(fftsDevice, dataSize, fftsHost, dataSize, rtMemcpyKind_t::RT_MEMCPY_HOST_TO_DEVICE),
         "rtMemcpy"))
@@ -219,7 +219,7 @@ bool KernelRunner::InitTiling(const Param &tiling)
     CHECK_RT_RESULT(rtAPI_.CheckRtResult(rtAPI_.RtMallocHost(&hostInputPtr, dataSize),
                                          "rtMallocHost"))
     hostInputPtrs_.emplace_back(hostInputPtr);
-    if (!ReadFile(tiling.dataPath, (uint8_t *) hostInputPtr, dataSize, true)) {
+    if (!ReadFile(tiling.dataPath, static_cast<uint8_t *>(hostInputPtr), dataSize, true)) {
         return false;
     }
     void *deviceInputPtr;

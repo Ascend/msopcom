@@ -196,7 +196,12 @@ TEST_F(LauncherTest, init_input_required_success)
     param.isRequired = true;
     param.dataSize = 64U; // 模拟64字节的数据大小
 
-    MOCKER_CPP(&ReadFile).stubs().will(returnValue(true));
+    MOCKER_CPP(&ReadFile).expects(once()).will(
+        invoke(+[](const std::string &, uint8_t *, size_t, bool checkSize, size_t threshold) {
+            EXPECT_TRUE(checkSize);
+            EXPECT_EQ(threshold, 90ULL * 1024 * 1024 * 1024);
+            return true;
+        }));
 
     ASSERT_EQ(runner.InitInput(param), true);
 }

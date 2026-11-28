@@ -77,7 +77,7 @@ bool DumpInputData(const string &outputDir,
             config.inputPathList.emplace_back("n");
             continue;
         }
-        constexpr uint64_t MAX_MEM_SIZE = 10ULL * 1024 * 1024 * 1024;
+        constexpr uint64_t MAX_MEM_SIZE = 50ULL * 1024 * 1024 * 1024;
         // 动态输入(tensor list)在 graph 特化编译下没有运行期 tiling 可依赖，meta 里使用2^64 -1作为占位值。
         // 这类入参的数据无法 dump，按空输入降级处理（与上面 length==0 同一约定），防止无法进入检测流程。
         constexpr uint64_t UNKNOWN_MEM_SIZE = 0xFFFFFFFFFFFFFFFFULL;
@@ -88,7 +88,7 @@ bool DumpInputData(const string &outputDir,
             continue;
         }
         if (addrInfo.length > MAX_MEM_SIZE) {
-            ERROR_LOG("Kernel input size too large, %lu > 10G", addrInfo.length);
+            ERROR_LOG("Kernel input %zu exceeds dump size limit: %lu > %lu bytes", i, addrInfo.length, MAX_MEM_SIZE);
             return false;
         }
         void *hostData = nullptr;

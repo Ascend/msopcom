@@ -145,7 +145,7 @@ bool Launcher::InitInput(const Param &in)
     void *hostInputPtr;
     ACL_CHECK_MESSAGE_AND_RETURN(aclrtMallocHost(&hostInputPtr, dataSize), "aclrtMallocHost");
     hostInputPtrs_.emplace_back(hostInputPtr);
-    if (!ReadFile(in.dataPath, (uint8_t *) hostInputPtr, dataSize, true)) {
+    if (!ReadFile(in.dataPath, static_cast<uint8_t *>(hostInputPtr), dataSize, true, MAX_KERNEL_INPUT_FILE_SIZE)) {
         return false;
     }
     void *deviceInputPtr;
@@ -188,7 +188,7 @@ bool Launcher::InitTiling(const Param &tiling)
     void *hostInputPtr;
     ACL_CHECK_MESSAGE_AND_RETURN(aclrtMallocHost(&hostInputPtr, dataSize), "aclrtMallocHost");
     hostInputPtrs_.emplace_back(hostInputPtr);
-    if (!ReadFile(tiling.dataPath, (uint8_t *) hostInputPtr, dataSize, true)) {
+    if (!ReadFile(tiling.dataPath, static_cast<uint8_t *>(hostInputPtr), dataSize, true)) {
         return false;
     }
     void *deviceInputPtr;

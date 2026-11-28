@@ -124,7 +124,8 @@ bool RollbackPath(std::string &path, uint32_t rollNum);
 bool IsPathExists(const std::string &path);
 void RemoveAll(const std::string& filePath);
 size_t GetFileSize(const std::string &filePath);
-bool ReadFile(const std::string &filePath, uint8_t *buffer, size_t bufferSize, bool checkSize = false);
+bool ReadFile(const std::string &filePath, uint8_t *buffer, size_t bufferSize, bool checkSize = false,
+    size_t threshold = MAX_MEM_BYTE_SIZE);
 size_t WriteBinary(const std::string &filename, const char *data, uint64_t length,
                    std::ios_base::openmode mode = std::ios::out | std::ios::binary | std::ios::trunc);
 bool AppendStringToFile(

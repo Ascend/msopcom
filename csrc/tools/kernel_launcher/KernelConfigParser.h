@@ -22,6 +22,8 @@
 
 #include "nlohmann/json.hpp"
 
+constexpr size_t MAX_KERNEL_INPUT_FILE_SIZE = 90ULL * 1024 * 1024 * 1024;
+
 struct KernelConfig {
     struct Param {
         std::string type;

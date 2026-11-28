@@ -34,7 +34,7 @@ namespace {
 // 没有运行期 tiling 时（动态输入 / tensor list 在 graph 特化编译下），kernel meta 里的 input 长度
 // 用 2^64-1 占位表示"大小未知"，此时该入参数据无法 dump，需按空输入降级（见 ArgsContext.cpp DumpInputData）。
 constexpr uint64_t UNKNOWN_MEM_SIZE = 0xFFFFFFFFFFFFFFFFULL;
-constexpr uint64_t MAX_MEM_SIZE = 10ULL * 1024 * 1024 * 1024;
+constexpr uint64_t MAX_MEM_SIZE = 50ULL * 1024 * 1024 * 1024;
 
 aclError ArgsCtxMallocHostStub(void **hostPtr, size_t size)
 {
@@ -123,7 +123,15 @@ TEST_F(ArgsContextTest, test_DumpInputData_mixed_inputs_expect_lists_aligned)
     EXPECT_EQ(config.inputPathList[2], "n");
 }
 
-// 保护：既不是占位值、又超过 10G 上限 -> 仍然判定为异常输入（返回 false）
+TEST_F(ArgsContextTest, test_DumpInputData_at_size_limit_attempts_host_allocation) {
+    DumperContext config;
+    vector<AddrInfo> addrInfos{AddrInfo{0x120000200000ULL, MAX_MEM_SIZE, MemInfoSrc::EXTRA}};
+    MOCKER(&aclrtMallocHostImplOrigin).expects(once()).will(returnValue(ACL_ERROR_BAD_ALLOC));
+
+    EXPECT_FALSE(DumpInputData("/tmp", addrInfos, config));
+}
+
+// Reject an input above the limit before allocating host memory.
 TEST_F(ArgsContextTest, test_DumpInputData_oversize_input_expect_false)
 {
     DumperContext config;
