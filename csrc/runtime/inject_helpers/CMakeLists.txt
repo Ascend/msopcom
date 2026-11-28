@@ -4,6 +4,7 @@ file(GLOB COMMON_SOURCE
     KernelReplacement.cpp
     KernelMatcher.cpp
     ProfDataCollect.cpp
+    L2CacheCleaner.cpp
     ProfTask.cpp
     MsTx.cpp
     ProfConfig.cpp

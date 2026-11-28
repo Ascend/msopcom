@@ -17,6 +17,7 @@
 #include "ProfDataCollect.h"
 
 #include <map>
+#include <memory>
 #include <chrono>
 #include <atomic>
 #include <csignal>
@@ -29,11 +30,11 @@
 #include "KernelContext.h"
 #include "DeviceContext.h"
 #include "ProfTask.h"
+#include "L2CacheCleaner.h"
 #include "utils/Ustring.h"
 #include "utils/FileSystem.h"
 #include "utils/Environment.h"
 #include "utils/PipeCall.h"
-#include "DeviceAttr.h"
 #include "utils/signal.h"
 #include "MemoryContext.h"
 #include "ascend_hal/AscendHalOrigin.h"
@@ -49,7 +50,6 @@
 #include "acl_rt_impl/AscendclImplOrigin.h"
 #include "profapi/ProfOriginal.h"
 #include "LaunchManager.h"
-#include "runtime/inject_helpers/DFXKernelLauncher.h"
 #include "profapi/ProfInjectHelper.h"
 
 using namespace std;
@@ -69,119 +69,7 @@ constexpr char const *MSOPPROF_OUTPUT_DUMP_PATH_ENV = "MSOPPROF_OUTPUT_DUMP_PATH
 constexpr char const *AICORE_KERNEL_NAME = "aicore_binary.o";
 std::atomic<bool> g_receiveSignal{false};
 std::once_flag g_sigRegFlag;
-struct L2CacheClearTiling {
-    uint64_t clearSizePerCore; // B
-    uint32_t aicCoreNum;
-};
-
-// 与 ClearL2Cache kernel 的 TILE_LENGTH 保持一致，避免尾部数据未被触碰。
-constexpr uint64_t L2_CLEAR_TILE_LENGTH = 512;
-
-inline uint64_t CalcClearSizePerCore(uint64_t l2CacheSize, uint32_t coreNum) {
-    if (coreNum == 0) {
-        return 0;
-    }
-    uint64_t perCore = (l2CacheSize + coreNum - 1) / coreNum;
-    return (perCore + L2_CLEAR_TILE_LENGTH - 1) / L2_CLEAR_TILE_LENGTH * L2_CLEAR_TILE_LENGTH;
-}
-
-inline bool QueryClearL2Tiling(const std::string &socVersion, int32_t devId, L2CacheClearTiling &tiling) {
-    if (ResolveProductSeriesBySocVersionPrefix(socVersion) == ChipProductType::UNKNOWN_PRODUCT_TYPE) {
-        return false;
-    }
-    uint64_t l2CacheSize = 0;
-    if (!DeviceAttr::QueryL2CacheSize(devId, l2CacheSize)) {
-        WARN_LOG("Cannot get L2Cache size when clear L2Cache, socVersion=%s, deviceId=%d", socVersion.c_str(), devId);
-        return false;
-    }
-    uint32_t aicCoreNum = 0;
-    if (!DeviceAttr::QueryAicoreCoreNum(devId, aicCoreNum)) {
-        WARN_LOG(
-            "Cannot get aicore core num when clear L2Cache, socVersion=%s, deviceId=%d", socVersion.c_str(), devId);
-        return false;
-    }
-    tiling.clearSizePerCore = CalcClearSizePerCore(l2CacheSize, aicCoreNum);
-    tiling.aicCoreNum = aicCoreNum;
-    if (tiling.clearSizePerCore == 0) {
-        return false;
-    }
-    INFO_LOG("Automatic SoC adaptation: soc=%s, runtime L2 cache tiling: L2=%lu bytes, cores=%u, bytes/core=%lu, "
-             "deviceId=%d.",
-        socVersion.c_str(), static_cast<unsigned long>(l2CacheSize), aicCoreNum,
-        static_cast<unsigned long>(tiling.clearSizePerCore), devId);
-    return true;
-}
-
-static std::map<std::string, L2CacheClearTiling> l2CacheClearTilingMap = {
-    {"Ascend910B1", {8388608, 24}},
-    {"Ascend910B2", {8388608, 24}},
-    {"Ascend910B2C", {8388608, 24}},
-    {"Ascend910B3", {10485760, 20}},
-    {"Ascend910B4", {5242880, 20}},
-    {"Ascend910B4-1", {10485760, 20}},
-    {"Ascend910_9391", {8388608, 24}},
-    {"Ascend910_9392", {8388608, 24}},
-    {"Ascend910_9381", {8388608, 24}},
-    {"Ascend910_9382", {8388608, 24}},
-    {"Ascend910_9372", {10485760, 20}},
-    {"Ascend910_9362", {10485760, 20}},
-    {"Ascend910_9363", {10485760, 20}},
-    {"Ascend310P1", {2097152, 10}},
-    {"Ascend310P3", {2097152, 8}},
-    {"Ascend310P5", {2097152, 8}},
-    {"Ascend310P7", {2097152, 8}},
-    {"Ascend950DT_950x", {4194304, 8}},
-    {"Ascend950DT_950y", {4194304, 8}},
-    {"Ascend950DT_9571", {4794880, 28}},
-    {"Ascend950DT_9572", {4794880, 28}},
-    {"Ascend950DT_9573", {4194304, 28}},
-    {"Ascend950DT_9574", {4194304, 28}},
-    {"Ascend950DT_9575", {4794880, 28}},
-    {"Ascend950DT_9576", {4794880, 28}},
-    {"Ascend950DT_9577", {4194304, 28}},
-    {"Ascend950DT_9578", {4194304, 28}},
-    {"Ascend950DT_9581", {4194304, 32}},
-    {"Ascend950DT_9582", {4194304, 32}},
-    {"Ascend950DT_9583", {3670016, 32}},
-    {"Ascend950DT_9584", {3670016, 32}},
-    {"Ascend950DT_9585", {4194304, 32}},
-    {"Ascend950DT_9586", {4194304, 32}},
-    {"Ascend950DT_9587", {3670016, 32}},
-    {"Ascend950DT_9588", {3670016, 32}},
-    {"Ascend950DT_9591", {3729920, 36}},
-    {"Ascend950DT_9592", {3729920, 36}},
-    {"Ascend950DT_9595", {3729920, 36}},
-    {"Ascend950DT_9596", {3729920, 36}},
-    {"Ascend950DT_95A1", {3728280, 36}},
-    {"Ascend950DT_95A2", {3728280, 36}},
-    {"Ascend950PR_950z", {2097152, 8}},
-    {"Ascend950PR_9579", {4794880, 28}},
-    {"Ascend950PR_957b", {4194304, 28}},
-    {"Ascend950PR_957c", {4194304, 28}},
-    {"Ascend950PR_957d", {3596800, 28}},
-    {"Ascend950PR_9589", {4194304, 32}},
-    {"Ascend950PR_958b", {3670016, 32}},
-    {"Ascend950PR_9599", {3729920, 36}},
-};
-
-aclError CheckAclResult(aclError result, const string &apiName) {
-    if (result == ACL_SUCCESS) {
-        return result;
-    }
-    WARN_LOG("aclrt API call %s() failed. error code: %d", apiName.c_str(), result);
-    return result;
-}
-struct L2cacheParam {
-    void *flushBuffer;
-    void *buffer;
-    void *cmoBuffer;
-    void *stream;
-    void *blockLen;
-    void *l2Buffer;
-    uint32_t blockDim;
-    uint64_t bufferSize;
-};
-}
+} // namespace
 
 class SimulatorLauncher {
 public:
@@ -318,7 +206,7 @@ public:
     bool RangeReplay(const rtStream_t &stream, const aclmdlRI &modelRI) override;
 
 private:
-    bool ReplayOnce(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc, L2cacheParam &param);
+    bool ReplayOnce(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc);
     bool KernelReplay(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc);
     bool KernelLaunchForInstrProf(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc);
     bool SupportProfL2CacheEvict();
@@ -374,25 +262,19 @@ private:
     void WarmUp(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc) const;
     void WarmUp(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc, uint16_t warmUpTimes) const;
     void WarmUp(const rtStream_t &stream, const aclmdlRI &modelRI) const;
-    bool PrepareClearL2CacheParam(L2cacheParam &param) const;
-    bool MallocBuffer(L2cacheParam &param) const;
-    bool WaitClearL2Cache(L2cacheParam &param) const;
-    void FreeL2Cache(L2cacheParam &param) const;
-    bool ClearL2Cache(L2cacheParam &param) const;
-    bool CallEmptyKernel(void *stream) const;
     size_t GetReplayTimes() const { return static_cast<size_t>(EVENT_MAX_NUM / PMU_EVENT_MAX_NUM); }
     bool RangeReplayProfData(const rtStream_t &stream);
     bool RangeReplayInit(bool &needReplay);
     void SaveFrequency(const string &outputPath) const;
-    bool RangeReplayOnce(L2cacheParam &param, aclmdlRI const &modelRI);
+    bool RangeReplayOnce(rtStream_t stream, const aclmdlRI &modelRI);
 
+    std::unique_ptr<L2CacheCleaner> l2CacheCleaner_;
     SimulatorLauncher simulatorLauncher;
     std::thread readThread_;
     std::atomic<uint32_t> replayCount_{0};
     int32_t curFreq_{-1};
     int64_t ratedFreq_{-1};
     std::unique_ptr<ProfTask> taskPtr_;
-    bool isClearParamSuccess_{false};
     bool profL2cacheEvict_ = false;
 };
 
@@ -1078,8 +960,7 @@ void DataCollectInDevice::MC2KernelLaunch(
     }
 }
 
-bool DataCollectInDevice::ReplayOnce(
-    rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc, L2cacheParam &param) {
+bool DataCollectInDevice::ReplayOnce(rtStream_t stream, const std::function<bool(void)> &kernelLaunchFunc) {
     bool isMC2 = KernelContext::Instance().GetMC2Flag();
     uint16_t warmUpTimes = ProfConfig::Instance().GetWarmUpTimes();
     if (IsPmuEventEmpty(replayCount_) && replayCount_ != 0) {
@@ -1087,7 +968,8 @@ bool DataCollectInDevice::ReplayOnce(
         return true;
     }
     DEBUG_LOG("Replaying round on device %d No. %d time", deviceId_, replayCount_ + 1);
-    if (!ProfConfig::Instance().IsAppReplay() && isClearParamSuccess_ && !ClearL2Cache(param)) {
+    if (!ProfConfig::Instance().IsAppReplay() && l2CacheCleaner_ && l2CacheCleaner_->IsReady() &&
+        !l2CacheCleaner_->Clear()) {
         WARN_LOG("Clear L2Cache failed. replay count is %d", replayCount_ + 1);
     }
     if (!isMC2 && !ProfConfig::Instance().IsAppReplay() && !KernelContext::Instance().GetLcclFlag() &&
@@ -1100,7 +982,7 @@ bool DataCollectInDevice::ReplayOnce(
         WARN_LOG("Start profiling failed. Skipping %d", replayCount_ + 1);
         return false;
     }
-    if (profL2cacheEvict_ && CallEmptyKernel(stream) == ACL_SUCCESS) {
+    if (profL2cacheEvict_ && L2CacheCleaner::CallEmptyKernel(stream)) {
         DEBUG_LOG("Success run empty kernel for l2cache");
     }
     bool ret = true;
@@ -1184,22 +1066,22 @@ bool DataCollectInDevice::KernelReplay(rtStream_t stream, const std::function<bo
     replayCount_ = ProfConfig::Instance().GetInitReplayCount();
     bool funcRet{true};
     bool isMC2 = KernelContext::Instance().GetMC2Flag();
-    L2cacheParam param{};
-    param.blockLen = nullptr;
-    param.l2Buffer = nullptr;
-    param.stream = stream;
-    isClearParamSuccess_ = !ProfConfig::Instance().IsAppReplay() && PrepareClearL2CacheParam(param);
+    if (!ProfConfig::Instance().IsAppReplay()) {
+        const int32_t devId = ProfConfig::Instance().IsSimulator() ? 0 : deviceId_;
+        l2CacheCleaner_.reset(new L2CacheCleaner());
+        l2CacheCleaner_->Prepare(stream, devId);
+    }
     WarmUp(stream, kernelLaunchFunc);
     ProfCommandAction(MsprofCommandHandleType::PROF_COMMANDHANDLE_TYPE_START);
     if (SupportProfL2CacheEvict()) {
-        bool res = ReplayOnce(stream, kernelLaunchFunc, param);
+        bool res = ReplayOnce(stream, kernelLaunchFunc);
         profL2cacheEvict_ = false;
         if (ProfConfig::Instance().IsAppReplay()) {
             return res;
         }
     }
     for (; replayCount_ < GetReplayTimes() && !IsReceiveSignal(); replayCount_++) {
-        auto profRes = ReplayOnce(stream, kernelLaunchFunc, param);
+        auto profRes = ReplayOnce(stream, kernelLaunchFunc);
         funcRet = funcRet && profRes;
         if (ProfConfig::Instance().IsAppReplay()) {
             return funcRet;
@@ -1209,7 +1091,7 @@ bool DataCollectInDevice::KernelReplay(rtStream_t stream, const std::function<bo
     if (!isMC2 && !KernelContext::Instance().GetLcclFlag()) {
         MemoryContext::Instance().Restore();
     }
-    FreeL2Cache(param);
+    l2CacheCleaner_.reset();
     return funcRet;
 }
 
@@ -1298,8 +1180,8 @@ bool DataCollectInDevice::RangeReplayInit(bool &needReplay) {
     return true;
 }
 
-bool DataCollectInDevice::RangeReplayOnce(L2cacheParam &param, const aclmdlRI &modelRI) {
-    if (isClearParamSuccess_ && !ClearL2Cache(param)) {
+bool DataCollectInDevice::RangeReplayOnce(rtStream_t stream, const aclmdlRI &modelRI) {
+    if (l2CacheCleaner_ && l2CacheCleaner_->IsReady() && !l2CacheCleaner_->Clear()) {
         WARN_LOG("Clear L2Cache failed. replay count is %d", replayCount_ + 1);
     }
     if (!MemoryContext::Instance().Restore()) {
@@ -1311,13 +1193,13 @@ bool DataCollectInDevice::RangeReplayOnce(L2cacheParam &param, const aclmdlRI &m
         WARN_LOG("Start profiling failed. Skipping %d", replayCount_ + 1);
         return false;
     }
-    aclError ret = aclmdlRIExecuteAsyncImplOrigin(modelRI, param.stream);
+    aclError ret = aclmdlRIExecuteAsyncImplOrigin(modelRI, stream);
     if (IsPmuEventEmpty(replayCount_ + 1)) {
         LoadFrequency();
         SaveFrequency(ProfDataCollect::GetAicoreOutputPath(deviceId_));
     }
     if (ret == ACL_SUCCESS) {
-        ret = aclrtSynchronizeStreamWithTimeoutImplOrigin(param.stream, SYNCHRONIZE_TIME_OUT);
+        ret = aclrtSynchronizeStreamWithTimeoutImplOrigin(stream, SYNCHRONIZE_TIME_OUT);
     }
     usleep(WAIT_DATA_READ_TIME); // 延时100us，防止duration数据读取不全
     StopProf();
@@ -1343,11 +1225,9 @@ bool DataCollectInDevice::RangeReplay(const rtStream_t &stream, const aclmdlRI &
     }
     MemoryContext::Instance().Backup();
     WarmUp(stream, modelRI);
-    L2cacheParam param{};
-    param.blockLen = nullptr;
-    param.l2Buffer = nullptr;
-    param.stream = stream;
-    isClearParamSuccess_ = PrepareClearL2CacheParam(param);
+    const int32_t devId = ProfConfig::Instance().IsSimulator() ? 0 : deviceId_;
+    l2CacheCleaner_.reset(new L2CacheCleaner());
+    l2CacheCleaner_->Prepare(stream, devId);
     replayCount_ = ProfConfig::Instance().GetInitReplayCount();
     ProfCommandAction(MsprofCommandHandleType::PROF_COMMANDHANDLE_TYPE_START);
     for (; replayCount_ < GetReplayTimes() && !IsReceiveSignal(); replayCount_++) {
@@ -1355,11 +1235,11 @@ bool DataCollectInDevice::RangeReplay(const rtStream_t &stream, const aclmdlRI &
             break;
         }
         DEBUG_LOG("Replaying round on device %d No. %d time", deviceId_, replayCount_ + 1);
-        if (RangeReplayOnce(param, modelRI)) {
+        if (RangeReplayOnce(stream, modelRI)) {
             funcRet = true;
         }
     }
-    FreeL2Cache(param);
+    l2CacheCleaner_.reset();
     return funcRet;
 }
 
@@ -1501,137 +1381,6 @@ void DataCollectInDevice::WarmUp(const rtStream_t &stream, const aclmdlRI &model
     if (aclrtSynchronizeStreamWithTimeoutImplOrigin(stream, SYNCHRONIZE_TIME_OUT) == ACL_SUCCESS) {
         DEBUG_LOG("Warm Up success in range replay mode.");
     }
-}
-
-bool DataCollectInDevice::PrepareClearL2CacheParam(L2cacheParam &param) const {
-    const std::string &socVersion = DeviceContext::Local().GetSocVersion();
-    const int32_t devId = ProfConfig::Instance().IsSimulator() ? 0 : deviceId_;
-    L2CacheClearTiling tiling{};
-    auto it = l2CacheClearTilingMap.find(socVersion);
-    if (it != l2CacheClearTilingMap.end()) {
-        tiling = it->second;
-    } else if (!QueryClearL2Tiling(socVersion, devId, tiling)) {
-        WARN_LOG("Cannot get L2Cache info when clear L2Cache, socVersion=%s, deviceId=%d", socVersion.c_str(), devId);
-        return false;
-    }
-    uint64_t bufferSize = tiling.clearSizePerCore * tiling.aicCoreNum;
-    param.bufferSize = bufferSize;
-    if (!MallocBuffer(param)) {
-        return false;
-    }
-    if (aclrtMallocImplOrigin(&param.l2Buffer, bufferSize, ACL_MEM_MALLOC_HUGE_FIRST) != ACL_SUCCESS) {
-        WARN_LOG("Malloc buffer failed when clear L2Cache.");
-        return false;
-    }
-    void *hostBlockLen;
-    if (aclrtMallocHostImplOrigin(&hostBlockLen, sizeof(uint64_t)) != ACL_SUCCESS) {
-        WARN_LOG("Malloc host tiling info failed when clear L2Cache.");
-        aclrtFreeImplOrigin(param.l2Buffer);
-        return false;
-    }
-    shared_ptr<void> hostBlockLenDefer(
-        nullptr, [&hostBlockLen](std::nullptr_t &) { aclrtFreeHostImplOrigin(hostBlockLen); });
-    *(uint64_t *)hostBlockLen = tiling.clearSizePerCore;
-    // runtime接口好像不会补齐到32字节，申请小块的内存会出现访问时直接挂掉的情况
-    if (aclrtMallocImplOrigin(&param.blockLen, 32, ACL_MEM_MALLOC_HUGE_FIRST) != ACL_SUCCESS) {
-        WARN_LOG("Malloc tiling info failed when clear L2Cache.");
-        aclrtFreeImplOrigin(param.l2Buffer);
-        return false;
-    }
-    if (aclrtMemcpyAsyncImplOrigin(param.blockLen, sizeof(uint64_t), hostBlockLen, sizeof(uint64_t),
-            ACL_MEMCPY_HOST_TO_DEVICE, param.stream) != ACL_SUCCESS ||
-        aclrtSynchronizeStreamImplOrigin(param.stream) != ACL_SUCCESS) {
-        WARN_LOG("Memcpy tiling info failed when clear L2Cache.");
-        aclrtFreeImplOrigin(param.l2Buffer);
-        aclrtFreeImplOrigin(param.blockLen);
-        return false;
-    }
-    param.blockDim = tiling.aicCoreNum;
-    DEBUG_LOG("Prepare clear L2Cache param success, socVersion=%s, clearSizePerCore=%lu, aicCoreNum=%u.",
-        socVersion.c_str(), static_cast<unsigned long>(tiling.clearSizePerCore), tiling.aicCoreNum);
-    return true;
-}
-
-// 初始化3个buffer，从flushbuffer搬运到buffer上，清除L2cache数据；cmobuffer用于将buffersize的数据预取到L2cahce，完成L2cache的清除
-bool DataCollectInDevice::MallocBuffer(L2cacheParam &param) const {
-    auto ret = CheckAclResult(
-        aclrtMallocImplOrigin(&param.buffer, param.bufferSize, ACL_MEM_MALLOC_HUGE_FIRST), "buffer aclrtMallocImpl");
-    if (ret != ACL_SUCCESS) {
-        return false;
-    }
-    ret = CheckAclResult(aclrtMallocImplOrigin(&param.flushBuffer, param.bufferSize, ACL_MEM_MALLOC_HUGE_FIRST),
-        "flush buffer aclrtMallocImpl");
-    if (ret != ACL_SUCCESS) {
-        return false;
-    }
-    ret = CheckAclResult(aclrtMallocImplOrigin(&param.cmoBuffer, param.bufferSize, ACL_MEM_MALLOC_HUGE_FIRST),
-        "cmoBuffer aclrtMallocImpl");
-    return ret == ACL_SUCCESS;
-}
-
-bool DataCollectInDevice::WaitClearL2Cache(L2cacheParam &param) const {
-    const std::string &runSocVersion = DeviceContext::Local().GetSocVersion();
-    auto ret = CheckAclResult(aclrtMemcpyAsyncImplOrigin(param.flushBuffer, param.bufferSize, param.buffer,
-                                  param.bufferSize, ACL_MEMCPY_DEVICE_TO_DEVICE, param.stream),
-        "aclrtMemcpyAsyncImpl");
-    if (ret != ACL_SUCCESS) {
-        return false;
-    }
-    ret = CheckAclResult(aclrtSynchronizeStreamImplOrigin(param.stream), "aclrtSynchronizeStreamImpl");
-    if (ret != ACL_SUCCESS) {
-        return false;
-    }
-    auto chipType = GetProductTypeBySocVersion(runSocVersion);
-    if (IsChipSeriesTypeValid(chipType, ChipProductType::ASCEND910B_SERIES) ||
-        IsChipSeriesTypeValid(chipType, ChipProductType::ASCEND910_93_SERIES)) {
-        ret = CheckAclResult(
-            aclrtCmoAsyncImplOrigin(param.cmoBuffer, param.bufferSize, ACL_RT_CMO_TYPE_PREFETCH, param.stream),
-            "aclrtCmoAsyncImpl");
-        if (ret != ACL_SUCCESS) {
-            return false;
-        }
-    }
-    ret = CheckAclResult(aclrtSynchronizeStreamImplOrigin(param.stream), "aclrtSynchronizeStreamImpl");
-    return ret == ACL_SUCCESS;
-}
-
-void DataCollectInDevice::FreeL2Cache(L2cacheParam &param) const {
-    if (param.flushBuffer != nullptr) {
-        CheckAclResult(aclrtFreeImplOrigin(param.flushBuffer), "flush buffer aclrtFreeImpl");
-    }
-    if (param.cmoBuffer != nullptr) {
-        CheckAclResult(aclrtFreeImplOrigin(param.cmoBuffer), "cmo buffer aclrtFreeImpl");
-    }
-    if (param.buffer != nullptr) {
-        CheckAclResult(aclrtFreeImplOrigin(param.buffer), "buffer aclrtFreeImpl");
-    }
-    if (param.l2Buffer != nullptr) {
-        CheckAclResult(aclrtFreeImplOrigin(param.l2Buffer), "l2Buffer aclrtFreeImpl");
-    }
-    if (param.blockLen != nullptr) {
-        CheckAclResult(aclrtFreeImplOrigin(param.blockLen), "blockLen aclrtFreeImpl");
-    }
-}
-
-bool DataCollectInDevice::ClearL2Cache(L2cacheParam &param) const {
-    std::vector<void *> inputArgs = {param.l2Buffer, param.blockLen};
-    if (!DFXKernelLauncher::Instance().CallClearL2Cache(param.blockDim, param.stream, inputArgs)) {
-        WARN_LOG("Failed to clear L2cache by operator");
-        return false;
-    }
-    if (!WaitClearL2Cache(param)) {
-        WARN_LOG("Failed to clear L2cache by move memory to L2");
-        return false;
-    }
-    return true;
-}
-
-bool DataCollectInDevice::CallEmptyKernel(void *stream) const {
-    if (!DFXKernelLauncher::Instance().CallEmptyKernel(stream)) {
-        WARN_LOG("Failed to call empty kernel for L2cache");
-        return false;
-    }
-    return true;
 }
 
 void DataCollectInDevice::LoadFrequency() {
